@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
+[codespell]
+skip = .git,target,Cargo.lock
+ignore-words-list = crate
