@@ -1,5 +1,8 @@
 ### Heapless graphs in Rust
 
+[![Build and test](https://github.com/kaidokert/heapless-graphs-rs/actions/workflows/build.yaml/badge.svg)](https://github.com/kaidokert/heapless-graphs-rs/actions/workflows/build.yaml)
+[![Coverage Status](https://coveralls.io/repos/github/kaidokert/heapless-graphs-rs/badge.svg?branch=main)](https://coveralls.io/github/kaidokert/heapless-graphs-rs?branch=main)
+
 Heapless graphs library. Please see crate documentation for detailed usage.
 
 This crate provides composable building blocks for graph structures, all with
