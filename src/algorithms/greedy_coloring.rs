@@ -1,14 +1,12 @@
-// TODO: Remove this
-#![allow(unused)]
-
-use heapless::sorted_linked_list::Node;
-
 use crate::{
     containers::{maps::MapTrait, sets::SetTrait},
     graph::GraphWithNodeValues,
 };
 
 use super::{AlgorithmError, OptionResultExt};
+
+// TODO: Remove this
+#[allow(unused)]
 
 pub fn greedy_color<NI, G, V, M, S>(
     graph: &G,
@@ -19,7 +17,7 @@ pub fn greedy_color<NI, G, V, M, S>(
 ) -> Result<M, AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: GraphWithNodeValues<V, NodeIndex = NI>,
+    G: GraphWithNodeValues<NI, V>,
     M: MapTrait<NI, Option<V>>,
     S: SetTrait<Option<V>>,
     V: Copy + Ord + core::ops::Add<Output = V> + Default,

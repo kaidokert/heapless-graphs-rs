@@ -9,7 +9,10 @@ use crate::edges::EdgeNodeError;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 /// Errors for Graph
-pub enum GraphError<NI> {
+pub enum GraphError<NI>
+where
+    NI: PartialEq,
+{
     /// Edge is referring to a node not present in graph
     EdgeHasInvalidNode,
     /// Contains an `EdgeNodeError`
@@ -35,23 +38,30 @@ where
 /// The underlying storage is defined by concrete implementations
 /// like [EdgeNodeList](crate::edge_list::EdgeNodeList) or
 /// [SliceAdjacencyList](`crate::adjacency_list::SliceAdjacencyList`)
-pub trait Graph {
-    type NodeIndex: PartialEq;
-    type Error: From<GraphError<Self::NodeIndex>>;
+pub trait Graph<NI>
+where
+    NI: PartialEq,
+    Self: Sized,
+{
+    type Error: From<GraphError<NI>>;
+
+    // todo: Should this be DoubleEnded or not ?
+    type Edges<'a>: Iterator<Item = (&'a NI, &'a NI)>
+    where
+        Self: 'a,
+        NI: 'a;
+    type Nodes<'a>: Iterator<Item = &'a NI>
+    where
+        Self: 'a,
+        NI: 'a;
 
     /// Return an iterator over all edges in the graph
-    fn get_edges<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a Self::NodeIndex, &'a Self::NodeIndex)>, Self::Error>
-    where
-        Self::NodeIndex: 'a;
+    fn get_edges(&self) -> Result<Self::Edges<'_>, Self::Error>;
     /// Return an iterator over all nodes in the graph
-    fn get_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a Self::NodeIndex>, Self::Error>
-    where
-        Self::NodeIndex: 'a;
+    fn get_nodes(&self) -> Result<Self::Nodes<'_>, Self::Error>;
 
     /// Check if a node is present in the graph
-    fn contains_node(&self, node: &Self::NodeIndex) -> Result<bool, Self::Error> {
+    fn contains_node(&self, node: &NI) -> Result<bool, Self::Error> {
         Ok(self.get_nodes()?.any(|x| x == node))
     }
 
@@ -61,8 +71,8 @@ pub trait Graph {
     /// edges in the graph.
     fn outgoing_edges_for_node<'a>(
         &'a self,
-        node: &'a Self::NodeIndex,
-    ) -> Result<impl Iterator<Item = &'a Self::NodeIndex>, Self::Error> {
+        node: &'a NI,
+    ) -> Result<impl Iterator<Item = &'a NI>, Self::Error> {
         Ok(self
             .get_edges()?
             .filter(move |(src, _)| *src == node)
@@ -75,8 +85,8 @@ pub trait Graph {
     /// edges in the graph.
     fn incoming_edges_for_node<'a>(
         &'a self,
-        node: &'a Self::NodeIndex,
-    ) -> Result<impl Iterator<Item = &'a Self::NodeIndex>, Self::Error> {
+        node: &'a NI,
+    ) -> Result<impl Iterator<Item = &'a NI>, Self::Error> {
         Ok(self
             .get_edges()?
             .filter(move |(_, dst)| *dst == node)
@@ -89,80 +99,84 @@ pub trait Graph {
     /// edges in the graph.
     fn neighboring_nodes<'a>(
         &'a self,
-        node: &'a Self::NodeIndex,
-    ) -> Result<impl Iterator<Item = &'a Self::NodeIndex>, Self::Error> {
+        node: &'a NI,
+    ) -> Result<impl Iterator<Item = &'a NI>, Self::Error> {
         Ok(self
             .get_edges()?
             .filter(move |(src, dst)| *src == node || *dst == node)
             .map(move |(src, dst)| if src == node { dst } else { src }))
     }
-}
 
-/// Check if all edges refer to valid nodes in the graph
-pub(crate) fn integrity_check<G: Graph>(graph: &G) -> Result<(), G::Error> {
-    for edge in graph.get_edges()? {
-        if !graph.contains_node(edge.0)? {
-            return Err(GraphError::EdgeHasInvalidNode.into());
+    /// Check if all edges refer to valid nodes in the graph
+    fn integrity_check(&self) -> Result<(), Self::Error> {
+        for edge in self.get_edges()? {
+            if !self.contains_node(edge.0)? {
+                return Err(GraphError::EdgeHasInvalidNode.into());
+            }
+            if !self.contains_node(edge.1)? {
+                return Err(GraphError::EdgeHasInvalidNode.into());
+            }
         }
-        if !graph.contains_node(edge.1)? {
-            return Err(GraphError::EdgeHasInvalidNode.into());
-        }
+        Ok(())
     }
-    Ok(())
 }
 
 /// Graph where nodes can be added and removed
 ///
 /// Warning: Work in progress
-pub trait GraphWithMutableNodes: Graph {
+pub trait GraphWithMutableNodes<NI: PartialEq>: Graph<NI> {
     // TODO: What if there's a duplicate node?
-    fn add_node_unchecked(&mut self, n: Self::NodeIndex) -> Option<usize>;
+    fn add_node_unchecked(&mut self, n: NI) -> Option<usize>;
     // TODO: what happens if the node is referred to? IntegrityError ?
-    fn remove_node_unchecked(&mut self, n: Self::NodeIndex) -> Option<usize>;
+    fn remove_node_unchecked(&mut self, n: NI) -> Option<usize>;
 }
 
 /// Trait for graphs that store node values
 ///
 /// Warning: Work in progress
-pub trait GraphWithNodeValues<V>: Graph {
+pub trait GraphWithNodeValues<NI: PartialEq, V>: Graph<NI> {
+    type NodeValues<'a>: Iterator<Item = (&'a NI, Option<&'a V>)>
+    where
+        Self: 'a,
+        V: 'a,
+        NI: 'a;
     /// Return an iterator over all nodes with values in the graph
-    fn get_node_values<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a Self::NodeIndex, Option<&'a V>)>, Self::Error>
+    fn get_node_values<'a>(&'a self) -> Result<Self::NodeValues<'a>, GraphError<NI>>
     where
         V: 'a;
     /// Return a value for a node
-    fn get_node_value(&self, node: &Self::NodeIndex) -> Result<Option<&V>, Self::Error>;
+    fn get_node_value(&self, node: &NI) -> Result<Option<&V>, GraphError<NI>>;
 
     /// Return neighboring nodes with values
     fn neighboring_nodes_with_values<'a>(
         &'a self,
-        node: &'a Self::NodeIndex,
-    ) -> Result<impl Iterator<Item = (&'a Self::NodeIndex, Option<&'a V>)>, Self::Error>
+        node: &'a NI,
+    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a V>)>, Self::Error>
     where
+        NI: 'a,
         V: 'a;
 }
 
 /// Graph where edges can be added and removed
 ///
 /// Warning: Work in progress
-pub trait GraphWithMutableEdges: Graph {
+pub trait GraphWithMutableEdges<NI: PartialEq>: Graph<NI> {
     // TODO: should be simple, actually implement this
-    fn add_edge(&mut self, src: Self::NodeIndex, dst: Self::NodeIndex) -> Option<usize>;
+    fn add_edge(&mut self, src: NI, dst: NI) -> Option<usize>;
     // TODO: What happens with duplicates ?
-    fn remove_edge(&mut self, src: Self::NodeIndex, dst: Self::NodeIndex) -> Option<usize>;
+    fn remove_edge(&mut self, src: NI, dst: NI) -> Option<usize>;
 }
 
 /// Trait for graphs that store edge values or weights
-pub trait GraphWithEdgeValues<V>: Graph {
+pub trait GraphWithEdgeValues<NI: PartialEq, V>: Graph<NI> {
+    type EdgeValues<'a>: Iterator<Item = (&'a NI, &'a NI, Option<&'a V>)>
+    where
+        Self: 'a,
+        V: 'a,
+        NI: 'a;
+    // TODO: lifetime 'a here shouldn't be needed
     /// Return an iterator over all edges with values in the graph
-    #[allow(clippy::type_complexity)]
-    fn get_edge_values<'a>(
-        &'a self,
-    ) -> Result<
-        impl Iterator<Item = (&'a Self::NodeIndex, &'a Self::NodeIndex, Option<&'a V>)>,
-        Self::Error,
-    >
+    fn get_edge_values<'a>(&'a self) -> Result<Self::EdgeValues<'a>, GraphError<NI>>
     where
         V: 'a;
 
@@ -172,8 +186,8 @@ pub trait GraphWithEdgeValues<V>: Graph {
     /// edges in the graph.
     fn neighboring_nodes_with_values<'a>(
         &'a self,
-        node: &'a Self::NodeIndex,
-    ) -> Result<impl Iterator<Item = (&'a Self::NodeIndex, Option<&'a V>)>, Self::Error>
+        node: &'a NI,
+    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a V>)>, GraphError<NI>>
     where
         V: 'a,
     {

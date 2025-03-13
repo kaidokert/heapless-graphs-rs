@@ -19,7 +19,7 @@ pub fn kahns<'a, NI, G, Q, M>(
 ) -> Result<&'a [NI], AlgorithmError<NI>>
 where
     NI: PartialEq + Copy + core::fmt::Debug,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     Q: Deque<NI>,
     M: MapTrait<NI, isize>,
     AlgorithmError<NI>: From<G::Error>,

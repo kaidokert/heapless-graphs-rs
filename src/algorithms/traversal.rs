@@ -21,7 +21,7 @@ pub fn dfs_recursive_unchecked<G, NI, VT, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     for<'b> F: FnMut(&'b NI),
     AlgorithmError<NI>: From<G::Error>,
@@ -49,7 +49,7 @@ pub fn dfs_recursive<G, NI, VT, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     for<'b> F: FnMut(&'b NI),
     AlgorithmError<NI>: From<G::Error>,
@@ -73,7 +73,7 @@ pub fn dfs_iterative_unchecked<G, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
@@ -111,7 +111,7 @@ pub fn dfs_iterative<G, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
@@ -136,7 +136,7 @@ pub fn bfs_unchecked<G, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
@@ -175,7 +175,7 @@ pub fn bfs<G, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
@@ -194,6 +194,7 @@ mod tests {
     #[cfg(feature = "heapless")]
     use crate::adjacency_list::MapAdjacencyList;
     use crate::adjacency_list::{EdgesOnly, SliceAdjacencyList};
+    use crate::adjacency_matrix::GenMatrix;
     use crate::containers::queues::CircularQueue;
     use crate::edge_list::{EdgeList, EdgeNodeList};
     use crate::edges::EdgeStruct;
@@ -203,7 +204,7 @@ mod tests {
     fn test_dfs_recursive<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         AlgorithmError<NI>: From<E::Error>,
     {
         let mut visited = [false; C];
@@ -221,7 +222,7 @@ mod tests {
     fn test_dfs_iterative<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         AlgorithmError<NI>: From<E::Error>,
     {
         let mut visited = [false; C];
@@ -241,7 +242,7 @@ mod tests {
     fn test_bfs<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         E::Error: core::fmt::Debug,
         AlgorithmError<NI>: From<E::Error>,
     {
@@ -266,7 +267,7 @@ mod tests {
         bfs_check: &[NI],
     ) where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         AlgorithmError<NI>: From<E::Error>,
         E::Error: core::fmt::Debug,
     {
@@ -351,6 +352,17 @@ mod tests {
             .into_iter(),
         ))
         .unwrap();
+        let matrix = GenMatrix::<8, usize, _, _, _>::new([
+            [None, None, None, None, None, None, None, None], // 0
+            [None, None, None, None, Some(false), Some(false), None, None], // 1
+            [None, None, None, None, None, None, None, None], // 2
+            [None, Some(false), None, None, None, None, None, None], // 3
+            [None, None, None, None, None, None, None, None], // 4
+            [None, None, None, Some(false), None, None, None, None], // 5
+            [None, None, None, None, None, None, None, None], // 6
+            [None, None, None, None, None, None, None, Some(false)], // 7
+        ])
+        .unwrap();
         let test = |start: usize,
                     dfs_check: &[usize],
                     dfs_iter_check: &[usize],
@@ -374,6 +386,7 @@ mod tests {
             );
             #[cfg(feature = "heapless")]
             test_traversals::<C, _, _>(&map_adj_list, start, dfs_check, dfs_iter_check, bfs_check);
+            test_traversals::<C, _, _>(&matrix, start, dfs_check, dfs_iter_check, bfs_check);
         };
         test(1, &[1, 5, 3, 4], &[1, 4, 5, 3], &[1, 5, 4, 3]);
         test(2, &[], &[], &[]);
