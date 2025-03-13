@@ -9,16 +9,18 @@ use super::{AlgorithmError, OptionResultExt};
 /// Finds the minimum spanning tree of a graph
 pub fn kruskals<'a, NI, G, V, M>(
     graph: &G,
-    edge_storage: &'a mut [(NI, NI, V)],
+    edge_storage: &mut [(NI, NI, V)],
+    mut parent: M,
     mst: &'a mut [(NI, NI, V)],
 ) -> Result<&'a [(NI, NI, V)], AlgorithmError<NI>>
 where
-    G: GraphWithEdgeValues<NI, V>,
+    G: GraphWithEdgeValues<V, NodeIndex = NI>,
     M: MapTrait<NI, NI>,
-    NI: Eq + Copy + Default + Ord,
-    V: Copy + Default + Ord,
+    NI: Eq + Copy + Default + Ord + Sized,
+    V: Copy + Default + Ord + Sized,
+    AlgorithmError<NI>: From<G::Error>,
 {
-    let mut parent = M::new();
+    parent.clear();
     for &node in graph.get_nodes()? {
         parent.insert(node, node);
     }
@@ -115,9 +117,10 @@ mod tests {
         .unwrap();
         let mut mst = [('0', '0', 0); 3];
         let mut edge_storage = [('0', '0', 0); 5];
-        let res = kruskals::<_, _, _, Dictionary<_, _, 16>>(
+        let res = kruskals(
             &graph,
             edge_storage.as_mut_slice(),
+            Dictionary::<_, _, 16>::new(),
             &mut mst,
         )
         .unwrap();
@@ -141,9 +144,10 @@ mod tests {
         .unwrap();
         let mut mst2 = [('0', '0', 0); 3];
         let mut edge_storage2 = [('0', '0', 0); 5];
-        let res = kruskals::<_, _, _, Dictionary<_, _, 16>>(
+        let res = kruskals(
             &graph,
             edge_storage2.as_mut_slice(),
+            Dictionary::<_, _, 16>::new(),
             &mut mst2,
         )
         .unwrap();
@@ -182,9 +186,10 @@ mod tests {
             .unwrap();
             let mut mst3 = [('0', '0', 0); 3];
             let mut edge_storage3 = [('0', '0', 0); 5];
-            let res = kruskals::<_, _, _, Dictionary<_, _, 16>>(
+            let res = kruskals(
                 &graph,
                 edge_storage3.as_mut_slice(),
+                Dictionary::<_, _, 16>::new(),
                 &mut mst3,
             )
             .unwrap();

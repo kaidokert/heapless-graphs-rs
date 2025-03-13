@@ -92,19 +92,6 @@ where
     }
 }
 
-impl<'a, NI, E, C, I, T> DoubleEndedIterator for EdgeIterator<'a, NI, E, C, I, T>
-where
-    NI: PartialEq,
-    E: NodesIterable<Node = NI>,
-    C: AsOutgoingNodes<NI, E>,
-    I: Iterator<Item = T>,
-    T: IntoEdge<'a, NI, C>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        todo!("This is not quite possible if underlying iterator isn't DE as well")
-    }
-}
-
 pub struct EdgeValueIterator<'a, NI, E, C, I, T, V>
 where
     NI: PartialEq,
@@ -168,19 +155,5 @@ where
                 None => return None,
             }
         }
-    }
-}
-
-impl<'a, NI, E, C, I, T, V> DoubleEndedIterator for EdgeValueIterator<'a, NI, E, C, I, T, V>
-where
-    NI: PartialEq,
-    E: NodesValuesIterable<V, Node = NI>,
-    C: AsOutgoingNodesWithValues<NI, E, V> + 'a,
-    I: Iterator<Item = T>,
-    T: IntoEdge<'a, NI, C>,
-    V: 'a,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        todo!("This is not quite possible if underlying iterator isn't DE as well")
     }
 }

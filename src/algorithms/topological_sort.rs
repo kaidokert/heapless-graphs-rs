@@ -7,17 +7,18 @@ use super::AlgorithmError;
 /// Depth-first post-order traversal, with nodes enumerated in reverse order
 ///
 /// Detects cycles
-fn dfs_recursive_postorder<T, NI, VT, F>(
-    graph: &T,
+fn dfs_recursive_postorder<G, NI, VT, F>(
+    graph: &G,
     node: NI,
     visited: &mut VT,
     operation: &mut F,
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy + core::fmt::Debug,
-    T: Graph<NI>,
+    G: Graph<NodeIndex = NI>,
     VT: TriStateVisitedTracker<NI> + ?Sized,
     F: FnMut(&NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
     if visited.is_visited(&node) {
         return Ok(());
@@ -42,15 +43,16 @@ where
 /// Topological sort of a directed graph
 ///
 /// Returns an error if a cycle is found
-pub fn topological_sort<'b, T, NI, VT>(
-    graph: &T,
+pub fn topological_sort<'a, G, NI, VT>(
+    graph: &G,
     visited: &mut VT,
-    sorted_nodes: &'b mut [NI],
-) -> Result<&'b [NI], AlgorithmError<NI>>
+    sorted_nodes: &'a mut [NI],
+) -> Result<&'a [NI], AlgorithmError<NI>>
 where
     NI: PartialEq + Copy + core::fmt::Debug,
-    T: Graph<NI>,
+    G: Graph<NodeIndex = NI>,
     VT: TriStateVisitedTracker<NI> + ?Sized,
+    AlgorithmError<NI>: From<G::Error>,
 {
     let mut sort_index = 0;
     let mut append_to_list = |node: &NI| {
@@ -90,7 +92,8 @@ mod tests {
             + core::fmt::Debug
             + SliceIndex<[NodeState], Output = NodeState>
             + 'a,
-        E: Graph<NI>,
+        E: Graph<NodeIndex = NI>,
+        AlgorithmError<NI>: From<E::Error>,
     {
         let mut storage: [NI; C] = core::array::from_fn(|_| NI::default());
         let mut visited = [NodeState::Unvisited; 8];

@@ -11,14 +11,18 @@ use super::{AlgorithmError, OptionResultExt};
 /// Calculates the shortest path from a start node to all other nodes in the graph,
 /// able to handle negative edge weights.
 #[cfg(feature = "num-traits")]
-pub fn bellman_ford<NI, G, V, M>(graph: &G, start: NI) -> Result<M, AlgorithmError<NI>>
+pub fn bellman_ford<NI, G, V, M>(
+    graph: &G,
+    start: NI,
+    mut distance: M,
+) -> Result<M, AlgorithmError<NI>>
 where
-    G: GraphWithEdgeValues<NI, V>,
+    G: GraphWithEdgeValues<V, NodeIndex = NI>,
     NI: PartialEq + Copy + core::fmt::Debug,
     M: MapTrait<NI, V>,
     V: num_traits::Bounded + num_traits::Zero + PartialOrd + Copy + core::fmt::Debug,
+    AlgorithmError<NI>: From<G::Error>,
 {
-    let mut distance = M::new();
     distance.clear();
     for &node in graph.get_nodes()? {
         if node == start {
@@ -78,7 +82,8 @@ mod tests {
             ('c', 'a', 1),
         ]))
         .unwrap();
-        let result: Result<Dictionary<_, _, 16>, AlgorithmError<char>> = bellman_ford(&graph, 'a');
+        let dict = Dictionary::<_, _, 16>::new();
+        let result = bellman_ford(&graph, 'a', dict);
         assert_eq!(
             result.err(),
             Some(AlgorithmError::NegativeCycle {
@@ -93,7 +98,8 @@ mod tests {
             ('b', 'c', 2),
         ]))
         .unwrap();
-        let result: Dictionary<_, _, 16> = bellman_ford(&graph, 'a').unwrap();
+        let dict = Dictionary::<_, _, 16>::new();
+        let result = bellman_ford(&graph, 'a', dict).unwrap();
         assert_eq!(result.get(&'a'), Some(&0));
         assert_eq!(result.get(&'b'), Some(&1));
         assert_eq!(result.get(&'c'), Some(&3));
@@ -108,7 +114,8 @@ mod tests {
             None,
         ]))
         .unwrap();
-        let result: Dictionary<_, _, 16> = bellman_ford(&graph, 'a').unwrap();
+        let dict = Dictionary::<_, _, 16>::new();
+        let result = bellman_ford(&graph, 'a', dict).unwrap();
         assert_eq!(result.get(&'a'), Some(&0));
         assert_eq!(result.get(&'b'), Some(&1));
         assert_eq!(result.get(&'c'), Some(&3));
@@ -136,7 +143,8 @@ mod tests {
             ),
         ])
         .unwrap();
-        let result: Dictionary<_, _, 16> = bellman_ford(&graph, 'a').unwrap();
+        let dict = Dictionary::<_, _, 16>::new();
+        let result = bellman_ford(&graph, 'a', dict).unwrap();
         assert_eq!(result.get(&'a'), Some(&0));
         assert_eq!(result.get(&'b'), Some(&1));
         assert_eq!(result.get(&'c'), Some(&3));
@@ -163,7 +171,8 @@ mod tests {
                 ),
             ]))
             .unwrap();
-            let result: Dictionary<_, _, 16> = bellman_ford(&graph, 'a').unwrap();
+            let dict = Dictionary::<_, _, 16>::new();
+            let result = bellman_ford(&graph, 'a', dict).unwrap();
             assert_eq!(result.get(&'a'), Some(&0));
             assert_eq!(result.get(&'b'), Some(&1));
             assert_eq!(result.get(&'c'), Some(&3));

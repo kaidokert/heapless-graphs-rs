@@ -417,7 +417,6 @@ define_node_iterator!(
 );
 
 /// Iterator that yields node value refs with indices
-
 pub struct NodeStructValueIterator<'a, T, V> {
     inner: NodeRefIterator<'a, T>,
     _phantom: PhantomData<&'a V>,
@@ -446,7 +445,15 @@ where
     Self: 'a,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        todo!()
+        if let Some(node_index) = self.inner.next_back() {
+            let val = self
+                .inner
+                .struct_ref
+                .get_node_value(self.inner.last_back_index);
+            Some((node_index, val))
+        } else {
+            None
+        }
     }
 }
 
@@ -484,6 +491,7 @@ node_struct_into_iter!(NodeStructVecOptionValue, NI, V);
 /// Blanket implemented for any struct implementing [`NodeRef`]
 pub trait NodesIterable {
     type Node;
+    // todo: Maybe doesn't need to be DoubleEnded
     type Iter<'a>: DoubleEndedIterator<Item = &'a Self::Node>
     where
         Self: 'a;
@@ -495,7 +503,10 @@ where
     T: NodeRef,
 {
     type Node = T::NodeIndex;
-    type Iter<'a> = NodeRefIterator<'a,T> where Self: 'a;
+    type Iter<'a>
+        = NodeRefIterator<'a, T>
+    where
+        Self: 'a;
 
     fn iter_nodes(&self) -> Self::Iter<'_> {
         NodeRefIterator::new(self)
@@ -518,7 +529,12 @@ impl<T, V> NodesValuesIterable<V> for T
 where
     T: NodeRefValue<V>,
 {
-    type IterValues<'a> = NodeStructValueIterator<'a, T, V> where <T as NodeRef>::NodeIndex: 'a, Self: 'a, V: 'a;
+    type IterValues<'a>
+        = NodeStructValueIterator<'a, T, V>
+    where
+        <T as NodeRef>::NodeIndex: 'a,
+        Self: 'a,
+        V: 'a;
     fn iter_nodes_values(&self) -> Self::IterValues<'_> {
         Self::IterValues {
             inner: NodeRefIterator::new(self),
@@ -906,8 +922,38 @@ mod tests {
             }
             assert_eq!(&collect[..len], cmp);
         }
+        fn test_from_front_back<NI, V, T>(
+            t: &T,
+            from_front: isize,
+            vfront: Option<&V>,
+            from_back: isize,
+            vback: Option<&V>,
+        ) where
+            NI: PartialEq + Debug,
+            V: Default + Debug + Copy + PartialEq,
+            T: NodesValuesIterable<V, Node = NI>,
+        {
+            let mut iterator = t.iter_nodes_values();
+            if from_front >= 0 {
+                assert_eq!(
+                    iterator.nth(from_front as usize).map(|v| v.1.unwrap()),
+                    vfront
+                );
+            }
+            assert_eq!(
+                iterator.rev().nth(from_back as usize).map(|v| v.1.unwrap()),
+                vback
+            )
+        }
         let values = NodeValueStruct([(1_usize, "a"), (3, "b"), (2, "c")]);
         test(&values, &["a", "b", "c"]);
+        test_from_front_back(&values, 0, Some(&"a"), 0, Some(&"c"));
+        test_from_front_back(&values, 1, Some(&"b"), 0, Some(&"c"));
+        test_from_front_back(&values, 2, Some(&"c"), 0, None);
+        test_from_front_back(&values, 3, None, 3, None);
+        test_from_front_back(&values, -1, None, 1, Some(&"b"));
+        test_from_front_back(&values, -1, None, 2, Some(&"a"));
+        test_from_front_back(&values, -1, None, 3, None);
         let values = NodeValueTwoArray([1_usize, 2], ["xf", "bz"]);
         test(&values, &["xf", "bz"]);
         let values = NodeValueStructOption([

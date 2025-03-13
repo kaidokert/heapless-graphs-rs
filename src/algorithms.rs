@@ -11,6 +11,9 @@
 mod bellman_ford;
 #[cfg(feature = "num-traits")]
 mod dijkstra;
+#[cfg(feature = "heapless")]
+mod greedy_coloring;
+mod kahns;
 mod kruskals;
 mod topological_sort;
 mod traversal;
@@ -19,6 +22,7 @@ mod traversal;
 pub use bellman_ford::bellman_ford;
 #[cfg(feature = "num-traits")]
 pub use dijkstra::dijkstra;
+pub use kahns::kahns;
 pub use kruskals::kruskals;
 pub use topological_sort::topological_sort;
 pub use traversal::{bfs, bfs_unchecked, dfs_iterative, dfs_recursive, dfs_recursive_unchecked};
@@ -35,6 +39,8 @@ pub enum AlgorithmError<NI: PartialEq> {
     EdgeCapacityExceeded { max_edges: usize },
     /// Output buffer too small
     OutputCapacityExceeded,
+    /// Stack capacity too small
+    StackCapacityExceeded,
     /// Indicates a cycle was detected at a specific node,
     /// along with the two edges that formed the cycle.
     CycleDetected {
@@ -51,6 +57,8 @@ pub enum AlgorithmError<NI: PartialEq> {
         incoming_edge: NI,
         outgoing_edge: NI,
     },
+    /// Cycle detected in algorithm consistency check
+    CycleDetectedInConsistencyCheck,
 }
 impl<NI: PartialEq> From<GraphError<NI>> for AlgorithmError<NI> {
     fn from(e: GraphError<NI>) -> Self {

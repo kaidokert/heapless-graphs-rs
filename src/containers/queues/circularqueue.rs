@@ -28,13 +28,15 @@ impl<T: Default + Copy, const N: usize> CircularQueue<T, N> {
 }
 
 impl<T: Default + Copy, const N: usize> Deque<T> for CircularQueue<T, N> {
-    fn push_front(&mut self, value: T) {
+    fn push_front(&mut self, value: T) -> Result<(), T> {
         if self.is_full() {
-            panic!("Queue is full");
+            Err(value)
+        } else {
+            self.head = (self.head + N - 1) % N;
+            self.buffer[self.head] = value;
+            self.size += 1;
+            Ok(())
         }
-        self.head = (self.head + N - 1) % N;
-        self.buffer[self.head] = value;
-        self.size += 1;
     }
     fn pop_front(&mut self) -> Option<T> {
         if self.is_empty() {
@@ -45,13 +47,15 @@ impl<T: Default + Copy, const N: usize> Deque<T> for CircularQueue<T, N> {
         self.size -= 1;
         Some(value)
     }
-    fn push_back(&mut self, value: T) {
+    fn push_back(&mut self, value: T) -> Result<(), T> {
         if self.is_full() {
-            panic!("Queue is full");
+            Err(value)
+        } else {
+            self.buffer[self.tail] = value;
+            self.tail = (self.tail + 1) % N;
+            self.size += 1;
+            Ok(())
         }
-        self.buffer[self.tail] = value;
-        self.tail = (self.tail + 1) % N;
-        self.size += 1;
     }
     fn pop_back(&mut self) -> Option<T> {
         if self.is_empty() {
@@ -96,6 +100,6 @@ impl<T: Default + Copy, const N: usize> Deque<T> for CircularQueue<T, N> {
         Some(&self.buffer[self.head])
     }
     fn is_full(&self) -> bool {
-        self.size == N
+        self.size >= N
     }
 }
