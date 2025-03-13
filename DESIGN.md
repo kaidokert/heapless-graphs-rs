@@ -53,3 +53,13 @@ as part of the graph.
 
 Values at both Nodes and Edges are optional, and are provided through
 corresponding EdgeRefValue + NodeRefValue traits.
+
+## Algorithms
+
+Caller should provide all allocated storage - arrays for storing output
+slice values, stack/dequeues and maps for intermediate storage. Storage
+that is temporary of known size, for the algorithm use only should be
+moved in and consumed.
+
+Exception for cases where the storage size that the algo needs can be
+known at compile time - then simply create that storage in the algo.

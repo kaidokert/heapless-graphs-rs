@@ -13,17 +13,18 @@ use super::AlgorithmError;
 /// Unchecked depth first traversal
 ///
 /// Always yields the initial node, even if it is not present in graph
-pub fn dfs_recursive_unchecked<T, NI, VT, F>(
-    graph: &T,
+pub fn dfs_recursive_unchecked<G, NI, VT, F>(
+    graph: &G,
     node: NI,
     visited: &mut VT,
     operation: &mut F,
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    T: Graph<NI>,
+    G: Graph<NodeIndex = NI>,
     VT: VisitedTracker<NI> + ?Sized,
     for<'b> F: FnMut(&'b NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
     if !visited.is_visited(&node) {
         visited.mark_visited(&node);
@@ -40,17 +41,18 @@ where
 /// Depth first recursive traversal
 ///
 /// Does not index initial node, if initial node is not present in the graph
-pub fn dfs_recursive<T, NI, VT, F>(
-    graph: &T,
+pub fn dfs_recursive<G, NI, VT, F>(
+    graph: &G,
     node: NI,
     visited: &mut VT,
     operation: &mut F,
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    T: Graph<NI>,
+    G: Graph<NodeIndex = NI>,
     VT: VisitedTracker<NI> + ?Sized,
     for<'b> F: FnMut(&'b NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
     // Check if first node exists
     if !graph.contains_node(&node)? {
@@ -62,8 +64,8 @@ where
 /// Unchecked iterative depth first traversal, using a stack
 ///
 /// Always yields the initial node, even if it is not present in graph
-pub fn dfs_iterative_unchecked<T, NI, VT, Q, F>(
-    graph: &T,
+pub fn dfs_iterative_unchecked<G, NI, VT, Q, F>(
+    graph: &G,
     node: NI,
     visited: &mut VT,
     mut stack: Q,
@@ -71,21 +73,26 @@ pub fn dfs_iterative_unchecked<T, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    T: Graph<NI>,
+    G: Graph<NodeIndex = NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
-    stack.push_back(node);
+    stack
+        .push_back(node)
+        .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
     while let Some(node) = stack.pop_back() {
         if visited.is_visited(&node) {
             continue;
         }
         visited.mark_visited(&node);
         operation(&node);
-        for next_node in graph.outgoing_edges_for_node(&node)?.rev() {
+        for next_node in graph.outgoing_edges_for_node(&node)? {
             if !visited.is_visited(next_node) {
-                stack.push_back(*next_node);
+                stack
+                    .push_back(*next_node)
+                    .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
             }
         }
     }
@@ -95,8 +102,8 @@ where
 /// Iterative depth first traversal, using a stack
 ///
 /// Does not index initial node, if initial node is not present in graph
-pub fn dfs_iterative<T, NI, VT, Q, F>(
-    graph: &T,
+pub fn dfs_iterative<G, NI, VT, Q, F>(
+    graph: &G,
     node: NI,
     visited: &mut VT,
     stack: Q,
@@ -104,10 +111,11 @@ pub fn dfs_iterative<T, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    T: Graph<NI>,
+    G: Graph<NodeIndex = NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
     // Check if first node exists
     if !graph.contains_node(&node)? {
@@ -119,8 +127,8 @@ where
 /// Unchecked breadth first traversal, using a queue
 ///
 /// Always yields the initial node, even if it is not present in graph
-pub fn bfs_unchecked<T, NI, VT, Q, F>(
-    graph: &T,
+pub fn bfs_unchecked<G, NI, VT, Q, F>(
+    graph: &G,
     node: NI,
     visited: &mut VT,
     mut queue: Q,
@@ -128,12 +136,15 @@ pub fn bfs_unchecked<T, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    T: Graph<NI>,
+    G: Graph<NodeIndex = NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
-    queue.push_back(node);
+    queue
+        .push_back(node)
+        .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
     visited.mark_visited(&node);
     while !queue.is_empty() {
         if let Some(node) = queue.pop_back() {
@@ -142,7 +153,9 @@ where
             for next_node in graph.outgoing_edges_for_node(&node)? {
                 if !visited.is_visited(next_node) {
                     visited.mark_visited(next_node);
-                    queue.push_front(*next_node);
+                    queue
+                        .push_front(*next_node)
+                        .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
                 }
             }
         }
@@ -153,8 +166,8 @@ where
 /// Breadth first traversal, using a queue
 ///
 /// Does not index initial node, if initial node is not present in graph
-pub fn bfs<T, NI, VT, Q, F>(
-    graph: &T,
+pub fn bfs<G, NI, VT, Q, F>(
+    graph: &G,
     node: NI,
     visited: &mut VT,
     queue: Q,
@@ -162,10 +175,11 @@ pub fn bfs<T, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    T: Graph<NI>,
+    G: Graph<NodeIndex = NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
     // Check if start_node exists in the edges list
     if !graph.contains_node(&node)? {
@@ -189,7 +203,8 @@ mod tests {
     fn test_dfs_recursive<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NI>,
+        E: Graph<NodeIndex = NI>,
+        AlgorithmError<NI>: From<E::Error>,
     {
         let mut visited = [false; C];
         let mut collect: [NI; C] = core::array::from_fn(|_| NI::default());
@@ -206,7 +221,8 @@ mod tests {
     fn test_dfs_iterative<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NI>,
+        E: Graph<NodeIndex = NI>,
+        AlgorithmError<NI>: From<E::Error>,
     {
         let mut visited = [false; C];
         let mut collect: [NI; C] = core::array::from_fn(|_| NI::default());
@@ -225,7 +241,9 @@ mod tests {
     fn test_bfs<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NI>,
+        E: Graph<NodeIndex = NI>,
+        E::Error: core::fmt::Debug,
+        AlgorithmError<NI>: From<E::Error>,
     {
         let mut visited = [false; C];
         let mut collect: [NI; C] = core::array::from_fn(|_| NI::default());
@@ -244,13 +262,16 @@ mod tests {
         elg: &'a E,
         start: NI,
         dfs_check: &[NI],
+        dfs_iter_check: &[NI], // This has right-hand order by default
         bfs_check: &[NI],
     ) where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NI>,
+        E: Graph<NodeIndex = NI>,
+        AlgorithmError<NI>: From<E::Error>,
+        E::Error: core::fmt::Debug,
     {
         test_dfs_recursive::<C, _, _>(elg, start, dfs_check);
-        test_dfs_iterative::<C, _, _>(elg, start, dfs_check);
+        test_dfs_iterative::<C, _, _>(elg, start, dfs_iter_check);
         test_bfs::<C, _, _>(elg, start, bfs_check);
     }
 
@@ -330,20 +351,35 @@ mod tests {
             .into_iter(),
         ))
         .unwrap();
-        let test = |start: usize, dfs_check: &[usize], bfs_check: &[usize]| {
-            test_traversals::<C, _, _>(&edges_array, start, dfs_check, bfs_check);
-            test_traversals::<C, _, _>(&edges, start, dfs_check, bfs_check);
-            test_traversals::<C, _, _>(&edges_nodes, start, dfs_check, bfs_check);
-            test_traversals::<C, _, _>(&edges_nodes_array, start, dfs_check, bfs_check);
-            test_traversals::<C, _, _>(&slice_adj_list, start, dfs_check, bfs_check);
+        let test = |start: usize,
+                    dfs_check: &[usize],
+                    dfs_iter_check: &[usize],
+                    bfs_check: &[usize]| {
+            test_traversals::<C, _, _>(&edges_array, start, dfs_check, dfs_iter_check, bfs_check);
+            test_traversals::<C, _, _>(&edges, start, dfs_check, dfs_iter_check, bfs_check);
+            test_traversals::<C, _, _>(&edges_nodes, start, dfs_check, dfs_iter_check, bfs_check);
+            test_traversals::<C, _, _>(
+                &edges_nodes_array,
+                start,
+                dfs_check,
+                dfs_iter_check,
+                bfs_check,
+            );
+            test_traversals::<C, _, _>(
+                &slice_adj_list,
+                start,
+                dfs_check,
+                dfs_iter_check,
+                bfs_check,
+            );
             #[cfg(feature = "heapless")]
-            test_traversals::<C, _, _>(&map_adj_list, start, dfs_check, bfs_check);
+            test_traversals::<C, _, _>(&map_adj_list, start, dfs_check, dfs_iter_check, bfs_check);
         };
-        test(1, &[1, 5, 3, 4], &[1, 5, 4, 3]);
-        test(2, &[], &[]);
-        test(3, &[3, 1, 5, 4], &[3, 1, 5, 4]);
-        test(4, &[4], &[4]);
-        test(5, &[5, 3, 1, 4], &[5, 3, 1, 4]);
-        test(7, &[7], &[7]);
+        test(1, &[1, 5, 3, 4], &[1, 4, 5, 3], &[1, 5, 4, 3]);
+        test(2, &[], &[], &[]);
+        test(3, &[3, 1, 5, 4], &[3, 1, 4, 5], &[3, 1, 5, 4]);
+        test(4, &[4], &[4], &[4]);
+        test(5, &[5, 3, 1, 4], &[5, 3, 1, 4], &[5, 3, 1, 4]);
+        test(7, &[7], &[7], &[7]);
     }
 }

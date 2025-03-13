@@ -9,8 +9,8 @@ use crate::nodes::{AddNode, NodeRef, NodesIterable, NodesValuesIterable, RemoveN
 
 use crate::edges::{AddEdge, EdgeRef, EdgeValuesIterable, EdgesIterable, EdgesToNodesIterator};
 use crate::graph::{
-    Graph, GraphError, GraphWithEdgeValues, GraphWithMutableEdges, GraphWithMutableNodes,
-    GraphWithNodeValues,
+    integrity_check, Graph, GraphError, GraphWithEdgeValues, GraphWithMutableEdges,
+    GraphWithMutableNodes, GraphWithNodeValues,
 };
 
 /// Edge list graph that stores only edges
@@ -60,19 +60,27 @@ where
 }
 
 /// Implementation borrows data for nodes
-impl<const N: usize, E, NI> Graph<NI> for EdgeList<N, E, NI>
+impl<const N: usize, E, NI> Graph for EdgeList<N, E, NI>
 where
     E: EdgesIterable<Node = NI>,
     NI: PartialEq + Ord,
 {
-    type Edges<'b> = E::Iter<'b> where Self: 'b;
-    // Note: N here limits the capacity of yielded nodes
-    type Nodes<'b> = EdgesToNodesIterator<'b,N,NI> where Self: 'b;
-    fn get_edges(&self) -> Result<Self::Edges<'_>, GraphError<NI>> {
+    type NodeIndex = NI;
+    type Error = GraphError<NI>;
+    fn get_edges<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = (&'a Self::NodeIndex, &'a Self::NodeIndex)>, Self::Error>
+    where
+        Self::NodeIndex: 'a,
+    {
         Ok(self.edges.iter_edges())
     }
-    fn get_nodes(&self) -> Result<Self::Nodes<'_>, GraphError<NI>> {
-        Ok(EdgesToNodesIterator::new(&self.edges)?)
+    fn get_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a Self::NodeIndex>, Self::Error>
+    where
+        Self::NodeIndex: 'a,
+    {
+        // Note: N here limits the capacity of yielded nodes
+        Ok(EdgesToNodesIterator::<N, NI>::new(&self.edges)?)
     }
 }
 
@@ -112,84 +120,119 @@ pub struct EdgeNodeList<E, N, NI> {
 
 impl<E, N, NI> EdgeNodeList<E, N, NI>
 where
-    Self: Graph<NI>,
+    Self: Graph,
     NI: PartialEq,
 {
     /// Creates a new EdgeNodeList instance and checks
     /// for invalid node references.
-    pub fn new(edges: E, nodes: N) -> Result<Self, GraphError<NI>> {
-        let res = Self {
+    pub fn new(edges: E, nodes: N) -> Result<Self, <Self as Graph>::Error> {
+        let result = Self::new_unchecked(edges, nodes);
+        integrity_check(&result)?;
+        Ok(result)
+    }
+
+    /// Create a new EdgeNodeList list, do not check consistency
+    pub fn new_unchecked(edges: E, nodes: N) -> Self {
+        Self {
             edges,
             nodes,
             _phantom: core::marker::PhantomData,
-        };
-        res.integrity_check()?;
-        Ok(res)
+        }
     }
 }
 
-impl<E, N, NI> Graph<NI> for EdgeNodeList<E, N, NI>
+impl<E, N, NI> Graph for EdgeNodeList<E, N, NI>
 where
     E: EdgesIterable<Node = NI>,
     N: NodesIterable<Node = NI>,
     NI: PartialEq,
 {
-    type Edges<'b> = E::Iter<'b> where Self: 'b;
-    type Nodes<'b> = N::Iter<'b> where Self: 'b;
+    type NodeIndex = NI;
+    type Error = GraphError<NI>;
 
-    fn get_edges(&self) -> Result<Self::Edges<'_>, GraphError<NI>> {
+    fn get_edges<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = (&'a Self::NodeIndex, &'a Self::NodeIndex)>, Self::Error>
+    where
+        Self::NodeIndex: 'a,
+    {
         Ok(self.edges.iter_edges())
     }
-    fn get_nodes(&self) -> Result<Self::Nodes<'_>, GraphError<NI>> {
+    fn get_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a Self::NodeIndex>, Self::Error>
+    where
+        Self::NodeIndex: 'a,
+    {
         Ok(self.nodes.iter_nodes())
     }
 }
 
-impl<E, N, NI: PartialEq> GraphWithMutableNodes<NI> for EdgeNodeList<E, N, NI>
+impl<E, N, NI: PartialEq> GraphWithMutableNodes for EdgeNodeList<E, N, NI>
 where
-    Self: Graph<NI>,
-    N: AddNode<NI> + RemoveNode<NI>,
+    Self: Graph,
+    N: AddNode<Self::NodeIndex> + RemoveNode<Self::NodeIndex>,
 {
-    fn add_node_unchecked(&mut self, n: NI) -> Option<usize> {
+    fn add_node_unchecked(&mut self, n: Self::NodeIndex) -> Option<usize> {
         self.nodes.add(n)
     }
-    fn remove_node_unchecked(&mut self, n: NI) -> Option<usize> {
+    fn remove_node_unchecked(&mut self, n: Self::NodeIndex) -> Option<usize> {
         self.nodes.remove(n)
     }
 }
 
 /// Implementation for graphs that store node values
-impl<E, N, NI, V> GraphWithNodeValues<NI, V> for EdgeNodeList<E, N, NI>
+impl<E, N, NI, V> GraphWithNodeValues<V> for EdgeNodeList<E, N, NI>
 where
     NI: PartialEq,
-    Self: Graph<NI>,
-    N: NodesValuesIterable<V, Node = NI>,
+    Self: Graph,
+    N: NodesValuesIterable<V, Node = Self::NodeIndex>,
 {
-    type NodeValues<'a> = N::IterValues<'a> where Self: 'a, V: 'a;
-
-    fn get_node_value(&self, n: &NI) -> Result<Option<&V>, GraphError<NI>> {
+    fn get_node_value(&self, n: &Self::NodeIndex) -> Result<Option<&V>, Self::Error> {
         self.get_node_values()?
             .find(|(node, _)| *node == n)
             .map(|(_, v)| v)
-            .ok_or(GraphError::NodeNotFound)
+            .ok_or(GraphError::NodeNotFound.into())
     }
 
-    fn get_node_values<'a>(&'a self) -> Result<Self::NodeValues<'_>, GraphError<NI>>
+    fn get_node_values<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = (&'a Self::NodeIndex, Option<&'a V>)>, Self::Error>
     where
         V: 'a,
     {
         Ok(self.nodes.iter_nodes_values())
     }
+    fn neighboring_nodes_with_values<'a>(
+        &'a self,
+        node: &'a Self::NodeIndex,
+    ) -> Result<impl Iterator<Item = (&'a Self::NodeIndex, Option<&'a V>)>, Self::Error>
+    where
+        V: 'a,
+    {
+        Ok(self
+            .get_edges()?
+            .filter(move |(src, dst)| *src == node || *dst == node)
+            .map(move |(src, dst)| {
+                if src == node {
+                    (dst, self.get_node_value(dst).ok().unwrap())
+                } else {
+                    (src, self.get_node_value(src).ok().unwrap())
+                }
+            }))
+    }
 }
 
-impl<const N: usize, E, NI, V> GraphWithEdgeValues<NI, V> for EdgeList<N, E, NI>
+impl<const N: usize, E, NI, V> GraphWithEdgeValues<V> for EdgeList<N, E, NI>
 where
     NI: PartialEq,
-    Self: Graph<NI>,
-    E: EdgeValuesIterable<V, Node = NI>,
+    Self: Graph,
+    E: EdgeValuesIterable<V, Node = Self::NodeIndex>,
 {
-    type EdgeValues<'a> = E::IterValues<'a> where Self: 'a, V: 'a;
-    fn get_edge_values<'a>(&'a self) -> Result<Self::EdgeValues<'_>, GraphError<NI>>
+    fn get_edge_values<'a>(
+        &'a self,
+    ) -> Result<
+        impl Iterator<Item = (&'a Self::NodeIndex, &'a Self::NodeIndex, Option<&'a V>)>,
+        Self::Error,
+    >
     where
         V: 'a,
     {
@@ -197,14 +240,18 @@ where
     }
 }
 
-impl<E, N, NI, V> GraphWithEdgeValues<NI, V> for EdgeNodeList<E, N, NI>
+impl<E, N, NI, V> GraphWithEdgeValues<V> for EdgeNodeList<E, N, NI>
 where
     NI: PartialEq,
-    Self: Graph<NI>,
-    E: EdgeValuesIterable<V, Node = NI>,
+    Self: Graph,
+    E: EdgeValuesIterable<V, Node = Self::NodeIndex>,
 {
-    type EdgeValues<'a> = <E as EdgeValuesIterable<V>>::IterValues<'a> where Self: 'a, V: 'a;
-    fn get_edge_values<'a>(&'a self) -> Result<Self::EdgeValues<'_>, GraphError<NI>>
+    fn get_edge_values<'a>(
+        &'a self,
+    ) -> Result<
+        impl Iterator<Item = (&'a Self::NodeIndex, &'a Self::NodeIndex, Option<&'a V>)>,
+        Self::Error,
+    >
     where
         V: 'a,
     {
@@ -212,31 +259,31 @@ where
     }
 }
 
-impl<E, N, NI> GraphWithMutableEdges<NI> for EdgeNodeList<E, N, NI>
+impl<E, N, NI> GraphWithMutableEdges for EdgeNodeList<E, N, NI>
 where
     NI: PartialEq,
-    Self: Graph<NI>,
-    E: AddEdge<Edge = (NI, NI)>,
+    Self: Graph,
+    E: AddEdge<Edge = (Self::NodeIndex, Self::NodeIndex)>,
 {
-    fn add_edge(&mut self, src: NI, dst: NI) -> Option<usize> {
+    fn add_edge(&mut self, src: Self::NodeIndex, dst: Self::NodeIndex) -> Option<usize> {
         self.edges.add_edge((src, dst))
     }
-    fn remove_edge(&mut self, _src: NI, _dst: NI) -> Option<usize> {
+    fn remove_edge(&mut self, _src: Self::NodeIndex, _dst: Self::NodeIndex) -> Option<usize> {
         todo!()
     }
 }
 
-impl<const N: usize, E, NI> GraphWithMutableEdges<NI> for EdgeList<N, E, NI>
+impl<const N: usize, E, NI> GraphWithMutableEdges for EdgeList<N, E, NI>
 where
     NI: PartialEq,
-    Self: Graph<NI>,
-    E: AddEdge<Edge = (NI, NI)>,
+    Self: Graph,
+    E: AddEdge<Edge = (Self::NodeIndex, Self::NodeIndex)>,
 {
-    fn add_edge(&mut self, src: NI, dst: NI) -> Option<usize> {
+    fn add_edge(&mut self, src: Self::NodeIndex, dst: Self::NodeIndex) -> Option<usize> {
         self.edges.add_edge((src, dst))
     }
-    fn remove_edge(&mut self, _src: NI, _dst: NI) -> Option<usize> {
-        todo!()
+    fn remove_edge(&mut self, _src: Self::NodeIndex, _dst: Self::NodeIndex) -> Option<usize> {
+        todo!("Implement remove_edge for EdgeList");
     }
 }
 
@@ -283,8 +330,9 @@ mod tests {
 
     fn test_edge_list_graph<'a, E, NI>(elg: &'a E, check: &[&NI])
     where
-        E: Graph<NI>,
+        E: Graph<NodeIndex = NI>,
         NI: PartialEq + Default + Debug + 'a,
+        E::Error: Debug,
     {
         let default = NI::default();
         let mut collect: [&NI; 256] = core::array::from_fn(|_| &default);
@@ -301,9 +349,9 @@ mod tests {
         let nodes = [1, 2, 3];
         let valid_edges = [(1, 3), (3, 1)];
         let ewn = EdgeNodeList::new(valid_edges, nodes).unwrap();
-        ewn.integrity_check().unwrap();
+        integrity_check(&ewn).unwrap();
         test_edge_list_graph(&ewn, &[&1, &2, &3]);
-        ewn.integrity_check().unwrap();
+        integrity_check(&ewn).unwrap();
     }
 
     #[test]
@@ -311,9 +359,9 @@ mod tests {
         let nodes = [1, 2, 3].as_slice();
         let valid_edges = [(1, 3), (3, 1)].as_slice();
         let ewn = EdgeNodeList::new(valid_edges, nodes).unwrap();
-        ewn.integrity_check().unwrap();
+        integrity_check(&ewn).unwrap();
         test_edge_list_graph(&ewn, &[&1, &2, &3]);
-        ewn.integrity_check().unwrap();
+        integrity_check(&ewn).unwrap();
     }
 
     #[test]
@@ -321,16 +369,16 @@ mod tests {
         let nodes = NodeStruct([1, 2, 3]);
         let valid_edges = EdgeStruct([(1, 3), (3, 1)]);
         let ewn = EdgeNodeList::new(valid_edges, nodes).unwrap();
-        ewn.integrity_check().unwrap();
+        integrity_check(&ewn).unwrap();
         test_edge_list_graph(&ewn, &[&1, &2, &3]);
-        ewn.integrity_check().unwrap();
+        integrity_check(&ewn).unwrap();
     }
     #[test]
     fn test_edges_with_nodes_broken() {
         let nodes = NodeStruct([1, 2, 3]);
         let valid_edges = EdgeStruct([(1, 3), (3, 1)]);
         let ewn = EdgeNodeList::new(valid_edges, nodes).unwrap();
-        assert_eq!(ewn.integrity_check().is_ok(), true);
+        assert_eq!(integrity_check(&ewn).is_ok(), true);
         let invalid_edges = EdgeStruct([(1, 3), (300, 1)]);
         let other_nodes = NodeStruct([1, 2, 3]);
         let broken_ewn = EdgeNodeList::new(invalid_edges, other_nodes);
@@ -340,7 +388,7 @@ mod tests {
     fn test_edges_only() {
         let eo = EdgeList::<3, _, _>::new(EdgeStruct([(1usize, 3), (3, 1)])).unwrap();
         test_edge_list_graph(&eo, &[&1, &3]);
-        let _ = &eo.integrity_check().unwrap();
+        let _ = integrity_check(&eo).unwrap();
     }
     #[test]
     fn test_edges_with_insufficient_capacity() {
@@ -366,8 +414,9 @@ mod tests {
 
     fn test_mutable_nodes<E, NI>(elg: &mut E, add: NI, remove: NI, check: &[&NI])
     where
-        E: GraphWithMutableNodes<NI>,
+        E: GraphWithMutableNodes<NodeIndex = NI>,
         NI: PartialEq + Default + Debug,
+        E::Error: Debug,
     {
         elg.add_node_unchecked(add);
         elg.remove_node_unchecked(remove);
@@ -385,13 +434,15 @@ mod tests {
 
     #[test]
     fn test_add_edges() {
-        fn test<NI, G: GraphWithMutableEdges<NI>>(
+        fn test<NI, G: GraphWithMutableEdges<NodeIndex = NI>>(
             graph: &mut G,
             ok: bool,
             edge: (NI, NI),
             expect_nodes: &[&NI],
         ) where
             NI: PartialEq + Default + Debug,
+            GraphError<NI>: From<G::Error>,
+            G::Error: Debug,
         {
             let res = graph.add_edge(edge.0, edge.1);
             assert_eq!(res.is_some(), ok);

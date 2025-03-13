@@ -9,18 +9,20 @@ use super::{AlgorithmError, OptionResultExt};
 /// Calculates the shortest path from a start node to all other nodes in the graph,
 /// does not handle negative edge weights.
 #[cfg(feature = "num-traits")]
-pub fn dijkstra<NI, V, VT, M, G: GraphWithEdgeValues<NI, V>>(
+pub fn dijkstra<NI, V, VT, M, G>(
     graph: &G,
     source: NI,
-    visited: &mut VT,
+    mut visited: VT,
+    mut distance: M,
 ) -> Result<M, AlgorithmError<NI>>
 where
+    G: GraphWithEdgeValues<V, NodeIndex = NI>,
     NI: PartialEq + Copy,
     VT: VisitedTracker<NI>,
     M: MapTrait<NI, V>,
     V: num_traits::Bounded + num_traits::Zero + PartialOrd + Copy,
+    AlgorithmError<NI>: From<G::Error>,
 {
-    let mut distance = M::new();
     distance.clear();
     for &node in graph.get_nodes()? {
         if node == source {
@@ -44,7 +46,7 @@ where
         }
         let u = min_node.unwrap();
         visited.mark_visited(u);
-        for (v, value) in graph.neighbors_for_node_with_values(u)? {
+        for (v, value) in graph.neighboring_nodes_with_values(u)? {
             if visited.is_unvisited(v) {
                 let u_dist = *distance.get(u).dict_error()?;
                 let v_dist = *distance.get(v).dict_error()?;
@@ -94,9 +96,9 @@ mod tests {
         ]))
         .unwrap();
 
-        let mut visited = MapWrapper(Dictionary::<char, NodeState, 37>::new());
-        let res = dijkstra::<_, _, _, Dictionary<_, _, 16>, _>(&graph, 'A', &mut visited)
-            .expect("this worked?");
+        let visited = MapWrapper(Dictionary::<char, NodeState, 37>::new());
+        let dict = Dictionary::<_, _, 16>::new();
+        let res = dijkstra(&graph, 'A', visited, dict).expect("this worked?");
         // Check the expected distances
         assert_eq!(res.get(&'A'), Some(&0));
         assert_eq!(res.get(&'B'), Some(&1));

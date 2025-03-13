@@ -29,21 +29,21 @@ pub trait Deque<T: Sized> {
     /// Removes the first element and returns it, or None if the deque is empty.
     fn pop_front(&mut self) -> Option<T>;
     /// Appends an element to the back of the deque.
-    fn push_back(&mut self, value: T);
+    fn push_back(&mut self, value: T) -> Result<(), T>;
     /// Prepends an element to the deque.
-    fn push_front(&mut self, value: T);
+    fn push_front(&mut self, value: T) -> Result<(), T>;
 }
 
 #[cfg(feature = "std")]
 impl<T> Deque<T> for std::collections::VecDeque<T> {
-    fn push_front(&mut self, value: T) {
-        self.push_front(value);
+    fn push_front(&mut self, value: T) -> Result<(), T> {
+        Ok(self.push_front(value))
     }
     fn pop_front(&mut self) -> Option<T> {
         self.pop_front()
     }
-    fn push_back(&mut self, value: T) {
-        self.push_back(value);
+    fn push_back(&mut self, value: T) -> Result<(), T> {
+        Ok(self.push_back(value))
     }
     fn pop_back(&mut self) -> Option<T> {
         self.pop_back()
@@ -70,14 +70,14 @@ impl<T> Deque<T> for std::collections::VecDeque<T> {
 
 #[cfg(feature = "heapless")]
 impl<T, const N: usize> Deque<T> for heapless::Deque<T, N> {
-    fn push_front(&mut self, value: T) {
-        self.push_front(value).ok();
+    fn push_front(&mut self, value: T) -> Result<(), T> {
+        self.push_front(value)
     }
     fn pop_front(&mut self) -> Option<T> {
         self.pop_front()
     }
-    fn push_back(&mut self, value: T) {
-        self.push_back(value).ok();
+    fn push_back(&mut self, value: T) -> Result<(), T> {
+        self.push_back(value)
     }
     fn pop_back(&mut self) -> Option<T> {
         self.pop_back()
@@ -111,15 +111,26 @@ mod tests {
 
     fn test_queue<T: Deque<u32>>(que: &mut T) {
         assert_eq!(true, que.is_empty());
-        que.push_front(1);
-        que.push_front(2);
+        que.push_front(1).unwrap();
+        que.push_front(2).unwrap();
         assert_eq!(que.pop_back(), Some(1));
         assert_eq!(que.pop_back(), Some(2));
         assert_eq!(true, que.is_empty());
-        que.push_front(2);
+        que.push_front(2).unwrap();
         assert_eq!(false, que.is_empty());
         que.clear();
         assert_eq!(true, que.is_empty());
+    }
+    fn test_capacity<T: Deque<u32>>(que: &mut T) {
+        que.clear();
+        assert_eq!(0, que.len());
+        assert_eq!(4, que.capacity());
+        for i in 0..4 {
+            que.push_front(i).unwrap();
+        }
+        assert_eq!(4, que.len());
+        assert_eq!(4, que.capacity());
+        assert!(que.push_front(1).is_err());
     }
 
     #[cfg(feature = "std")]
@@ -133,11 +144,13 @@ mod tests {
     fn test_heapless_queue() {
         let mut que = heapless::Deque::<_, 4>::new();
         test_queue(&mut que);
+        test_capacity(&mut que);
     }
 
     #[test]
     fn test_circular_queue() {
         let mut que = circularqueue::CircularQueue::<u32, 4>::new();
         test_queue(&mut que);
+        test_capacity(&mut que);
     }
 }

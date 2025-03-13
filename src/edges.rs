@@ -534,7 +534,7 @@ define_edge_iterator!(
     get_edge: |edge: Option<(&T::NodeIndex, &T::NodeIndex)>| edge.map(|(src, dst)| (*src, *dst))
 );
 
-impl<'a, T> FusedIterator for EdgeRefIterator<'a, T> where T: EdgeRef {}
+impl<T> FusedIterator for EdgeRefIterator<'_, T> where T: EdgeRef {}
 
 /* This can't be made into a blanket impl */
 macro_rules! edge_struct_into_iter {
@@ -584,12 +584,20 @@ where
         None
     }
 }
-impl<'a, T, V> DoubleEndedIterator for EdgeStructValueIterator<'a, T, V>
+impl<T, V> DoubleEndedIterator for EdgeStructValueIterator<'_, T, V>
 where
     T: EdgeRefValue<V>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        todo!()
+        if let Some((src, dst)) = self.inner.next_back() {
+            let value = self
+                .inner
+                .struct_ref
+                .get_edge_value(self.inner.last_back_index);
+            Some((src, dst, value))
+        } else {
+            None
+        }
     }
 }
 
@@ -598,6 +606,7 @@ where
 /// This trait is blanket implemented for anything that implements [EdgeRef]
 pub trait EdgesIterable {
     type Node;
+    // todo: Maybe doesn't need to be DoubleEnded
     type Iter<'a>: DoubleEndedIterator<Item = (&'a Self::Node, &'a Self::Node)>
     where
         Self: 'a;
@@ -610,7 +619,10 @@ where
     T: EdgeRef,
 {
     type Node = T::NodeIndex; // (&NI, &NI)
-    type Iter<'a> = EdgeRefIterator<'a, T> where Self: 'a;
+    type Iter<'a>
+        = EdgeRefIterator<'a, T>
+    where
+        Self: 'a;
     fn iter_edges(&self) -> Self::Iter<'_> {
         EdgeRefIterator::new(self)
     }
@@ -630,7 +642,11 @@ impl<T, V> EdgeValuesIterable<V> for T
 where
     T: EdgeRefValue<V>,
 {
-    type IterValues<'a> = EdgeStructValueIterator<'a, T, V> where Self: 'a, V: 'a;
+    type IterValues<'a>
+        = EdgeStructValueIterator<'a, T, V>
+    where
+        Self: 'a,
+        V: 'a;
     fn iter_edges_values(&self) -> Self::IterValues<'_> {
         Self::IterValues {
             inner: EdgeRefIterator::new(self),
@@ -721,7 +737,11 @@ where
     T: EdgesIterable<Node = NI>,
     NI: PartialEq + Ord,
 {
-    type Iter<'a, const N: usize> = EdgesToNodesIterator<'a, N, NI> where Self: 'a, NI: 'a;
+    type Iter<'a, const N: usize>
+        = EdgesToNodesIterator<'a, N, NI>
+    where
+        Self: 'a,
+        NI: 'a;
 
     fn iter_nodes<const N: usize>(&self) -> Result<Self::Iter<'_, N>, EdgeNodeError> {
         EdgesToNodesIterator::new(self)
@@ -894,8 +914,39 @@ mod tests {
             }
             assert_eq!(&collect[..len], cmp);
         }
+        fn test_from_front_back<'a, NI, V, T>(
+            t: &'a T,
+            from_front: isize,
+            vfront: Option<&V>,
+            from_back: isize,
+            vback: Option<&V>,
+        ) where
+            T: EdgeValuesIterable<V, Node = NI>,
+            NI: PartialEq + Ord + 'a,
+            V: Default + Debug + Copy + PartialEq + 'a,
+        {
+            let mut iterator = t.iter_edges_values();
+            if from_front >= 0 {
+                assert_eq!(
+                    iterator.nth(from_front as usize).map(|x| x.2.unwrap()),
+                    vfront
+                );
+            }
+            assert_eq!(
+                iterator.rev().nth(from_back as usize).map(|x| x.2.unwrap()),
+                vback
+            );
+        }
         let edges = EdgeValueStruct([(0, 1, 'a'), (1, 20, 'b'), (2, 3, 'c')]);
         test(&edges, &['a', 'b', 'c']);
+        test_from_front_back(&edges, 0, Some(&'a'), 0, Some(&'c'));
+        test_from_front_back(&edges, 1, Some(&'b'), 0, Some(&'c'));
+        test_from_front_back(&edges, 2, Some(&'c'), 0, None);
+        test_from_front_back(&edges, 3, None, 3, None);
+        test_from_front_back(&edges, -1, None, 1, Some(&'b'));
+        test_from_front_back(&edges, -1, None, 2, Some(&'a'));
+        test_from_front_back(&edges, -1, None, 3, None);
+
         let edges = TwoArrayEdgeValueStruct::<3, usize, _>(
             [0, 1, 2],
             [1, 20, 3],
