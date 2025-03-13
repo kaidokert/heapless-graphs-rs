@@ -11,6 +11,7 @@
 mod bellman_ford;
 #[cfg(feature = "num-traits")]
 mod dijkstra;
+#[cfg(feature = "heapless")]
 mod greedy_coloring;
 mod kahns;
 mod kruskals;
