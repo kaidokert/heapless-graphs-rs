@@ -11,10 +11,6 @@ use core::{
     ops::Deref,
 };
 
-mod edges_to_nodes;
-
-pub use edges_to_nodes::{EdgeNodeError, EdgesToNodesIterator};
-
 /// Node index NI pairs array of E elements, every item a valid edge
 #[derive(Debug)]
 pub struct EdgeStruct<const E: usize, NI>(pub [(NI, NI); E]);
@@ -534,7 +530,7 @@ define_edge_iterator!(
     get_edge: |edge: Option<(&T::NodeIndex, &T::NodeIndex)>| edge.map(|(src, dst)| (*src, *dst))
 );
 
-impl<T> FusedIterator for EdgeRefIterator<'_, T> where T: EdgeRef {}
+impl<'a, T> FusedIterator for EdgeRefIterator<'a, T> where T: EdgeRef {}
 
 /* This can't be made into a blanket impl */
 macro_rules! edge_struct_into_iter {
@@ -584,7 +580,7 @@ where
         None
     }
 }
-impl<T, V> DoubleEndedIterator for EdgeStructValueIterator<'_, T, V>
+impl<'a, T, V> DoubleEndedIterator for EdgeStructValueIterator<'a, T, V>
 where
     T: EdgeRefValue<V>,
 {
@@ -619,10 +615,7 @@ where
     T: EdgeRef,
 {
     type Node = T::NodeIndex; // (&NI, &NI)
-    type Iter<'a>
-        = EdgeRefIterator<'a, T>
-    where
-        Self: 'a;
+    type Iter<'a> = EdgeRefIterator<'a, T> where Self: 'a;
     fn iter_edges(&self) -> Self::Iter<'_> {
         EdgeRefIterator::new(self)
     }
@@ -642,11 +635,7 @@ impl<T, V> EdgeValuesIterable<V> for T
 where
     T: EdgeRefValue<V>,
 {
-    type IterValues<'a>
-        = EdgeStructValueIterator<'a, T, V>
-    where
-        Self: 'a,
-        V: 'a;
+    type IterValues<'a> = EdgeStructValueIterator<'a, T, V> where Self: 'a, V: 'a;
     fn iter_edges_values(&self) -> Self::IterValues<'_> {
         Self::IterValues {
             inner: EdgeRefIterator::new(self),
@@ -717,34 +706,6 @@ impl<const E: usize, NI, V> AddEdge for EdgeVecValue<E, NI, V> {
     type Edge = (NI, NI, V);
     fn add_edge(&mut self, edge: Self::Edge) -> Option<usize> {
         self.0.push(edge).ok().map(|_| self.0.len() - 1)
-    }
-}
-
-/// Provide an iterator over nodes in edge list
-pub trait EdgeNodesIterable<NI> {
-    /// Associated type for the iterator
-    type Iter<'a, const N: usize>: DoubleEndedIterator<Item = &'a NI>
-    where
-        Self: 'a,
-        NI: 'a;
-
-    /// Return iterator that yields node references
-    fn iter_nodes<const N: usize>(&self) -> Result<Self::Iter<'_, N>, EdgeNodeError>;
-}
-
-impl<T, NI> EdgeNodesIterable<NI> for T
-where
-    T: EdgesIterable<Node = NI>,
-    NI: PartialEq + Ord,
-{
-    type Iter<'a, const N: usize>
-        = EdgesToNodesIterator<'a, N, NI>
-    where
-        Self: 'a,
-        NI: 'a;
-
-    fn iter_nodes<const N: usize>(&self) -> Result<Self::Iter<'_, N>, EdgeNodeError> {
-        EdgesToNodesIterator::new(self)
     }
 }
 
@@ -880,20 +841,6 @@ mod tests {
         );
         iterate_over(&edge_list, &EXPECTED);
         (&edge_list).iter_edges();
-    }
-
-    #[test]
-    fn test_iter_nodes() {
-        let edge_list = EdgeStructOption([Some((0usize, 1)), Some((1, 20)), None, Some((2, 3))]);
-        let ref_edge_list = &edge_list;
-        let nodes = ref_edge_list
-            .iter_nodes::<4>()
-            .expect("Failed to create iterator");
-        let mut collect = [42; 6];
-        nodes
-            .zip(&mut collect.iter_mut())
-            .for_each(|(n, c)| *c = *n);
-        assert_eq!(collect, [0, 1, 2, 3, 20, 42])
     }
 
     #[test]

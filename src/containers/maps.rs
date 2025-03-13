@@ -62,17 +62,8 @@ impl<K, V> MapTrait<K, V> for std::collections::HashMap<K, V>
 where
     K: std::cmp::Eq + std::hash::Hash,
 {
-    type Iter<'a>
-        = std::collections::hash_map::Iter<'a, K, V>
-    where
-        Self: 'a,
-        K: 'a,
-        V: 'a;
-    type Keys<'a>
-        = std::collections::hash_map::Keys<'a, K, V>
-    where
-        Self: 'a,
-        K: 'a;
+    type Iter<'a> = std::collections::hash_map::Iter<'a, K, V>  where Self: 'a, K: 'a, V: 'a;
+    type Keys<'a> = std::collections::hash_map::Keys<'a, K, V> where Self: 'a, K: 'a;
 
     fn capacity(&self) -> usize {
         HashMap::capacity(self)
@@ -124,17 +115,8 @@ impl<K, V, const N: usize> MapTrait<K, V> for heapless::FnvIndexMap<K, V, N>
 where
     K: Eq + core::hash::Hash,
 {
-    type Iter<'a>
-        = heapless::IndexMapIter<'a, K, V>
-    where
-        Self: 'a,
-        K: 'a,
-        V: 'a;
-    type Keys<'a>
-        = heapless::IndexMapKeys<'a, K, V>
-    where
-        Self: 'a,
-        K: 'a;
+    type Iter<'a> = heapless::IndexMapIter<'a, K, V> where Self: 'a, K: 'a, V: 'a;
+    type Keys<'a> = heapless::IndexMapKeys<'a, K, V> where Self: 'a, K: 'a;
 
     fn new() -> Self {
         FnvIndexMap::new()

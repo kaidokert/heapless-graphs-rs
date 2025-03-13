@@ -56,17 +56,8 @@ impl<K, V, const N: usize> MapTrait<K, V> for Dictionary<K, V, N>
 where
     K: Eq + Hash,
 {
-    type Iter<'a>
-        = Iter<'a, K, V>
-    where
-        Self: 'a,
-        K: 'a,
-        V: 'a;
-    type Keys<'a>
-        = core::iter::Map<Iter<'a, K, V>, fn((&'a K, &'a V)) -> &'a K>
-    where
-        Self: 'a,
-        K: 'a;
+    type Iter<'a> = Iter<'a, K, V>  where Self: 'a, K: 'a, V: 'a;
+    type Keys<'a> = core::iter::Map<Iter<'a, K, V>, fn((&'a K, &'a V)) -> &'a K> where Self: 'a, K: 'a;
 
     fn new() -> Self {
         Self {

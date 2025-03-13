@@ -417,6 +417,7 @@ define_node_iterator!(
 );
 
 /// Iterator that yields node value refs with indices
+
 pub struct NodeStructValueIterator<'a, T, V> {
     inner: NodeRefIterator<'a, T>,
     _phantom: PhantomData<&'a V>,
@@ -503,10 +504,7 @@ where
     T: NodeRef,
 {
     type Node = T::NodeIndex;
-    type Iter<'a>
-        = NodeRefIterator<'a, T>
-    where
-        Self: 'a;
+    type Iter<'a> = NodeRefIterator<'a,T> where Self: 'a;
 
     fn iter_nodes(&self) -> Self::Iter<'_> {
         NodeRefIterator::new(self)
@@ -529,12 +527,7 @@ impl<T, V> NodesValuesIterable<V> for T
 where
     T: NodeRefValue<V>,
 {
-    type IterValues<'a>
-        = NodeStructValueIterator<'a, T, V>
-    where
-        <T as NodeRef>::NodeIndex: 'a,
-        Self: 'a,
-        V: 'a;
+    type IterValues<'a> = NodeStructValueIterator<'a, T, V> where <T as NodeRef>::NodeIndex: 'a, Self: 'a, V: 'a;
     fn iter_nodes_values(&self) -> Self::IterValues<'_> {
         Self::IterValues {
             inner: NodeRefIterator::new(self),
