@@ -417,6 +417,7 @@ define_node_iterator!(
 );
 
 /// Iterator that yields node value refs with indices
+
 pub struct NodeStructValueIterator<'a, T, V> {
     inner: NodeRefIterator<'a, T>,
     _phantom: PhantomData<&'a V>,

@@ -21,7 +21,7 @@ pub fn dfs_recursive_unchecked<G, NI, VT, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     for<'b> F: FnMut(&'b NI),
     AlgorithmError<NI>: From<G::Error>,
@@ -49,7 +49,7 @@ pub fn dfs_recursive<G, NI, VT, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     for<'b> F: FnMut(&'b NI),
     AlgorithmError<NI>: From<G::Error>,
@@ -73,7 +73,7 @@ pub fn dfs_iterative_unchecked<G, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
@@ -111,7 +111,7 @@ pub fn dfs_iterative<G, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
@@ -136,7 +136,7 @@ pub fn bfs_unchecked<G, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
@@ -175,7 +175,7 @@ pub fn bfs<G, NI, VT, Q, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     for<'b> F: FnMut(&'b NI),
@@ -203,7 +203,7 @@ mod tests {
     fn test_dfs_recursive<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         AlgorithmError<NI>: From<E::Error>,
     {
         let mut visited = [false; C];
@@ -221,7 +221,7 @@ mod tests {
     fn test_dfs_iterative<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         AlgorithmError<NI>: From<E::Error>,
     {
         let mut visited = [false; C];
@@ -241,7 +241,7 @@ mod tests {
     fn test_bfs<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         E::Error: core::fmt::Debug,
         AlgorithmError<NI>: From<E::Error>,
     {
@@ -266,7 +266,7 @@ mod tests {
         bfs_check: &[NI],
     ) where
         NI: Default + PartialEq + Copy + core::fmt::Debug + SliceIndex<[bool], Output = bool> + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         AlgorithmError<NI>: From<E::Error>,
         E::Error: core::fmt::Debug,
     {

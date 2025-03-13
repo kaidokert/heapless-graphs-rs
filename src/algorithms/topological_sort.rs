@@ -15,7 +15,7 @@ fn dfs_recursive_postorder<G, NI, VT, F>(
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: PartialEq + Copy + core::fmt::Debug,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: TriStateVisitedTracker<NI> + ?Sized,
     F: FnMut(&NI),
     AlgorithmError<NI>: From<G::Error>,
@@ -50,7 +50,7 @@ pub fn topological_sort<'a, G, NI, VT>(
 ) -> Result<&'a [NI], AlgorithmError<NI>>
 where
     NI: PartialEq + Copy + core::fmt::Debug,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
     VT: TriStateVisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
@@ -92,7 +92,7 @@ mod tests {
             + core::fmt::Debug
             + SliceIndex<[NodeState], Output = NodeState>
             + 'a,
-        E: Graph<NodeIndex = NI>,
+        E: Graph<NI>,
         AlgorithmError<NI>: From<E::Error>,
     {
         let mut storage: [NI; C] = core::array::from_fn(|_| NI::default());

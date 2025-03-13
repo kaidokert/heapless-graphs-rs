@@ -534,7 +534,7 @@ define_edge_iterator!(
     get_edge: |edge: Option<(&T::NodeIndex, &T::NodeIndex)>| edge.map(|(src, dst)| (*src, *dst))
 );
 
-impl<T> FusedIterator for EdgeRefIterator<'_, T> where T: EdgeRef {}
+impl<'a, T> FusedIterator for EdgeRefIterator<'a, T> where T: EdgeRef {}
 
 /* This can't be made into a blanket impl */
 macro_rules! edge_struct_into_iter {
@@ -584,7 +584,7 @@ where
         None
     }
 }
-impl<T, V> DoubleEndedIterator for EdgeStructValueIterator<'_, T, V>
+impl<'a, T, V> DoubleEndedIterator for EdgeStructValueIterator<'a, T, V>
 where
     T: EdgeRefValue<V>,
 {

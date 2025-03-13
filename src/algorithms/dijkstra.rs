@@ -9,14 +9,13 @@ use super::{AlgorithmError, OptionResultExt};
 /// Calculates the shortest path from a start node to all other nodes in the graph,
 /// does not handle negative edge weights.
 #[cfg(feature = "num-traits")]
-pub fn dijkstra<NI, V, VT, M, G>(
+pub fn dijkstra<NI, V, VT, M, G: GraphWithEdgeValues<NI, V>>(
     graph: &G,
     source: NI,
     mut visited: VT,
     mut distance: M,
 ) -> Result<M, AlgorithmError<NI>>
 where
-    G: GraphWithEdgeValues<V, NodeIndex = NI>,
     NI: PartialEq + Copy,
     VT: VisitedTracker<NI>,
     M: MapTrait<NI, V>,

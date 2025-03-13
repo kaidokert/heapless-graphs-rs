@@ -14,7 +14,7 @@ pub fn kruskals<'a, NI, G, V, M>(
     mst: &'a mut [(NI, NI, V)],
 ) -> Result<&'a [(NI, NI, V)], AlgorithmError<NI>>
 where
-    G: GraphWithEdgeValues<V, NodeIndex = NI>,
+    G: GraphWithEdgeValues<NI, V>,
     M: MapTrait<NI, NI>,
     NI: Eq + Copy + Default + Ord + Sized,
     V: Copy + Default + Ord + Sized,

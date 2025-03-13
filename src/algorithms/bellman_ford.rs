@@ -17,7 +17,7 @@ pub fn bellman_ford<NI, G, V, M>(
     mut distance: M,
 ) -> Result<M, AlgorithmError<NI>>
 where
-    G: GraphWithEdgeValues<V, NodeIndex = NI>,
+    G: GraphWithEdgeValues<NI, V>,
     NI: PartialEq + Copy + core::fmt::Debug,
     M: MapTrait<NI, V>,
     V: num_traits::Bounded + num_traits::Zero + PartialOrd + Copy + core::fmt::Debug,

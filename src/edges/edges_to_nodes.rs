@@ -119,7 +119,7 @@ where
     }
 }
 
-impl<const N: usize, NI> DoubleEndedIterator for EdgesToNodesIterator<'_, N, NI>
+impl<'a, const N: usize, NI> DoubleEndedIterator for EdgesToNodesIterator<'a, N, NI>
 where
     NI: PartialEq + Ord,
 {

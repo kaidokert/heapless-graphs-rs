@@ -10,10 +10,11 @@ use core::ops::{Deref, DerefMut};
 
 use crate::containers::maps::MapTrait;
 use crate::graph::{
-    integrity_check, Graph, GraphError, GraphWithEdgeValues, GraphWithMutableEdges,
-    GraphWithNodeValues,
+    Graph, GraphError, GraphWithEdgeValues, GraphWithMutableEdges, GraphWithNodeValues,
 };
 use crate::nodes::{AddNode, NodesIterable, NodesValuesIterable};
+
+use core::iter::Map;
 
 mod edgeiterator;
 pub use edgeiterator::{EdgeIterator, EdgeValueIterator};
@@ -28,7 +29,7 @@ where
     where
         NI: 'a,
         Self: 'a;
-    fn as_outgoing_nodes<'a>(&'a self) -> Self::Iter<'a>
+    fn as_outgoing_nodes<'a>(&'a self) -> Self::Iter<'_>
     where
         NI: 'a;
 }
@@ -54,7 +55,7 @@ where
         NI: 'a,
         Self: 'a,
         V: 'a;
-    fn as_outgoing_nodes_values<'a>(&'a self) -> Self::IterValues<'a>
+    fn as_outgoing_nodes_values<'a>(&'a self) -> Self::IterValues<'_>
     where
         NI: 'a;
     fn value(&self) -> Option<&V>;
@@ -188,7 +189,7 @@ where
         NI: 'a,
         Self: 'a;
 
-    fn as_outgoing_nodes<'a>(&'a self) -> Self::Iter<'a>
+    fn as_outgoing_nodes<'a>(&'a self) -> Self::Iter<'_>
     where
         NI: 'a,
     {
@@ -285,12 +286,12 @@ where
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
     T: AsRef<[(NI, C)]>,
-    Self: Graph,
+    Self: Graph<NI>,
 {
     /// Create new adjacency list and check for integrity
-    pub fn new(value: T) -> Result<Self, <Self as Graph>::Error> {
+    pub fn new(value: T) -> Result<Self, <Self as Graph<NI>>::Error> {
         let result = Self::new_unchecked(value);
-        integrity_check(&result)?;
+        result.integrity_check()?;
         Ok(result)
     }
 
@@ -303,26 +304,27 @@ where
     }
 }
 
-impl<NI, E, C, T> Graph for SliceAdjacencyList<NI, E, C, T>
+impl<NI, E, C, T> Graph<NI> for SliceAdjacencyList<NI, E, C, T>
 where
     NI: PartialEq,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
     T: AsRef<[(NI, C)]>,
 {
-    type NodeIndex = NI;
     type Error = GraphError<NI>;
-
-    fn get_edges<'a>(&'a self) -> Result<impl Iterator<Item = (&'a NI, &'a NI)>, Self::Error>
+    type Edges<'a>
+        = EdgeIterator<'a, NI, E, C, core::slice::Iter<'a, (NI, C)>, &'a (NI, C)>
     where
-        NI: 'a,
-    {
+        Self: 'a;
+    type Nodes<'a>
+        = Map<core::slice::Iter<'a, (NI, C)>, fn(&(NI, C)) -> &NI>
+    where
+        Self: 'a;
+
+    fn get_edges(&self) -> Result<Self::Edges<'_>, GraphError<NI>> {
         Ok(EdgeIterator::new(self.nodes_container.as_ref().iter()))
     }
-    fn get_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a NI>, Self::Error>
-    where
-        NI: 'a,
-    {
+    fn get_nodes(&self) -> Result<Self::Nodes<'_>, GraphError<NI>> {
         Ok(self.nodes_container.as_ref().iter().map(|(n, _)| n))
     }
     /// Slow scan O(n)
@@ -343,33 +345,38 @@ where
     }
 }
 
-impl<NI, E, C, T, V> GraphWithEdgeValues<V> for SliceAdjacencyList<NI, E, C, T>
+impl<NI, E, C, T, V> GraphWithEdgeValues<NI, V> for SliceAdjacencyList<NI, E, C, T>
 where
     NI: PartialEq,
     E: NodesValuesIterable<V, Node = NI>,
     C: AsOutgoingNodesWithValues<NI, E, V>,
     T: AsRef<[(NI, C)]>,
 {
-    fn get_edge_values<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a NI, &'a NI, Option<&'a V>)>, GraphError<NI>>
+    type EdgeValues<'a>
+        = EdgeValueIterator<'a, NI, E, C, core::slice::Iter<'a, (NI, C)>, &'a (NI, C), V>
+    where
+        Self: 'a,
+        V: 'a;
+    fn get_edge_values<'a>(&'a self) -> Result<Self::EdgeValues<'_>, GraphError<NI>>
     where
         V: 'a,
-        NI: 'a,
     {
         Ok(EdgeValueIterator::new(self.nodes_container.as_ref().iter()))
     }
 }
-impl<NI, E, C, T, V> GraphWithNodeValues<V> for SliceAdjacencyList<NI, E, C, T>
+impl<NI, E, C, T, V> GraphWithNodeValues<NI, V> for SliceAdjacencyList<NI, E, C, T>
 where
     NI: PartialEq,
     E: NodesValuesIterable<V, Node = NI>,
     C: AsOutgoingNodesWithValues<NI, E, V>,
     T: AsRef<[(NI, C)]>,
 {
-    fn get_node_values<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a V>)>, GraphError<NI>>
+    type NodeValues<'a>
+        = Map<core::slice::Iter<'a, (NI, C)>, fn(&(NI, C)) -> (&NI, Option<&V>)>
+    where
+        Self: 'a,
+        V: 'a;
+    fn get_node_values<'a>(&'a self) -> Result<Self::NodeValues<'_>, GraphError<NI>>
     where
         V: 'a,
     {
@@ -393,6 +400,7 @@ where
         node: &'a NI,
     ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a V>)>, GraphError<NI>>
     where
+        NI: 'a,
         V: 'a,
     {
         self.neighboring_nodes(node)
@@ -400,7 +408,7 @@ where
     }
 }
 
-impl<NI, E, C, T> GraphWithMutableEdges for SliceAdjacencyList<NI, E, C, T>
+impl<NI, E, C, T> GraphWithMutableEdges<NI> for SliceAdjacencyList<NI, E, C, T>
 where
     NI: PartialEq,
     E: NodesIterable<Node = NI> + AddNode<NI> + Default,
@@ -459,13 +467,13 @@ where
     NI: PartialEq,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
-    Self: Graph,
+    Self: Graph<NI>,
 {
     /// Create new adjacency list and check for integrity
-    pub fn new(value: M) -> Result<Self, <Self as Graph>::Error> {
-        let result = Self::new_unchecked(value);
-        integrity_check(&result)?;
-        Ok(result)
+    pub fn new(value: M) -> Result<Self, <Self as Graph<NI>>::Error> {
+        let res = Self::new_unchecked(value);
+        res.integrity_check()?;
+        Ok(res)
     }
 
     /// Create new adjacency list, do not check consistency
@@ -477,15 +485,22 @@ where
     }
 }
 
-impl<M, E, NI, C> Graph for MapAdjacencyList<M, NI, E, C>
+impl<M, E, NI, C> Graph<NI> for MapAdjacencyList<M, NI, E, C>
 where
     M: MapTrait<NI, C>,
     NI: Eq + core::hash::Hash,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
 {
-    type NodeIndex = NI;
-    type Error = GraphError<Self::NodeIndex>;
+    type Error = GraphError<NI>;
+    type Edges<'a>
+        = EdgeIterator<'a, NI, E, C, M::Iter<'a>, (&'a NI, &'a C)>
+    where
+        Self: 'a;
+    type Nodes<'a>
+        = M::Keys<'a>
+    where
+        Self: 'a;
 
     fn contains_node(&self, node: &NI) -> Result<bool, GraphError<NI>> {
         Ok(self.nodes.contains_key(node))
@@ -501,30 +516,27 @@ where
             Err(GraphError::NodeNotFound)
         }
     }
-    fn get_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a NI>, Self::Error>
-    where
-        NI: 'a,
-    {
+    fn get_nodes(&self) -> Result<Self::Nodes<'_>, GraphError<NI>> {
         Ok(self.nodes.keys())
     }
-    fn get_edges<'a>(&'a self) -> Result<impl Iterator<Item = (&'a NI, &'a NI)>, Self::Error>
-    where
-        NI: 'a,
-    {
+    fn get_edges(&self) -> Result<Self::Edges<'_>, GraphError<NI>> {
         Ok(EdgeIterator::new(self.nodes.iter()))
     }
 }
 
-impl<M, NI, E, C, V> GraphWithEdgeValues<V> for MapAdjacencyList<M, NI, E, C>
+impl<M, NI, E, C, V> GraphWithEdgeValues<NI, V> for MapAdjacencyList<M, NI, E, C>
 where
     M: MapTrait<NI, C>,
     NI: Eq + core::hash::Hash,
     E: NodesValuesIterable<V, Node = NI>,
     C: AsOutgoingNodesWithValues<NI, E, V>,
 {
-    fn get_edge_values<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a NI, &'a NI, Option<&'a V>)>, GraphError<NI>>
+    type EdgeValues<'a>
+        = EdgeValueIterator<'a, NI, E, C, M::Iter<'a>, (&'a NI, &'a C), V>
+    where
+        Self: 'a,
+        V: 'a;
+    fn get_edge_values<'a>(&'a self) -> Result<Self::EdgeValues<'_>, GraphError<NI>>
     where
         V: 'a,
     {
@@ -532,16 +544,19 @@ where
     }
 }
 
-impl<M, NI, E, C, V> GraphWithNodeValues<V> for MapAdjacencyList<M, NI, E, C>
+impl<M, NI, E, C, V> GraphWithNodeValues<NI, V> for MapAdjacencyList<M, NI, E, C>
 where
     M: MapTrait<NI, C>,
     NI: Eq + core::hash::Hash,
     E: NodesValuesIterable<V, Node = NI>,
     C: AsOutgoingNodesWithValues<NI, E, V>,
 {
-    fn get_node_values<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a V>)>, GraphError<NI>>
+    type NodeValues<'a>
+        = Map<M::Iter<'a>, fn((&'a NI, &'a C)) -> (&'a NI, Option<&'a V>)>
+    where
+        V: 'a,
+        Self: 'a;
+    fn get_node_values<'a>(&'a self) -> Result<Self::NodeValues<'_>, GraphError<NI>>
     where
         V: 'a,
     {
@@ -559,6 +574,7 @@ where
         node: &'a NI,
     ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a V>)>, GraphError<NI>>
     where
+        NI: 'a,
         V: 'a,
     {
         self.neighboring_nodes(node)
@@ -566,7 +582,7 @@ where
     }
 }
 
-impl<M, NI, E, C> GraphWithMutableEdges for MapAdjacencyList<M, NI, E, C>
+impl<M, NI, E, C> GraphWithMutableEdges<NI> for MapAdjacencyList<M, NI, E, C>
 where
     M: MapTrait<NI, C>,
     NI: Eq + core::hash::Hash,
@@ -606,7 +622,7 @@ mod tests {
         edges: &[(NI, NI)],
     ) -> Result<(), GraphError<NI>>
     where
-        T: Graph<NodeIndex = NI>,
+        T: Graph<NI>,
         NI: PartialEq + Default + Copy + core::fmt::Debug + 'a,
         GraphError<NI>: From<T::Error>,
     {
@@ -626,7 +642,7 @@ mod tests {
         assert_eq!(&coll2[..count], edges);
         Ok(())
     }
-    fn test_outgoing_edges<'a, T: Graph<NodeIndex = NI>, NI>(
+    fn test_outgoing_edges<'a, T: Graph<NI>, NI>(
         graph: &'a T,
         node: NI,
         edges: &[NI],
@@ -744,7 +760,7 @@ mod tests {
         .expect("worked");
     }
 
-    fn test_with_values<NI, V, G: GraphWithEdgeValues<V, NodeIndex = NI, Error = GraphError<NI>>>(
+    fn test_with_values<NI, V, G: GraphWithEdgeValues<NI, V>>(
         graph: &G,
         expect: &[(NI, NI, V)],
     ) -> Result<(), GraphError<NI>>
@@ -807,7 +823,7 @@ mod tests {
         test_with_values(&graph, &[('a', 'b', 1), ('a', 'c', 4), ('b', 'c', 2)]).expect("worked");
     }
 
-    fn add_test<NI, G: GraphWithMutableEdges<NodeIndex = NI>>(
+    fn add_test<NI, G: GraphWithMutableEdges<NI>>(
         graph: &mut G,
         ok: bool,
         edge: (NI, NI),
@@ -821,10 +837,8 @@ mod tests {
         assert_eq!(res.is_some(), ok);
         test_adjacency_list(graph, expect_nodes, expect_edges).expect("okay");
     }
-    fn outer_add_test<G: GraphWithMutableEdges<NodeIndex = char>>(
-        graph: &mut G,
-        try_adding_new_nodes: bool,
-    ) where
+    fn outer_add_test<G: GraphWithMutableEdges<char>>(graph: &mut G, try_adding_new_nodes: bool)
+    where
         GraphError<char>: From<G::Error>,
     {
         // Check it's as expected

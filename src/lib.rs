@@ -70,6 +70,7 @@
 //! for edge list and adjacency list representations.
 //!
 pub mod adjacency_list;
+pub mod adjacency_matrix;
 pub mod algorithms;
 pub mod containers;
 pub mod edge_list;
