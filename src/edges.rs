@@ -720,34 +720,6 @@ impl<const E: usize, NI, V> AddEdge for EdgeVecValue<E, NI, V> {
     }
 }
 
-/// Provide an iterator over nodes in edge list
-pub trait EdgeNodesIterable<NI> {
-    /// Associated type for the iterator
-    type Iter<'a, const N: usize>: DoubleEndedIterator<Item = &'a NI>
-    where
-        Self: 'a,
-        NI: 'a;
-
-    /// Return iterator that yields node references
-    fn iter_nodes<const N: usize>(&self) -> Result<Self::Iter<'_, N>, EdgeNodeError>;
-}
-
-impl<T, NI> EdgeNodesIterable<NI> for T
-where
-    T: EdgesIterable<Node = NI>,
-    NI: PartialEq + Ord,
-{
-    type Iter<'a, const N: usize>
-        = EdgesToNodesIterator<'a, N, NI>
-    where
-        Self: 'a,
-        NI: 'a;
-
-    fn iter_nodes<const N: usize>(&self) -> Result<Self::Iter<'_, N>, EdgeNodeError> {
-        EdgesToNodesIterator::new(self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -880,20 +852,6 @@ mod tests {
         );
         iterate_over(&edge_list, &EXPECTED);
         (&edge_list).iter_edges();
-    }
-
-    #[test]
-    fn test_iter_nodes() {
-        let edge_list = EdgeStructOption([Some((0usize, 1)), Some((1, 20)), None, Some((2, 3))]);
-        let ref_edge_list = &edge_list;
-        let nodes = ref_edge_list
-            .iter_nodes::<4>()
-            .expect("Failed to create iterator");
-        let mut collect = [42; 6];
-        nodes
-            .zip(&mut collect.iter_mut())
-            .for_each(|(n, c)| *c = *n);
-        assert_eq!(collect, [0, 1, 2, 3, 20, 42])
     }
 
     #[test]
