@@ -38,7 +38,7 @@ pub trait GraphRef<NodeIndex: NodeIndexTrait> {
         Ok(self
             .iter_edges()?
             .filter(move |(src, _dst)| *src == node)
-            .map(|(src, _dst)| src))
+            .map(|(_src, dst)| dst))
     }
 }
 

@@ -9,15 +9,16 @@ pub fn dfs_recursive_unchecked<G, NI, VT, F>(
 ) -> Result<(), G::Error>
 where
     G: GraphRef<NI>,
-    NI: NodeIndexTrait,
+    NI: NodeIndexTrait + core::fmt::Debug,
     VT: VisitedTracker<NI> + ?Sized,
     for<'a> F: FnMut(&'a NI),
 {
-    if !visited.is_visited(&start_node) {
-        visited.mark_visited(&start_node);
-        operation(&start_node);
+    if !visited.is_visited(start_node) {
+        visited.mark_visited(start_node);
+        operation(start_node);
     }
-    for next_node in graph.outgoing_edges(&start_node)? {
+    for next_node in graph.outgoing_edges(start_node)? {
+        log::info!("Visiting node: {:?}", next_node);
         if !visited.is_visited(next_node) {
             dfs_recursive_unchecked(graph, next_node, visited, operation)?;
         }
@@ -29,6 +30,7 @@ where
 mod tests {
     use super::*;
     use crate::edgelist::edge_list::EdgeList;
+    use test_log::test;
 
     struct Collector<T, const N: usize> {
         nodes: [T; N],

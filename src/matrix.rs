@@ -1,2 +1,2 @@
 mod map_matrix;
-mod simple_matrix;
+pub mod simple_matrix;
