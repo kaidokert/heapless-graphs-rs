@@ -9,7 +9,7 @@ pub fn dfs_recursive_unchecked<G, NI, VT, F>(
 ) -> Result<(), G::Error>
 where
     G: GraphRef<NI>,
-    NI: NodeIndexTrait + core::fmt::Debug,
+    NI: NodeIndexTrait,
     VT: VisitedTracker<NI> + ?Sized,
     for<'a> F: FnMut(&'a NI),
 {
@@ -18,12 +18,29 @@ where
         operation(start_node);
     }
     for next_node in graph.outgoing_edges(start_node)? {
-        log::info!("Visiting node: {:?}", next_node);
         if !visited.is_visited(next_node) {
             dfs_recursive_unchecked(graph, next_node, visited, operation)?;
         }
     }
     Ok(())
+}
+
+pub fn dfs_recursive<G, NI, VT, F>(
+    graph: &G,
+    start_node: &NI,
+    visited: &mut VT,
+    operation: &mut F,
+) -> Result<(), G::Error>
+where
+    G: GraphRef<NI>,
+    NI: NodeIndexTrait,
+    VT: VisitedTracker<NI> + ?Sized,
+    for<'a> F: FnMut(&'a NI),
+{
+    if !graph.contains_node(start_node)? {
+        return Ok(());
+    }
+    dfs_recursive_unchecked(graph, start_node, visited, operation)
 }
 
 #[cfg(test)]
