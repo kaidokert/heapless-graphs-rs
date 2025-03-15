@@ -86,4 +86,16 @@ mod tests {
         let nodes: Vec<usize> = matrix.iter_nodes().unwrap().collect();
         assert_eq!(nodes, vec![0, 1, 2, 3, 4]);
     }
+
+    #[test]
+    fn sparse_edges() {
+        let matrix = Matrix::<3, _, _, _>::new([
+            [None, Some('b'), None],
+            [Some('t'), None, Some('z')],
+            [None, Some('x'), Some('f')],
+        ]);
+
+        let edges: Vec<(usize, usize)> = matrix.iter_edges().unwrap().collect();
+        assert_eq!(edges, vec![(0, 1), (1, 0), (1, 2), (2, 1), (2, 2)]);
+    }
 }

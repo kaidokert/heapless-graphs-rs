@@ -139,6 +139,20 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_iter_with_gaps() {
+        let mut dict = Dictionary::<usize, char, 5>::new();
+        dict.insert(1, 'a');
+        dict.insert(2, 'b');
+        dict.insert(3, 'c');
+
+        let values: Vec<char> = dict.iter().map(|(_, v)| *v).collect();
+        assert_eq!(values.len(), 3, "Iterator should yield all 3 values");
+        assert!(values.contains(&'a'), "Should contain 'a'");
+        assert!(values.contains(&'b'), "Should contain 'b'");
+        assert!(values.contains(&'c'), "Should contain 'c'");
+    }
+
+    #[test]
     fn test_iter() {
         let mut dict = super::Dictionary::<_, _, 37>::new();
         dict.insert("hello", "world");
