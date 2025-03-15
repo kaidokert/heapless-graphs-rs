@@ -3,59 +3,64 @@ use crate::{
     graph::{GraphError, GraphRef, GraphVal, NodeIndexTrait},
 };
 
-pub struct MapMatrix<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW>
+pub struct MapMatrix<'a, const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndexTrait + 'a,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<usize, &'a NI>,
 {
     inner: super::simple_matrix::Matrix<N, EDGEVALUE, COLUMNS, ROW>,
     index_map: M,
-    phantom: core::marker::PhantomData<NI>,
+    phantom: core::marker::PhantomData<&'a NI>,
 }
 
-impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
+impl<'a, const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW>
+    MapMatrix<'a, N, NI, M, EDGEVALUE, COLUMNS, ROW>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndexTrait + 'a,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<usize, &'a NI>,
 {
-    pub fn new(matrix: COLUMNS, index_map: M) -> Self {
+    pub fn new_from_node_indices(matrix: COLUMNS, mut map: M, node_indices: &'a [NI]) -> Self {
+        map.clear();
+        for (i, node_index) in node_indices.iter().enumerate() {
+            map.insert(i, node_index);
+        }
         Self {
             inner: super::simple_matrix::Matrix::new(matrix),
-            index_map,
+            index_map: map,
             phantom: core::marker::PhantomData,
         }
     }
 }
 
-impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> GraphRef<NI>
-    for MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
+impl<'a, const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> GraphRef<NI>
+    for MapMatrix<'a, N, NI, M, EDGEVALUE, COLUMNS, ROW>
 where
-    NI: NodeIndexTrait + core::fmt::Debug,
+    NI: NodeIndexTrait + core::fmt::Debug + 'a,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<usize, &'a NI>,
 {
     type Error = GraphError<NI>;
 
-    fn iter_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a NI>, Self::Error>
+    fn iter_nodes<'b>(&'b self) -> Result<impl Iterator<Item = &'b NI>, Self::Error>
     where
-        NI: 'a,
+        'a: 'b,
     {
-        Ok(self.index_map.iter().map(|(_, v)| v))
+        Ok(self.index_map.iter().map(|(_, v)| *v))
     }
 
-    fn iter_edges<'a>(&'a self) -> Result<impl Iterator<Item = (&'a NI, &'a NI)>, Self::Error>
+    fn iter_edges<'b>(&'b self) -> Result<impl Iterator<Item = (&'b NI, &'b NI)>, Self::Error>
     where
-        NI: 'a,
+        'a: 'b,
     {
         Ok(self.inner.iter_edges().unwrap().map(|(i, j)| {
             let n = self.index_map.get(&i).unwrap();
             let m = self.index_map.get(&j).unwrap();
-            (n, m)
+            (*n, *m)
         }))
     }
 }
@@ -68,26 +73,20 @@ mod tests {
 
     #[test]
     fn test_map_matrix() {
-        // Nodeindex is i32 here
-        let mut index_map = Dictionary::<_, _, 71>::new();
-        index_map.insert(0_usize, 'b');
-        index_map.insert(1_usize, 'c');
-        index_map.insert(2_usize, 'a');
-
         let array_data = [
             [Some(true), Some(true), None],
             [None, None, Some(false)],
             [Some(false), None, Some(true)],
         ];
-        let map_matrix: MapMatrix<3, _, _, _, _, _> = MapMatrix::new(array_data, index_map);
+        let map_matrix: MapMatrix<3, _, _, _, _, _> = MapMatrix::new_from_node_indices(
+            array_data,
+            Dictionary::<_, _, 71>::new(),
+            &['b', 'c', 'a'],
+        );
 
         let inner = map_matrix.inner.iter_nodes().unwrap();
         let nodes: Vec<usize> = inner.collect();
         assert_eq!(nodes, vec![0, 1, 2]);
-
-        let keys = map_matrix.index_map.keys();
-        let keys: Vec<usize> = keys.map(|k| *k).collect();
-        assert_eq!(keys, vec![0, 1, 2]);
 
         let outer = map_matrix.iter_nodes().unwrap();
         let outer_nodes: Vec<char> = outer.map(|n| *n).collect();
