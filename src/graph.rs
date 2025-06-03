@@ -52,6 +52,22 @@ pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
 
     fn iter_nodes(&self) -> Result<impl Iterator<Item = NodeIndex>, Self::Error>;
     fn iter_edges(&self) -> Result<impl Iterator<Item = (NodeIndex, NodeIndex)>, Self::Error>;
+
+    /// Get outgoing edges from a node
+    fn outgoing_edges(
+        &self,
+        node: NodeIndex,
+    ) -> Result<impl Iterator<Item = NodeIndex>, Self::Error> {
+        Ok(self
+            .iter_edges()?
+            .filter(move |(src, _dst)| *src == node)
+            .map(|(_src, dst)| dst))
+    }
+
+    /// Check if a node is present in the graph
+    fn contains_node(&self, node: NodeIndex) -> Result<bool, Self::Error> {
+        Ok(self.iter_nodes()?.any(|x| x == node))
+    }
 }
 
 pub trait GraphRefWithNodeValues<NI, NV>: GraphRef<NI>

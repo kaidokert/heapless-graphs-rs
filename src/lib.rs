@@ -40,4 +40,5 @@ pub mod matrix;
 pub mod nodes;
 pub mod visited;
 
+pub use algorithms::AlgorithmError;
 pub use visited::VisitedTracker;

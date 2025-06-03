@@ -1,3 +1,3 @@
-mod map_adjacency_list;
-mod outgoing_nodes;
-mod slice_adjacency_list;
+pub mod map_adjacency_list;
+pub mod outgoing_nodes;
+pub mod slice_adjacency_list;

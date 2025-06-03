@@ -48,6 +48,24 @@ where
                     })
             }))
     }
+
+    /// Optimized O(V) outgoing_edges for matrix
+    fn outgoing_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
+        // For now, use a simple approach that works with the type system
+        Ok((0..N).filter_map(move |col_index| {
+            if node < N {
+                self.matrix
+                    .as_ref()
+                    .get(node)?
+                    .as_ref()
+                    .get(col_index)?
+                    .as_ref()
+                    .map(|_| col_index)
+            } else {
+                None
+            }
+        }))
+    }
 }
 
 #[cfg(test)]
