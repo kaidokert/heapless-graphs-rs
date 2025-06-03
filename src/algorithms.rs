@@ -1,3 +1,4 @@
+pub mod topological_sort;
 pub mod traversal;
 
 use crate::edgelist::edge_list::EdgeListError;
@@ -7,6 +8,8 @@ use crate::graph::{GraphError, NodeIndexTrait};
 pub enum AlgorithmError<NI: NodeIndexTrait> {
     QueueCapacityExceeded,
     StackCapacityExceeded,
+    CycleDetected,
+    ResultCapacityExceeded,
     GraphError(GraphError<NI>),
 }
 

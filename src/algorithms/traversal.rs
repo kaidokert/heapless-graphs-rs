@@ -3,6 +3,9 @@ use crate::containers::queues::Deque;
 use crate::graph::{GraphRef, GraphVal, NodeIndexTrait};
 use crate::visited::VisitedTracker;
 
+/// Unchecked depth first traversal
+///
+/// Always yields the initial node, even if it is not present in graph
 pub fn dfs_recursive_unchecked<G, NI, VT, F>(
     graph: &G,
     start_node: &NI,
@@ -27,6 +30,9 @@ where
     Ok(())
 }
 
+/// Depth first recursive traversal
+///
+/// Does not index initial node, if initial node is not present in the graph
 pub fn dfs_recursive<G, NI, VT, F>(
     graph: &G,
     start_node: &NI,
@@ -45,63 +51,9 @@ where
     dfs_recursive_unchecked(graph, start_node, visited, operation)
 }
 
-pub fn bfs_unchecked<G, NI, VT, Q, F>(
-    graph: &G,
-    start_node: NI,
-    visited: &mut VT,
-    mut queue: Q,
-    operation: &mut F,
-) -> Result<(), AlgorithmError<NI>>
-where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
-    VT: VisitedTracker<NI> + ?Sized,
-    Q: Deque<NI>,
-    F: FnMut(NI),
-    AlgorithmError<NI>: From<G::Error>,
-{
-    queue
-        .push_back(start_node)
-        .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
-    visited.mark_visited(&start_node);
-
-    while !queue.is_empty() {
-        if let Some(node) = queue.pop_front() {
-            operation(node);
-            for next_node in graph.outgoing_edges(node)? {
-                if !visited.is_visited(&next_node) {
-                    visited.mark_visited(&next_node);
-                    queue
-                        .push_back(next_node)
-                        .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-pub fn bfs<G, NI, VT, Q, F>(
-    graph: &G,
-    start_node: NI,
-    visited: &mut VT,
-    queue: Q,
-    operation: &mut F,
-) -> Result<(), AlgorithmError<NI>>
-where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
-    VT: VisitedTracker<NI> + ?Sized,
-    Q: Deque<NI>,
-    F: FnMut(NI),
-    AlgorithmError<NI>: From<G::Error>,
-{
-    if !graph.contains_node(start_node)? {
-        return Ok(());
-    }
-    bfs_unchecked(graph, start_node, visited, queue, operation)
-}
-
+/// Unchecked iterative depth first traversal, using a stack
+///
+/// Always yields the initial node, even if it is not present in graph
 pub fn dfs_iterative_unchecked<G, NI, VT, S, F>(
     graph: &G,
     start_node: NI,
@@ -139,6 +91,9 @@ where
     Ok(())
 }
 
+/// Iterative depth first traversal, using a stack
+///
+/// Does not index initial node, if initial node is not present in graph
 pub fn dfs_iterative<G, NI, VT, S, F>(
     graph: &G,
     start_node: NI,
@@ -158,6 +113,69 @@ where
         return Ok(());
     }
     dfs_iterative_unchecked(graph, start_node, visited, stack, operation)
+}
+
+/// Unchecked breadth first traversal, using a queue
+///
+/// Always yields the initial node, even if it is not present in graph
+pub fn bfs_unchecked<G, NI, VT, Q, F>(
+    graph: &G,
+    start_node: NI,
+    visited: &mut VT,
+    mut queue: Q,
+    operation: &mut F,
+) -> Result<(), AlgorithmError<NI>>
+where
+    G: GraphVal<NI>,
+    NI: NodeIndexTrait + Copy,
+    VT: VisitedTracker<NI> + ?Sized,
+    Q: Deque<NI>,
+    F: FnMut(NI),
+    AlgorithmError<NI>: From<G::Error>,
+{
+    queue
+        .push_back(start_node)
+        .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
+    visited.mark_visited(&start_node);
+
+    while !queue.is_empty() {
+        if let Some(node) = queue.pop_front() {
+            operation(node);
+            for next_node in graph.outgoing_edges(node)? {
+                if !visited.is_visited(&next_node) {
+                    visited.mark_visited(&next_node);
+                    queue
+                        .push_back(next_node)
+                        .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Breadth first traversal, using a queue
+///
+/// Does not index initial node, if initial node is not present in graph
+pub fn bfs<G, NI, VT, Q, F>(
+    graph: &G,
+    start_node: NI,
+    visited: &mut VT,
+    queue: Q,
+    operation: &mut F,
+) -> Result<(), AlgorithmError<NI>>
+where
+    G: GraphVal<NI>,
+    NI: NodeIndexTrait + Copy,
+    VT: VisitedTracker<NI> + ?Sized,
+    Q: Deque<NI>,
+    F: FnMut(NI),
+    AlgorithmError<NI>: From<G::Error>,
+{
+    if !graph.contains_node(start_node)? {
+        return Ok(());
+    }
+    bfs_unchecked(graph, start_node, visited, queue, operation)
 }
 
 #[cfg(test)]
