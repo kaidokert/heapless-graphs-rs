@@ -117,3 +117,24 @@ where
     where
         EV: 'a;
 }
+
+/// Integrity check for graphs - validates that all edges reference valid nodes
+///
+/// This function checks that every edge in the graph references nodes that actually
+/// exist in the graph's node set. This is used during graph construction to ensure
+/// data integrity and prevent invalid graph states.
+pub(crate) fn integrity_check<NI, G>(graph: &G) -> Result<(), G::Error>
+where
+    NI: NodeIndexTrait,
+    G: GraphRef<NI>,
+{
+    for (src, dst) in graph.iter_edges()? {
+        if !graph.contains_node(src)? {
+            return Err(GraphError::EdgeHasInvalidNode.into());
+        }
+        if !graph.contains_node(dst)? {
+            return Err(GraphError::EdgeHasInvalidNode.into());
+        }
+    }
+    Ok(())
+}

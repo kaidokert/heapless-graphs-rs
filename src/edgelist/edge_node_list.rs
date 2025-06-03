@@ -1,29 +1,12 @@
 mod by_ref;
 mod by_val;
 
-use crate::graph::{GraphError, GraphRef, NodeIndexTrait};
+use crate::graph::{integrity_check, GraphError, GraphRef, NodeIndexTrait};
 
 pub struct EdgeNodeList<E, N, NI> {
     edges: E,
     nodes: N,
     _phantom: core::marker::PhantomData<NI>,
-}
-
-/// Integrity check for graphs - validates that all edges reference valid nodes
-pub(crate) fn integrity_check<NI, G>(graph: &G) -> Result<(), G::Error>
-where
-    NI: NodeIndexTrait,
-    G: GraphRef<NI>,
-{
-    for (src, dst) in graph.iter_edges()? {
-        if !graph.contains_node(src)? {
-            return Err(GraphError::EdgeHasInvalidNode.into());
-        }
-        if !graph.contains_node(dst)? {
-            return Err(GraphError::EdgeHasInvalidNode.into());
-        }
-    }
-    Ok(())
 }
 
 impl<E, N, NI> EdgeNodeList<E, N, NI> {
