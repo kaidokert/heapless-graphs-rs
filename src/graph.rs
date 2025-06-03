@@ -13,6 +13,7 @@ impl<T> NodeIndexTrait for T where T: PartialEq + PartialOrd {}
 pub enum GraphError<NI: NodeIndexTrait> {
     NodeNotFound,
     EdgeNotFound,
+    EdgeHasInvalidNode,
     PlaceHolder(NI),
 }
 

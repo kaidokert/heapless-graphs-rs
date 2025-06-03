@@ -29,7 +29,7 @@ mod test {
 
     #[test]
     fn test_edge_node_list() {
-        let graph = EdgeNodeList::new([(0usize, 1usize), (0, 2), (1, 2)], [0, 1, 2]);
+        let graph = EdgeNodeList::new([(0usize, 1usize), (0, 2), (1, 2)], [0, 1, 2]).unwrap();
         graph.iter_nodes().unwrap().for_each(|x| println!("{}", x));
     }
 }

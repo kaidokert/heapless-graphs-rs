@@ -14,7 +14,7 @@
 //!   // Create edges and nodes
 //!   let graph = EdgeNodeList::new(
 //!     [(1_usize, 5), (5, 3), (7, 7)],
-//!     [7, 4, 3, 1, 5]);
+//!     [7, 4, 3, 1, 5]).unwrap();
 //!   let mut visited = [false; 10];
 //!   dfs_recursive(&graph, &5, visited.as_mut_slice(), &mut |x| {
 //!     println!("node: {}",x)
