@@ -16,22 +16,22 @@ use crate::graph::{GraphVal, NodeIndexTrait};
 /// * `graph` - The graph to sort topologically (must implement GraphVal)
 /// * `queue` - Queue for BFS processing (nodes with zero in-degree)
 /// * `in_degree_map` - Map to track in-degree count for each node
-/// * `result` - Container to store the topologically sorted nodes
+/// * `sorted_nodes` - Buffer to store the topologically sorted nodes
 ///
 /// # Returns
-/// * `Ok(())` if successful
+/// * `Ok(&[NI])` slice of sorted nodes if successful
 /// * `Err(AlgorithmError::CycleDetected)` if a cycle is found
 /// * `Err(AlgorithmError::QueueCapacityExceeded)` if queue capacity exceeded
-/// * `Err(AlgorithmError::ResultCapacityExceeded)` if result container is full
+/// * `Err(AlgorithmError::ResultCapacityExceeded)` if result buffer is full
 ///
 /// # Time Complexity
 /// O(V + E) where V is the number of vertices and E is the number of edges
-pub fn kahns<G, NI, D, M>(
+pub fn kahns<'a, G, NI, D, M>(
     graph: &G,
     mut queue: D,
     mut in_degree_map: M,
-    result: &mut D,
-) -> Result<(), AlgorithmError<NI>>
+    sorted_nodes: &'a mut [NI],
+) -> Result<&'a [NI], AlgorithmError<NI>>
 where
     G: GraphVal<NI>,
     NI: NodeIndexTrait + Copy,
@@ -39,8 +39,17 @@ where
     M: MapTrait<NI, isize>,
     AlgorithmError<NI>: From<G::Error>,
 {
-    result.clear();
     queue.clear();
+    
+    let mut sort_index = 0;
+    let mut append_to_list = |node: NI| -> Result<(), AlgorithmError<NI>> {
+        if sort_index >= sorted_nodes.len() {
+            return Err(AlgorithmError::ResultCapacityExceeded);
+        }
+        sorted_nodes[sort_index] = node;
+        sort_index += 1;
+        Ok(())
+    };
 
     // Initialize in-degree map with all nodes having 0 in-degree
     for node in graph.iter_nodes()? {
@@ -69,9 +78,7 @@ where
 
     // Process nodes in topological order
     while let Some(node) = queue.pop_front() {
-        result
-            .push_back(node)
-            .map_err(|_| AlgorithmError::ResultCapacityExceeded)?;
+        append_to_list(node)?;
 
         // Reduce in-degree of all neighbors
         for target in graph.outgoing_edges(node)? {
@@ -93,7 +100,7 @@ where
         }
     }
 
-    Ok(())
+    Ok(&sorted_nodes[..sort_index])
 }
 
 #[cfg(test)]
@@ -101,7 +108,7 @@ mod tests {
     use super::*;
     use crate::containers::{
         maps::staticdict::Dictionary,
-        queues::{CircularQueue, Deque},
+        queues::CircularQueue,
     };
     use crate::edgelist::edge_list::EdgeList;
     use test_log::test;
@@ -112,24 +119,17 @@ mod tests {
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (1, 2)]);
         let queue = CircularQueue::<usize, 8>::new();
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
-        let mut result = CircularQueue::<usize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
 
-        kahns(
+        let result = kahns(
             &graph,
             queue,
             in_degree_map,
-            &mut result,
+            &mut sorted_nodes,
         )
         .unwrap();
 
-        let mut sorted = [0usize; 8];
-        let mut len = 0;
-        while let Some(node) = result.pop_front() {
-            sorted[len] = node;
-            len += 1;
-        }
-        assert_eq!(len, 3);
-        assert_eq!(&sorted[..len], &[0, 1, 2]);
+        assert_eq!(result, &[0, 1, 2]);
     }
 
     #[test]
@@ -138,34 +138,27 @@ mod tests {
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 3), (2, 3)]);
         let queue = CircularQueue::<usize, 8>::new();
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
-        let mut result = CircularQueue::<usize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
 
-        kahns(
+        let result = kahns(
             &graph,
             queue,
             in_degree_map,
-            &mut result,
+            &mut sorted_nodes,
         )
         .unwrap();
 
-        let mut sorted = [0usize; 8];
-        let mut len = 0;
-        while let Some(node) = result.pop_front() {
-            sorted[len] = node;
-            len += 1;
-        }
-        assert_eq!(len, 4);
+        assert_eq!(result.len(), 4);
 
         // Kahn's algorithm should produce: [0, 1, 2, 3] or [0, 2, 1, 3]
         // 0 should be first (no incoming edges)
         // 3 should be last (no outgoing edges)
-        assert_eq!(sorted[0], 0);
-        assert_eq!(sorted[len - 1], 3);
+        assert_eq!(result[0], 0);
+        assert_eq!(result[result.len() - 1], 3);
 
         // Check that all nodes are present
-        let sorted_slice = &sorted[..len];
-        assert!(sorted_slice.contains(&1));
-        assert!(sorted_slice.contains(&2));
+        assert!(result.contains(&1));
+        assert!(result.contains(&2));
     }
 
     #[test]
@@ -174,13 +167,13 @@ mod tests {
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (1, 2), (2, 0)]);
         let queue = CircularQueue::<usize, 8>::new();
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
-        let mut result = CircularQueue::<usize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
 
         let error = kahns(
             &graph,
             queue,
             in_degree_map,
-            &mut result,
+            &mut sorted_nodes,
         );
 
         assert_eq!(error, Err(AlgorithmError::CycleDetected));
@@ -192,30 +185,23 @@ mod tests {
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (2, 3)]);
         let queue = CircularQueue::<usize, 8>::new();
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
-        let mut result = CircularQueue::<usize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
 
-        kahns(
+        let result = kahns(
             &graph,
             queue,
             in_degree_map,
-            &mut result,
+            &mut sorted_nodes,
         )
         .unwrap();
 
-        let mut sorted = [0usize; 8];
-        let mut len = 0;
-        while let Some(node) = result.pop_front() {
-            sorted[len] = node;
-            len += 1;
-        }
-        assert_eq!(len, 4);
+        assert_eq!(result.len(), 4);
 
         // Check relative ordering within connected components
-        let sorted_slice = &sorted[..len];
-        let pos_0 = sorted_slice.iter().position(|&x| x == 0).unwrap();
-        let pos_1 = sorted_slice.iter().position(|&x| x == 1).unwrap();
-        let pos_2 = sorted_slice.iter().position(|&x| x == 2).unwrap();
-        let pos_3 = sorted_slice.iter().position(|&x| x == 3).unwrap();
+        let pos_0 = result.iter().position(|&x| x == 0).unwrap();
+        let pos_1 = result.iter().position(|&x| x == 1).unwrap();
+        let pos_2 = result.iter().position(|&x| x == 2).unwrap();
+        let pos_3 = result.iter().position(|&x| x == 3).unwrap();
 
         assert!(pos_0 < pos_1); // 0 should come before 1
         assert!(pos_2 < pos_3); // 2 should come before 3
@@ -227,13 +213,13 @@ mod tests {
         let graph = EdgeList::<8, _, _>::new([(0usize, 0usize)]);
         let queue = CircularQueue::<usize, 8>::new();
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
-        let mut result = CircularQueue::<usize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
 
         let error = kahns(
             &graph,
             queue,
             in_degree_map,
-            &mut result,
+            &mut sorted_nodes,
         );
 
         assert_eq!(error, Err(AlgorithmError::CycleDetected));

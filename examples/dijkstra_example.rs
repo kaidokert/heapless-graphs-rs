@@ -42,23 +42,23 @@ fn main() {
 
     let graph = EdgeList::<16, _, _>::new(edges);
 
-    let mut distance_map = Dictionary::<char, Option<i32>, 16>::new();
-    let mut visited = Dictionary::<char, bool, 16>::new();
+    let distance_map = Dictionary::<char, Option<i32>, 16>::new();
+    let visited = Dictionary::<char, bool, 16>::new();
 
     println!("\nFinding shortest paths from node 'A'...");
 
     match dijkstra(
         &graph,
         'A',
-        &mut distance_map,
-        &mut visited,
+        visited,
+        distance_map,
     ) {
-        Ok(()) => {
+        Ok(result) => {
             println!("\nShortest distances from A:");
             let nodes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
             for node in nodes.iter() {
-                if let Some(dist_opt) = distance_map.get(node) {
+                if let Some(dist_opt) = result.get(node) {
                     match dist_opt {
                         Some(dist) => println!("  A -> {}: {}", node, dist),
                         None => println!("  A -> {}: unreachable", node),
@@ -90,21 +90,21 @@ fn main() {
 
     let disconnected_graph = EdgeList::<8, _, _>::new(disconnected_edges);
 
-    let mut distance_map2 = Dictionary::<i32, Option<i32>, 16>::new();
-    let mut visited2 = Dictionary::<i32, bool, 16>::new();
+    let distance_map2 = Dictionary::<i32, Option<i32>, 16>::new();
+    let visited2 = Dictionary::<i32, bool, 16>::new();
 
     println!("Finding shortest paths from node 1...");
 
     match dijkstra(
         &disconnected_graph,
         1,
-        &mut distance_map2,
-        &mut visited2,
+        visited2,
+        distance_map2,
     ) {
-        Ok(()) => {
+        Ok(result) => {
             println!("\nDistances from node 1:");
             for node in [1, 2, 3, 4, 5].iter() {
-                if let Some(dist_opt) = distance_map2.get(node) {
+                if let Some(dist_opt) = result.get(node) {
                     match dist_opt {
                         Some(dist) => println!("  1 -> {}: {}", node, dist),
                         None => println!("  1 -> {}: unreachable", node),

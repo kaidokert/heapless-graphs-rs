@@ -4,7 +4,6 @@
 
 use heapless_graphs::{
     algorithms::topological_sort::topological_sort_dfs,
-    containers::queues::{CircularQueue, Deque},
     edgelist::edge_list::EdgeList,
     visited::NodeState,
 };
@@ -22,28 +21,17 @@ fn main() {
 
     // Set up tracking structures
     let mut visited = [NodeState::Unvisited; 8];
-    let mut result = CircularQueue::<usize, 8>::new();
-
-    // All nodes to consider for sorting
-    let nodes = [0, 1, 2, 3, 4];
+    let mut sorted_nodes = [0usize; 8];
 
     // Perform topological sort
     match topological_sort_dfs(
         &graph,
-        nodes.iter().copied(),
         visited.as_mut_slice(),
-        &mut result,
+        &mut sorted_nodes,
     ) {
-        Ok(()) => {
+        Ok(result) => {
             println!("Topological sort successful!");
             print!("Build order: ");
-
-            let mut sorted = [0usize; 8];
-            let mut len = 0;
-            while let Some(node) = result.pop_front() {
-                sorted[len] = node;
-                len += 1;
-            }
 
             let tasks = [
                 "compile_lib",
@@ -52,7 +40,7 @@ fn main() {
                 "run_tests",
                 "link_main",
             ];
-            for (i, &node) in sorted[..len].iter().enumerate() {
+            for (i, &node) in result.iter().enumerate() {
                 if i > 0 {
                     print!(" -> ");
                 }

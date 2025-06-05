@@ -19,19 +19,19 @@ fn main() {
     let graph = EdgeList::<8, _, _>::new(edge_data);
 
     // Initialize distance map (using larger size to avoid hash collisions)
-    let mut distance_map = Dictionary::<usize, Option<i32>, 16>::new();
+    let distance_map = Dictionary::<usize, Option<i32>, 16>::new();
 
     println!("Running Bellman-Ford from source node 0...");
 
     // Run Bellman-Ford algorithm from source node 0
-    match bellman_ford(&graph, 0, &mut distance_map, 2) {
-        Ok(()) => {
+    match bellman_ford(&graph, 0, distance_map, 2) {
+        Ok(result) => {
             println!("Algorithm completed successfully!");
             println!("\nShortest distances from node 0:");
 
             // Print shortest distances
             for node in 0..3 {
-                if let Some(dist_opt) = distance_map.get(&node) {
+                if let Some(dist_opt) = result.get(&node) {
                     match dist_opt {
                         Some(dist) => println!("  Node {}: distance = {}", node, dist),
                         None => println!("  Node {}: unreachable", node),
@@ -53,10 +53,10 @@ fn main() {
     ]);
     let neg_graph = EdgeList::<8, _, _>::new(negative_cycle_data);
 
-    let mut distance_map2 = Dictionary::<usize, Option<i32>, 16>::new();
+    let distance_map2 = Dictionary::<usize, Option<i32>, 16>::new();
 
-    match bellman_ford(&neg_graph, 0, &mut distance_map2, 1) {
-        Ok(()) => println!("No negative cycle detected"),
+    match bellman_ford(&neg_graph, 0, distance_map2, 1) {
+        Ok(_) => println!("No negative cycle detected"),
         Err(e) => println!("Negative cycle detected: {:?}", e),
     }
 }

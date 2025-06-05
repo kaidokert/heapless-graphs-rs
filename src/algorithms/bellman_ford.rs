@@ -15,15 +15,15 @@ use super::AlgorithmError;
 /// * `max_iterations` - Maximum number of iterations (typically |V|-1)
 ///
 /// # Returns
-/// * `Ok(())` if shortest paths computed successfully
+/// * `Ok(M)` populated distance map if shortest paths computed successfully
 /// * `Err(AlgorithmError::CycleDetected)` if negative cycle detected
 /// * `Err(AlgorithmError::GraphError(_))` for graph access errors
 pub fn bellman_ford<G, NI, V, M>(
     graph: &G,
     source: NI,
-    distance_map: &mut M,
+    mut distance_map: M,
     max_iterations: usize,
-) -> Result<(), AlgorithmError<NI>>
+) -> Result<M, AlgorithmError<NI>>
 where
     G: GraphValWithEdgeValues<NI, V>,
     NI: NodeIndexTrait + Copy,
@@ -84,7 +84,7 @@ where
         }
     }
 
-    Ok(())
+    Ok(distance_map)
 }
 
 #[cfg(test)]
@@ -100,13 +100,13 @@ mod tests {
         let edge_data = EdgeValueStruct([(0usize, 1usize, 5i32), (1, 2, 3)]);
         let graph = EdgeList::<8, _, _>::new(edge_data);
 
-        let mut distance_map = Dictionary::<usize, Option<i32>, 16>::new();
+        let distance_map = Dictionary::<usize, Option<i32>, 16>::new();
 
-        bellman_ford(&graph, 0, &mut distance_map, 2).unwrap();
+        let result = bellman_ford(&graph, 0, distance_map, 2).unwrap();
 
-        assert_eq!(distance_map.get(&0), Some(&Some(0)));
-        assert_eq!(distance_map.get(&1), Some(&Some(5)));
-        assert_eq!(distance_map.get(&2), Some(&Some(8)));
+        assert_eq!(result.get(&0), Some(&Some(0)));
+        assert_eq!(result.get(&1), Some(&Some(5)));
+        assert_eq!(result.get(&2), Some(&Some(8)));
     }
 
     #[test]
@@ -115,10 +115,10 @@ mod tests {
         let edge_data = EdgeValueStruct([(0usize, 1usize, -1i32), (1, 0, -1)]);
         let graph = EdgeList::<8, _, _>::new(edge_data);
 
-        let mut distance_map = Dictionary::<usize, Option<i32>, 16>::new();
+        let distance_map = Dictionary::<usize, Option<i32>, 16>::new();
 
-        let result = bellman_ford(&graph, 0, &mut distance_map, 1);
-        assert_eq!(result, Err(AlgorithmError::CycleDetected));
+        let result = bellman_ford(&graph, 0, distance_map, 1);
+        assert!(matches!(result, Err(AlgorithmError::CycleDetected)));
     }
 
     #[test]
@@ -127,13 +127,13 @@ mod tests {
         let edge_data = EdgeValueStruct([(0usize, 1usize, 2i32)]);
         let graph = EdgeList::<8, _, _>::new(edge_data);
 
-        let mut distance_map = Dictionary::<usize, Option<i32>, 16>::new();
+        let distance_map = Dictionary::<usize, Option<i32>, 16>::new();
 
-        bellman_ford(&graph, 0, &mut distance_map, 2).unwrap();
+        let result = bellman_ford(&graph, 0, distance_map, 2).unwrap();
 
         // Check distances - node 1 should be reachable
-        assert_eq!(distance_map.get(&0), Some(&Some(0)));
-        assert_eq!(distance_map.get(&1), Some(&Some(2)));
+        assert_eq!(result.get(&0), Some(&Some(0)));
+        assert_eq!(result.get(&1), Some(&Some(2)));
         // Note: node 2 doesn't exist in this graph, so we can't check has_distance for it
     }
 

@@ -11,23 +11,23 @@ use super::AlgorithmError;
 /// # Arguments
 /// * `graph` - Graph implementing GraphValWithEdgeValues
 /// * `source` - Source node to find shortest paths from
-/// * `distance_map` - Map to store distances (None = infinite/unreachable, Some(v) = distance v)
 /// * `visited` - Map to track which nodes have been processed
+/// * `distance_map` - Map to store distances (None = infinite/unreachable, Some(v) = distance v)
 ///
 /// # Returns
-/// * `Ok(())` if shortest paths computed successfully
+/// * `Ok(M)` populated distance map if shortest paths computed successfully
 /// * `Err(AlgorithmError::GraphError(_))` for graph access errors
-pub fn dijkstra<G, NI, V, M, VIS>(
+pub fn dijkstra<G, NI, V, VIS, M>(
     graph: &G,
     source: NI,
-    distance_map: &mut M,
-    visited: &mut VIS,
-) -> Result<(), AlgorithmError<NI>>
+    mut visited: VIS,
+    mut distance_map: M,
+) -> Result<M, AlgorithmError<NI>>
 where
     G: GraphValWithEdgeValues<NI, V>,
     NI: NodeIndexTrait + Copy,
-    M: MapTrait<NI, Option<V>>,
     VIS: MapTrait<NI, bool>,
+    M: MapTrait<NI, Option<V>>,
     V: PartialOrd + Copy + core::ops::Add<Output = V> + Default,
     AlgorithmError<NI>: From<G::Error>,
 {
@@ -108,7 +108,7 @@ where
         }
     }
 
-    Ok(())
+    Ok(distance_map)
 }
 
 #[cfg(test)]
@@ -140,22 +140,22 @@ mod tests {
         ]);
         let graph = EdgeList::<8, _, _>::new(edge_data);
 
-        let mut distance_map = Dictionary::<char, Option<i32>, 16>::new();
-        let mut visited = Dictionary::<char, bool, 16>::new();
+        let distance_map = Dictionary::<char, Option<i32>, 16>::new();
+        let visited = Dictionary::<char, bool, 16>::new();
 
-        dijkstra(
+        let result = dijkstra(
             &graph,
             'A',
-            &mut distance_map,
-            &mut visited,
+            visited,
+            distance_map,
         )
         .unwrap();
 
         // Check the expected distances
-        assert_eq!(distance_map.get(&'A'), Some(&Some(0)));
-        assert_eq!(distance_map.get(&'B'), Some(&Some(1)));
-        assert_eq!(distance_map.get(&'C'), Some(&Some(3))); // 1 (A->B) + 2 (B->C)
-        assert_eq!(distance_map.get(&'D'), Some(&Some(4))); // 3 (A->B->C) + 1 (C->D)
+        assert_eq!(result.get(&'A'), Some(&Some(0)));
+        assert_eq!(result.get(&'B'), Some(&Some(1)));
+        assert_eq!(result.get(&'C'), Some(&Some(3))); // 1 (A->B) + 2 (B->C)
+        assert_eq!(result.get(&'D'), Some(&Some(4))); // 3 (A->B->C) + 1 (C->D)
     }
 
     #[test]
@@ -164,19 +164,19 @@ mod tests {
         let edge_data = EdgeValueStruct([(0usize, 1usize, 2i32)]);
         let graph = EdgeList::<8, _, _>::new(edge_data);
 
-        let mut distance_map = Dictionary::<usize, Option<i32>, 16>::new();
-        let mut visited = Dictionary::<usize, bool, 16>::new();
+        let distance_map = Dictionary::<usize, Option<i32>, 16>::new();
+        let visited = Dictionary::<usize, bool, 16>::new();
 
-        dijkstra(
+        let result = dijkstra(
             &graph,
             0,
-            &mut distance_map,
-            &mut visited,
+            visited,
+            distance_map,
         )
         .unwrap();
 
         // Check distances - node 1 should be reachable
-        assert_eq!(distance_map.get(&0), Some(&Some(0)));
-        assert_eq!(distance_map.get(&1), Some(&Some(2)));
+        assert_eq!(result.get(&0), Some(&Some(0)));
+        assert_eq!(result.get(&1), Some(&Some(2)));
     }
 }

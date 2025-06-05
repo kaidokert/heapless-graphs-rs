@@ -6,7 +6,7 @@ use heapless_graphs::{
     algorithms::{kahns::kahns, topological_sort::topological_sort_dfs},
     containers::{
         maps::{staticdict::Dictionary, MapTrait},
-        queues::{CircularQueue, Deque},
+        queues::CircularQueue,
     },
     edgelist::edge_list::EdgeList,
     visited::NodeState,
@@ -28,7 +28,6 @@ fn main() {
         (4, 5),       // run_tests -> deploy
     ]);
 
-    let nodes = [0, 1, 2, 3, 4, 5];
     let tasks = [
         "setup",
         "compile",
@@ -47,24 +46,16 @@ fn main() {
     // Test DFS-based topological sort
     println!("=== DFS-based Topological Sort ===");
     let mut visited = [NodeState::Unvisited; 8];
-    let mut dfs_result = CircularQueue::<usize, 8>::new();
+    let mut sorted_nodes = [0usize; 8];
 
     match topological_sort_dfs(
         &graph,
-        nodes.iter().copied(),
         visited.as_mut_slice(),
-        &mut dfs_result,
+        &mut sorted_nodes,
     ) {
-        Ok(()) => {
+        Ok(result) => {
             print!("DFS order: ");
-            let mut sorted = [0usize; 8];
-            let mut len = 0;
-            while let Some(node) = dfs_result.pop_front() {
-                sorted[len] = node;
-                len += 1;
-            }
-
-            for (i, &node) in sorted[..len].iter().enumerate() {
+            for (i, &node) in result.iter().enumerate() {
                 if i > 0 {
                     print!(" -> ");
                 }
@@ -81,24 +72,17 @@ fn main() {
     println!("\n=== Kahn's Algorithm (BFS-based) ===");
     let queue = CircularQueue::<usize, 8>::new();
     let in_degree_map = Dictionary::<usize, isize, 8>::new();
-    let mut kahn_result = CircularQueue::<usize, 8>::new();
+    let mut sorted_nodes = [0usize; 8];
 
     match kahns(
         &graph,
         queue,
         in_degree_map,
-        &mut kahn_result,
+        &mut sorted_nodes,
     ) {
-        Ok(()) => {
+        Ok(result) => {
             print!("Kahn order: ");
-            let mut sorted = [0usize; 8];
-            let mut len = 0;
-            while let Some(node) = kahn_result.pop_front() {
-                sorted[len] = node;
-                len += 1;
-            }
-
-            for (i, &node) in sorted[..len].iter().enumerate() {
+            for (i, &node) in result.iter().enumerate() {
                 if i > 0 {
                     print!(" -> ");
                 }
