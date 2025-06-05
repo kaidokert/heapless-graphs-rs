@@ -1,4 +1,5 @@
 pub mod bellman_ford;
+pub mod dijkstra;
 pub mod kahns;
 pub mod topological_sort;
 pub mod traversal;
