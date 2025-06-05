@@ -85,7 +85,6 @@ fn main() {
 
     match kahns(
         &graph,
-        nodes.iter().copied(),
         queue,
         in_degree_map,
         &mut kahn_result,

@@ -14,7 +14,6 @@ use crate::graph::{GraphVal, NodeIndexTrait};
 ///
 /// # Arguments
 /// * `graph` - The graph to sort topologically (must implement GraphVal)
-/// * `nodes` - Iterator over all nodes to consider for sorting
 /// * `queue` - Queue for BFS processing (nodes with zero in-degree)
 /// * `in_degree_map` - Map to track in-degree count for each node
 /// * `result` - Container to store the topologically sorted nodes
@@ -27,40 +26,34 @@ use crate::graph::{GraphVal, NodeIndexTrait};
 ///
 /// # Time Complexity
 /// O(V + E) where V is the number of vertices and E is the number of edges
-pub fn kahns<G, NI, Q, M, R>(
+pub fn kahns<G, NI, D, M>(
     graph: &G,
-    nodes: impl Iterator<Item = NI> + Clone,
-    mut queue: Q,
+    mut queue: D,
     mut in_degree_map: M,
-    result: &mut R,
+    result: &mut D,
 ) -> Result<(), AlgorithmError<NI>>
 where
     G: GraphVal<NI>,
     NI: NodeIndexTrait + Copy,
-    Q: Deque<NI>,
+    D: Deque<NI>,
     M: MapTrait<NI, isize>,
-    R: Deque<NI>,
     AlgorithmError<NI>: From<G::Error>,
 {
     result.clear();
     queue.clear();
 
     // Initialize in-degree map with all nodes having 0 in-degree
-    for node in nodes.clone() {
-        if graph.contains_node(node)? {
-            in_degree_map.insert(node, 0);
-        }
+    for node in graph.iter_nodes()? {
+        in_degree_map.insert(node, 0);
     }
 
     // Calculate in-degrees by examining all edges
-    for node in nodes.clone() {
-        if graph.contains_node(node)? {
-            for target in graph.outgoing_edges(node)? {
-                if let Some(degree) = in_degree_map.get_mut(&target) {
-                    *degree += 1;
-                } else {
-                    in_degree_map.insert(target, 1);
-                }
+    for node in graph.iter_nodes()? {
+        for target in graph.outgoing_edges(node)? {
+            if let Some(degree) = in_degree_map.get_mut(&target) {
+                *degree += 1;
+            } else {
+                in_degree_map.insert(target, 1);
             }
         }
     }
@@ -121,10 +114,8 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut result = CircularQueue::<usize, 8>::new();
 
-        let nodes = [0, 1, 2];
         kahns(
             &graph,
-            nodes.iter().copied(),
             queue,
             in_degree_map,
             &mut result,
@@ -149,10 +140,8 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut result = CircularQueue::<usize, 8>::new();
 
-        let nodes = [0, 1, 2, 3];
         kahns(
             &graph,
-            nodes.iter().copied(),
             queue,
             in_degree_map,
             &mut result,
@@ -187,10 +176,8 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut result = CircularQueue::<usize, 8>::new();
 
-        let nodes = [0, 1, 2];
         let error = kahns(
             &graph,
-            nodes.iter().copied(),
             queue,
             in_degree_map,
             &mut result,
@@ -207,10 +194,8 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut result = CircularQueue::<usize, 8>::new();
 
-        let nodes = [0, 1, 2, 3];
         kahns(
             &graph,
-            nodes.iter().copied(),
             queue,
             in_degree_map,
             &mut result,
@@ -244,10 +229,8 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut result = CircularQueue::<usize, 8>::new();
 
-        let nodes = [0];
         let error = kahns(
             &graph,
-            nodes.iter().copied(),
             queue,
             in_degree_map,
             &mut result,

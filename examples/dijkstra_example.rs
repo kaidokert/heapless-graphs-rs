@@ -42,8 +42,7 @@ fn main() {
 
     let graph = EdgeList::<16, _, _>::new(edges);
 
-    let mut distance_map = Dictionary::<char, i32, 16>::new();
-    let mut has_distance = Dictionary::<char, bool, 16>::new();
+    let mut distance_map = Dictionary::<char, Option<i32>, 16>::new();
     let mut visited = Dictionary::<char, bool, 16>::new();
 
     println!("\nFinding shortest paths from node 'A'...");
@@ -52,7 +51,6 @@ fn main() {
         &graph,
         'A',
         &mut distance_map,
-        &mut has_distance,
         &mut visited,
     ) {
         Ok(()) => {
@@ -60,13 +58,10 @@ fn main() {
             let nodes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
             for node in nodes.iter() {
-                if let (Some(has_dist), Some(dist)) =
-                    (has_distance.get(node), distance_map.get(node))
-                {
-                    if *has_dist {
-                        println!("  A -> {}: {}", node, dist);
-                    } else {
-                        println!("  A -> {}: unreachable", node);
+                if let Some(dist_opt) = distance_map.get(node) {
+                    match dist_opt {
+                        Some(dist) => println!("  A -> {}: {}", node, dist),
+                        None => println!("  A -> {}: unreachable", node),
                     }
                 }
             }
@@ -95,8 +90,7 @@ fn main() {
 
     let disconnected_graph = EdgeList::<8, _, _>::new(disconnected_edges);
 
-    let mut distance_map2 = Dictionary::<i32, i32, 16>::new();
-    let mut has_distance2 = Dictionary::<i32, bool, 16>::new();
+    let mut distance_map2 = Dictionary::<i32, Option<i32>, 16>::new();
     let mut visited2 = Dictionary::<i32, bool, 16>::new();
 
     println!("Finding shortest paths from node 1...");
@@ -105,19 +99,15 @@ fn main() {
         &disconnected_graph,
         1,
         &mut distance_map2,
-        &mut has_distance2,
         &mut visited2,
     ) {
         Ok(()) => {
             println!("\nDistances from node 1:");
             for node in [1, 2, 3, 4, 5].iter() {
-                if let (Some(has_dist), Some(dist)) =
-                    (has_distance2.get(node), distance_map2.get(node))
-                {
-                    if *has_dist {
-                        println!("  1 -> {}: {}", node, dist);
-                    } else {
-                        println!("  1 -> {}: unreachable", node);
+                if let Some(dist_opt) = distance_map2.get(node) {
+                    match dist_opt {
+                        Some(dist) => println!("  1 -> {}: {}", node, dist),
+                        None => println!("  1 -> {}: unreachable", node),
                     }
                 }
             }

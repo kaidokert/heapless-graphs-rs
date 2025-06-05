@@ -18,27 +18,23 @@ fn main() {
     ]);
     let graph = EdgeList::<8, _, _>::new(edge_data);
 
-    // Initialize distance and reachability maps (using larger size to avoid hash collisions)
-    let mut distance_map = Dictionary::<usize, i32, 16>::new();
-    let mut has_distance = Dictionary::<usize, bool, 16>::new();
+    // Initialize distance map (using larger size to avoid hash collisions)
+    let mut distance_map = Dictionary::<usize, Option<i32>, 16>::new();
 
     println!("Running Bellman-Ford from source node 0...");
 
     // Run Bellman-Ford algorithm from source node 0
-    match bellman_ford(&graph, 0, &mut distance_map, &mut has_distance, 2) {
+    match bellman_ford(&graph, 0, &mut distance_map, 2) {
         Ok(()) => {
             println!("Algorithm completed successfully!");
             println!("\nShortest distances from node 0:");
 
             // Print shortest distances
             for node in 0..3 {
-                if let (Some(dist), Some(reachable)) =
-                    (distance_map.get(&node), has_distance.get(&node))
-                {
-                    if *reachable {
-                        println!("  Node {}: distance = {}", node, dist);
-                    } else {
-                        println!("  Node {}: unreachable", node);
+                if let Some(dist_opt) = distance_map.get(&node) {
+                    match dist_opt {
+                        Some(dist) => println!("  Node {}: distance = {}", node, dist),
+                        None => println!("  Node {}: unreachable", node),
                     }
                 }
             }
@@ -57,10 +53,9 @@ fn main() {
     ]);
     let neg_graph = EdgeList::<8, _, _>::new(negative_cycle_data);
 
-    let mut distance_map2 = Dictionary::<usize, i32, 16>::new();
-    let mut has_distance2 = Dictionary::<usize, bool, 16>::new();
+    let mut distance_map2 = Dictionary::<usize, Option<i32>, 16>::new();
 
-    match bellman_ford(&neg_graph, 0, &mut distance_map2, &mut has_distance2, 1) {
+    match bellman_ford(&neg_graph, 0, &mut distance_map2, 1) {
         Ok(()) => println!("No negative cycle detected"),
         Err(e) => println!("Negative cycle detected: {:?}", e),
     }
