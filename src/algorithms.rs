@@ -1,6 +1,7 @@
 pub mod bellman_ford;
 pub mod dijkstra;
 pub mod kahns;
+pub mod kruskals;
 pub mod topological_sort;
 pub mod traversal;
 
@@ -11,6 +12,7 @@ use crate::graph::{GraphError, NodeIndexTrait};
 pub enum AlgorithmError<NI: NodeIndexTrait> {
     QueueCapacityExceeded,
     StackCapacityExceeded,
+    EdgeCapacityExceeded,
     CycleDetected,
     ResultCapacityExceeded,
     GraphError(GraphError<NI>),
