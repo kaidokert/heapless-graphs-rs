@@ -47,12 +47,7 @@ fn main() {
 
     println!("\nFinding shortest paths from node 'A'...");
 
-    match dijkstra(
-        &graph,
-        'A',
-        visited,
-        distance_map,
-    ) {
+    match dijkstra(&graph, 'A', visited, distance_map) {
         Ok(result) => {
             println!("\nShortest distances from A:");
             let nodes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -95,12 +90,7 @@ fn main() {
 
     println!("Finding shortest paths from node 1...");
 
-    match dijkstra(
-        &disconnected_graph,
-        1,
-        visited2,
-        distance_map2,
-    ) {
+    match dijkstra(&disconnected_graph, 1, visited2, distance_map2) {
         Ok(result) => {
             println!("\nDistances from node 1:");
             for node in [1, 2, 3, 4, 5].iter() {

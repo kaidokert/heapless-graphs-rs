@@ -48,11 +48,7 @@ fn main() {
     let mut visited = [NodeState::Unvisited; 8];
     let mut sorted_nodes = [0usize; 8];
 
-    match topological_sort_dfs(
-        &graph,
-        visited.as_mut_slice(),
-        &mut sorted_nodes,
-    ) {
+    match topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes) {
         Ok(result) => {
             print!("DFS order: ");
             for (i, &node) in result.iter().enumerate() {
@@ -74,12 +70,7 @@ fn main() {
     let in_degree_map = Dictionary::<usize, isize, 8>::new();
     let mut sorted_nodes = [0usize; 8];
 
-    match kahns(
-        &graph,
-        queue,
-        in_degree_map,
-        &mut sorted_nodes,
-    ) {
+    match kahns(&graph, queue, in_degree_map, &mut sorted_nodes) {
         Ok(result) => {
             print!("Kahn order: ");
             for (i, &node) in result.iter().enumerate() {

@@ -40,7 +40,7 @@ where
     AlgorithmError<NI>: From<G::Error>,
 {
     queue.clear();
-    
+
     let mut sort_index = 0;
     let mut append_to_list = |node: NI| -> Result<(), AlgorithmError<NI>> {
         if sort_index >= sorted_nodes.len() {
@@ -106,10 +106,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::containers::{
-        maps::staticdict::Dictionary,
-        queues::CircularQueue,
-    };
+    use crate::containers::{maps::staticdict::Dictionary, queues::CircularQueue};
     use crate::edgelist::edge_list::EdgeList;
     use test_log::test;
 
@@ -121,13 +118,7 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut sorted_nodes = [0usize; 8];
 
-        let result = kahns(
-            &graph,
-            queue,
-            in_degree_map,
-            &mut sorted_nodes,
-        )
-        .unwrap();
+        let result = kahns(&graph, queue, in_degree_map, &mut sorted_nodes).unwrap();
 
         assert_eq!(result, &[0, 1, 2]);
     }
@@ -140,13 +131,7 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut sorted_nodes = [0usize; 8];
 
-        let result = kahns(
-            &graph,
-            queue,
-            in_degree_map,
-            &mut sorted_nodes,
-        )
-        .unwrap();
+        let result = kahns(&graph, queue, in_degree_map, &mut sorted_nodes).unwrap();
 
         assert_eq!(result.len(), 4);
 
@@ -169,12 +154,7 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut sorted_nodes = [0usize; 8];
 
-        let error = kahns(
-            &graph,
-            queue,
-            in_degree_map,
-            &mut sorted_nodes,
-        );
+        let error = kahns(&graph, queue, in_degree_map, &mut sorted_nodes);
 
         assert_eq!(error, Err(AlgorithmError::CycleDetected));
     }
@@ -187,13 +167,7 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut sorted_nodes = [0usize; 8];
 
-        let result = kahns(
-            &graph,
-            queue,
-            in_degree_map,
-            &mut sorted_nodes,
-        )
-        .unwrap();
+        let result = kahns(&graph, queue, in_degree_map, &mut sorted_nodes).unwrap();
 
         assert_eq!(result.len(), 4);
 
@@ -215,12 +189,7 @@ mod tests {
         let in_degree_map = Dictionary::<usize, isize, 8>::new();
         let mut sorted_nodes = [0usize; 8];
 
-        let error = kahns(
-            &graph,
-            queue,
-            in_degree_map,
-            &mut sorted_nodes,
-        );
+        let error = kahns(&graph, queue, in_degree_map, &mut sorted_nodes);
 
         assert_eq!(error, Err(AlgorithmError::CycleDetected));
     }

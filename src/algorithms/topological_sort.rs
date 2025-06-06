@@ -33,7 +33,7 @@ where
     }
 
     visited.mark_visited(&node);
-    
+
     // Add to front of result (DFS post-order gives reverse topological order)
     if *sort_index >= sorted_nodes.len() {
         return Err(AlgorithmError::ResultCapacityExceeded);
@@ -85,7 +85,7 @@ where
     // Reverse the result since DFS post-order gives reverse topological order
     let result_slice = &mut sorted_nodes[..sort_index];
     result_slice.reverse();
-    
+
     Ok(result_slice)
 }
 
@@ -103,12 +103,8 @@ mod tests {
         let mut visited = [NodeState::Unvisited; 8];
         let mut sorted_nodes = [0usize; 8];
 
-        let result = topological_sort_dfs(
-            &graph,
-            visited.as_mut_slice(),
-            &mut sorted_nodes,
-        )
-        .unwrap();
+        let result =
+            topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes).unwrap();
 
         assert_eq!(result, &[0, 1, 2]);
     }
@@ -120,12 +116,8 @@ mod tests {
         let mut visited = [NodeState::Unvisited; 8];
         let mut sorted_nodes = [0usize; 8];
 
-        let result = topological_sort_dfs(
-            &graph,
-            visited.as_mut_slice(),
-            &mut sorted_nodes,
-        )
-        .unwrap();
+        let result =
+            topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes).unwrap();
 
         assert_eq!(result.len(), 4);
 
@@ -146,11 +138,7 @@ mod tests {
         let mut visited = [NodeState::Unvisited; 8];
         let mut sorted_nodes = [0usize; 8];
 
-        let error = topological_sort_dfs(
-            &graph,
-            visited.as_mut_slice(),
-            &mut sorted_nodes,
-        );
+        let error = topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes);
 
         assert!(matches!(error, Err(AlgorithmError::CycleDetected)));
     }
@@ -162,12 +150,8 @@ mod tests {
         let mut visited = [NodeState::Unvisited; 8];
         let mut sorted_nodes = [0usize; 8];
 
-        let result = topological_sort_dfs(
-            &graph,
-            visited.as_mut_slice(),
-            &mut sorted_nodes,
-        )
-        .unwrap();
+        let result =
+            topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes).unwrap();
 
         assert_eq!(result.len(), 4);
 

@@ -3,8 +3,7 @@
 //! Example demonstrating topological sort on a directed acyclic graph (DAG)
 
 use heapless_graphs::{
-    algorithms::topological_sort::topological_sort_dfs,
-    edgelist::edge_list::EdgeList,
+    algorithms::topological_sort::topological_sort_dfs, edgelist::edge_list::EdgeList,
     visited::NodeState,
 };
 
@@ -24,11 +23,7 @@ fn main() {
     let mut sorted_nodes = [0usize; 8];
 
     // Perform topological sort
-    match topological_sort_dfs(
-        &graph,
-        visited.as_mut_slice(),
-        &mut sorted_nodes,
-    ) {
+    match topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes) {
         Ok(result) => {
             println!("Topological sort successful!");
             print!("Build order: ");

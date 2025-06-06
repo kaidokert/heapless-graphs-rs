@@ -24,7 +24,7 @@ fn main() {
     println!("Running Bellman-Ford from source node 0...");
 
     // Run Bellman-Ford algorithm from source node 0
-    match bellman_ford(&graph, 0, distance_map, 2) {
+    match bellman_ford(&graph, 0, distance_map) {
         Ok(result) => {
             println!("Algorithm completed successfully!");
             println!("\nShortest distances from node 0:");
@@ -55,7 +55,7 @@ fn main() {
 
     let distance_map2 = Dictionary::<usize, Option<i32>, 16>::new();
 
-    match bellman_ford(&neg_graph, 0, distance_map2, 1) {
+    match bellman_ford(&neg_graph, 0, distance_map2) {
         Ok(_) => println!("No negative cycle detected"),
         Err(e) => println!("Negative cycle detected: {:?}", e),
     }

@@ -55,10 +55,9 @@ where
         let mut min_node = None;
 
         for node in graph.iter_nodes()? {
-            if let (Some(is_visited), Some(dist_opt)) = (
-                visited.get(&node),
-                distance_map.get(&node),
-            ) {
+            if let (Some(is_visited), Some(dist_opt)) =
+                (visited.get(&node), distance_map.get(&node))
+            {
                 if !*is_visited {
                     if let Some(dist) = dist_opt {
                         if let Some(current_min) = min_distance {
@@ -96,7 +95,9 @@ where
                                 let new_distance = *u_dist + *weight;
 
                                 if let Some(dst_dist_opt) = distance_map.get(&dst) {
-                                    if dst_dist_opt.is_none() || new_distance < dst_dist_opt.unwrap() {
+                                    if dst_dist_opt.is_none()
+                                        || new_distance < dst_dist_opt.unwrap()
+                                    {
                                         distance_map.insert(dst, Some(new_distance));
                                     }
                                 }
@@ -143,13 +144,7 @@ mod tests {
         let distance_map = Dictionary::<char, Option<i32>, 16>::new();
         let visited = Dictionary::<char, bool, 16>::new();
 
-        let result = dijkstra(
-            &graph,
-            'A',
-            visited,
-            distance_map,
-        )
-        .unwrap();
+        let result = dijkstra(&graph, 'A', visited, distance_map).unwrap();
 
         // Check the expected distances
         assert_eq!(result.get(&'A'), Some(&Some(0)));
@@ -167,13 +162,7 @@ mod tests {
         let distance_map = Dictionary::<usize, Option<i32>, 16>::new();
         let visited = Dictionary::<usize, bool, 16>::new();
 
-        let result = dijkstra(
-            &graph,
-            0,
-            visited,
-            distance_map,
-        )
-        .unwrap();
+        let result = dijkstra(&graph, 0, visited, distance_map).unwrap();
 
         // Check distances - node 1 should be reachable
         assert_eq!(result.get(&0), Some(&Some(0)));
