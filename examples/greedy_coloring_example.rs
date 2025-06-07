@@ -118,7 +118,7 @@ fn main() {
                 println!("\n🎉 All conflicts resolved! The coloring is valid.");
 
                 // Count unique colors used
-                let mut colors_used = std::collections::HashSet::new();
+                let mut colors_used = Set::<i32, 16>::new();
                 for activity_id in 0..6 {
                     if let Some(Some(color)) = result.get(&activity_id) {
                         colors_used.insert(*color);
@@ -166,7 +166,7 @@ fn main() {
                 }
             }
 
-            let mut unique_colors = std::collections::HashSet::new();
+            let mut unique_colors = Set::<i32, 16>::new();
             for node in 0..4 {
                 if let Some(Some(color)) = result.get(&node) {
                     unique_colors.insert(*color);
@@ -209,7 +209,7 @@ fn main() {
                 }
             }
 
-            let mut unique_colors = std::collections::HashSet::new();
+            let mut unique_colors = Set::<i32, 16>::new();
             for node in 0..4 {
                 if let Some(Some(color)) = result.get(&node) {
                     unique_colors.insert(*color);

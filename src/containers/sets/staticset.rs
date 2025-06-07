@@ -277,13 +277,13 @@ mod collision_tests {
 
     #[test]
     fn test_collision_behavior_with_string_keys() {
-        let mut set: Set<String, 3> = Set::new();
+        let mut set: Set<&'static str, 3> = Set::new();
 
         // Use strings that are likely to collide in a small table
         let keys = ["a", "b", "c", "d"];
 
-        for key in keys {
-            set.insert(key.to_string());
+        for &key in &keys {
+            set.insert(key);
         }
 
         // Should have some collisions due to small table size
@@ -292,8 +292,8 @@ mod collision_tests {
 
         // Verify we can find the stored keys
         let mut found_count = 0;
-        for key in keys {
-            if set.contains(&key.to_string()) {
+        for &key in &keys {
+            if set.contains(&key) {
                 found_count += 1;
             }
         }

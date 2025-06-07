@@ -34,7 +34,8 @@ mod test {
     #[test]
     fn test_edge_list() {
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 2)]);
-        graph.iter_nodes().unwrap().for_each(|x| println!("{}", x));
+        // Test iteration without println for no_std compatibility
+        let _: () = graph.iter_nodes().unwrap().for_each(|_x| {});
     }
 
     #[test]

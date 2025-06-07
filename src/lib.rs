@@ -1,4 +1,4 @@
-// #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 // SPDX-License-Identifier: Apache-2.0
 
 //! stack-friendly graph structures that do not require dynamic memory allocation.

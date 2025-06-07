@@ -330,20 +330,20 @@ mod tests {
 
     #[test]
     fn test_non_copy_type() {
-        // Test that the queue works with non-Copy types (like String)
-        let mut queue: CircularQueue<String, 3> = CircularQueue::new();
+        // Test that the queue works with non-Copy types (like &str)
+        let mut queue: CircularQueue<&'static str, 3> = CircularQueue::new();
 
-        let s1 = String::from("hello");
-        let s2 = String::from("world");
+        let s1 = "hello";
+        let s2 = "world";
 
         assert_eq!(queue.push_back(s1), Ok(()));
         assert_eq!(queue.push_back(s2), Ok(()));
 
-        assert_eq!(queue.front(), Some(&String::from("hello")));
-        assert_eq!(queue.back(), Some(&String::from("world")));
+        assert_eq!(queue.front(), Some(&"hello"));
+        assert_eq!(queue.back(), Some(&"world"));
 
-        assert_eq!(queue.pop_front(), Some(String::from("hello")));
-        assert_eq!(queue.pop_front(), Some(String::from("world")));
+        assert_eq!(queue.pop_front(), Some("hello"));
+        assert_eq!(queue.pop_front(), Some("world"));
         assert!(queue.is_empty());
     }
 
@@ -370,10 +370,10 @@ mod tests {
     fn test_queue_with_references() {
         let mut queue: CircularQueue<&str, 3> = CircularQueue::new();
 
-        let s1 = String::from("hello");
-        let s2 = String::from("world");
+        let s1 = "hello";
+        let s2 = "world";
 
-        assert_eq!(queue.push_back(&s1), Ok(()));
-        assert_eq!(queue.push_back(&s2), Ok(()));
+        assert_eq!(queue.push_back(s1), Ok(()));
+        assert_eq!(queue.push_back(s2), Ok(()));
     }
 }

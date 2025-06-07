@@ -63,7 +63,7 @@ where
 
     // Sort edges by weight in ascending order
     let edges = &mut edge_storage[..edge_count];
-    edges.sort_by_key(|(_, _, weight)| *weight);
+    edges.sort_unstable_by_key(|(_, _, weight)| *weight);
 
     // Union-find helper functions with path compression
     fn find<NI: Copy + Eq, M: MapTrait<NI, NI>>(parent: &mut M, node: NI) -> NI {
@@ -145,7 +145,7 @@ mod tests {
         assert_eq!(result.len(), 3);
 
         // Check that all expected edges are present (order may vary)
-        let mut found_edges = vec![false; 3];
+        let mut found_edges = [false; 3];
         for &(u, v, w) in result {
             if (u == 0 && v == 1 && w == 1) || (u == 1 && v == 0 && w == 1) {
                 found_edges[0] = true;
@@ -184,7 +184,7 @@ mod tests {
         assert_eq!(result.len(), 2);
 
         // Check that both edges are present
-        let mut found_edges = vec![false; 2];
+        let mut found_edges = [false; 2];
         for &(u, v, w) in result {
             if (u == 0 && v == 1 && w == 5) || (u == 1 && v == 0 && w == 5) {
                 found_edges[0] = true;
