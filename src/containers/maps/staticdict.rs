@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use core::hash::Hash;
-use core::sync::atomic::{AtomicUsize, Ordering};
 
 use super::super::probing::{find_key_with_hash, ProbableSlot};
 use super::MapTrait;
@@ -14,11 +13,10 @@ enum Slot<K, V> {
     Tombstone,      // Previously occupied, now deleted
 }
 
-/// A dictionary implementation with linear probing for collision handling and atomic collision tracking
+/// A dictionary implementation with linear probing for collision handling
 #[derive(Debug)]
 pub struct Dictionary<K, V, const N: usize> {
     slots: [Slot<K, V>; N], // Stores key-value pairs, empty slots, or tombstones
-    collision_count: AtomicUsize, // Tracks collisions atomically
 }
 
 // Entirely unstable iteration order
@@ -64,12 +62,7 @@ where
 {
     /// Finds the key or an appropriate slot for insertion, returning (found, index)
     fn find_key_with_hash(&self, key: &K) -> (bool, usize) {
-        find_key_with_hash(&self.slots, key, &self.collision_count)
-    }
-
-    /// Returns the total number of collisions recorded
-    pub fn collision_count(&self) -> usize {
-        self.collision_count.load(Ordering::Relaxed)
+        find_key_with_hash(&self.slots, key)
     }
 
     pub fn iter(&self) -> Iter<'_, K, V> {
@@ -107,7 +100,6 @@ where
     fn new() -> Self {
         Self {
             slots: core::array::from_fn(|_| Slot::Empty), // All slots start empty
-            collision_count: AtomicUsize::new(0),         // Initialize to 0
         }
     }
 
@@ -195,7 +187,6 @@ where
 
     fn clear(&mut self) {
         self.slots = core::array::from_fn(|_| Slot::Empty);
-        self.collision_count.store(0, Ordering::Relaxed); // Reset collision counter
     }
 }
 
@@ -232,34 +223,24 @@ mod test {
 }
 
 #[cfg(test)]
-mod collision_tests {
+mod collision_behavior_tests {
     use super::*;
 
     #[test]
-    fn test_new_dict_has_zero_collisions() {
-        let dict: Dictionary<i32, &'static str, 5> = Dictionary::new();
-        assert_eq!(dict.collision_count(), 0);
-        assert!(dict.is_empty());
-        assert_eq!(dict.len(), 0);
-    }
-
-    #[test]
-    fn test_basic_operations_with_collision_tracking() {
+    fn test_basic_operations_in_small_dict() {
         let mut dict: Dictionary<i32, &'static str, 10> = Dictionary::new();
 
-        // Insert values and check collision count
+        // Insert values that may collide
         assert_eq!(dict.insert(1, "one"), None);
-        assert_eq!(dict.collision_count(), 0);
-
         assert_eq!(dict.insert(2, "two"), None);
-        let count_after_2 = dict.collision_count();
-
         assert_eq!(dict.insert(3, "three"), None);
-        let count_after_3 = dict.collision_count();
 
-        // Collision count should be monotonic
-        assert!(count_after_3 >= count_after_2);
         assert_eq!(dict.len(), 3);
+
+        // Verify all values are findable
+        assert_eq!(dict.get(&1), Some(&"one"));
+        assert_eq!(dict.get(&2), Some(&"two"));
+        assert_eq!(dict.get(&3), Some(&"three"));
     }
 
     #[test]
@@ -268,19 +249,12 @@ mod collision_tests {
 
         // With only 2 slots, we're guaranteed collisions eventually
         assert_eq!(dict.insert(1, "one"), None);
-        assert_eq!(dict.collision_count(), 0);
-
         assert_eq!(dict.insert(2, "two"), None);
-        let count_after_2 = dict.collision_count();
 
         // Now dict is full, remove one to make space
         assert_eq!(dict.remove(&1), Some("one"));
 
         assert_eq!(dict.insert(3, "three"), None);
-        let count_after_3 = dict.collision_count();
-
-        // Should have at least as many collisions as before
-        assert!(count_after_3 >= count_after_2);
 
         assert_eq!(dict.len(), 2);
         assert_eq!(dict.get(&1), None); // Removed
@@ -289,26 +263,21 @@ mod collision_tests {
     }
 
     #[test]
-    fn test_collision_counting_during_lookup() {
+    fn test_lookup_with_potential_collisions() {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
-        // Fill dict completely to force future collisions
+        // Fill dict completely to force collisions
         dict.insert(1, "one");
         dict.insert(2, "two");
 
-        let initial_collisions = dict.collision_count();
-
-        // Multiple lookups should potentially increase collision count
+        // Multiple lookups should work correctly despite collisions
         assert_eq!(dict.get(&1), Some(&"one"));
         assert_eq!(dict.get(&2), Some(&"two"));
-        let after_lookup = dict.collision_count();
-
-        // Collision count should be monotonic (not decrease)
-        assert!(after_lookup >= initial_collisions);
+        assert_eq!(dict.get(&3), None);
     }
 
     #[test]
-    fn test_collision_counting_with_tombstones() {
+    fn test_tombstone_handling() {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
         // Fill dict
@@ -319,13 +288,9 @@ mod collision_tests {
         assert_eq!(dict.remove(&1), Some("one"));
         assert_eq!(dict.len(), 1);
 
-        let collisions_after_remove = dict.collision_count();
-
-        // Insert another value - may interact with tombstone
+        // Insert another value - should properly handle tombstone
         assert_eq!(dict.insert(3, "three"), None);
 
-        // Should maintain monotonic collision counting
-        assert!(dict.collision_count() >= collisions_after_remove);
         assert_eq!(dict.len(), 2);
         assert_eq!(dict.get(&1), None); // Removed
         assert_eq!(dict.get(&2), Some(&"two")); // Still there
@@ -333,77 +298,76 @@ mod collision_tests {
     }
 
     #[test]
-    fn test_value_replacement_collision_tracking() {
+    fn test_value_replacement() {
         let mut dict: Dictionary<i32, &'static str, 3> = Dictionary::new();
 
         dict.insert(1, "one");
         dict.insert(2, "two");
-        let collisions_after_insert = dict.collision_count();
 
         // Replace value for existing key
         assert_eq!(dict.insert(2, "TWO"), Some("two"));
 
-        // Collision count may increase during lookup for replacement
-        assert!(dict.collision_count() >= collisions_after_insert);
         assert_eq!(dict.len(), 2); // Length unchanged
+        assert_eq!(dict.get(&1), Some(&"one"));
         assert_eq!(dict.get(&2), Some(&"TWO"));
     }
 
     #[test]
-    fn test_clear_resets_collision_count() {
+    fn test_clear_functionality() {
         let mut dict: Dictionary<i32, &'static str, 3> = Dictionary::new();
 
-        // Create some collisions
+        // Create some entries that may collide
         dict.insert(1, "one");
         dict.insert(2, "two");
         dict.insert(3, "three");
 
-        let _collision_count = dict.collision_count(); // May have collisions
         assert_eq!(dict.len(), 3);
 
         // Clear should reset everything
         dict.clear();
 
-        assert_eq!(dict.collision_count(), 0);
         assert_eq!(dict.len(), 0);
         assert!(dict.is_empty());
 
         // Should work normally after clear
         assert_eq!(dict.insert(1, "new_one"), None);
-        assert_eq!(dict.collision_count(), 0);
+        assert_eq!(dict.len(), 1);
+        assert_eq!(dict.get(&1), Some(&"new_one"));
     }
 
     #[test]
-    fn test_collision_count_increases_monotonically() {
+    fn test_operations_with_potential_collisions() {
         let mut dict: Dictionary<i32, &'static str, 5> = Dictionary::new();
-        let mut last_count = 0;
 
         // Insert values that will likely collide
         let values = ["value_0", "value_5", "value_10", "value_15", "value_20"];
         for (i, &value_str) in values.iter().enumerate() {
             let value = (i * 5) as i32; // Values: 0, 5, 10, 15, 20
             dict.insert(value, value_str);
-
-            let current_count = dict.collision_count();
-            assert!(
-                current_count >= last_count,
-                "Collision count should not decrease: {} -> {}",
-                last_count,
-                current_count
-            );
-            last_count = current_count;
         }
 
-        // Subsequent operations should only increase the count
-        dict.get(&15); // Lookup
-        assert!(dict.collision_count() >= last_count);
+        assert_eq!(dict.len(), 5);
 
-        dict.remove(&10); // Remove
-        assert!(dict.collision_count() >= last_count);
+        // All values should be findable
+        for (i, &expected_str) in values.iter().enumerate() {
+            let key = (i * 5) as i32;
+            assert_eq!(dict.get(&key), Some(&expected_str));
+        }
+
+        // Remove some values
+        assert_eq!(dict.remove(&10), Some("value_10"));
+        assert_eq!(dict.len(), 4);
+        assert_eq!(dict.get(&10), None);
+
+        // Other values should still be findable
+        assert_eq!(dict.get(&0), Some(&"value_0"));
+        assert_eq!(dict.get(&5), Some(&"value_5"));
+        assert_eq!(dict.get(&15), Some(&"value_15"));
+        assert_eq!(dict.get(&20), Some(&"value_20"));
     }
 
     #[test]
-    fn test_collision_behavior_with_string_keys() {
+    fn test_string_keys_in_small_table() {
         let mut dict: Dictionary<&'static str, i32, 3> = Dictionary::new();
 
         // Use strings that are likely to collide in a small table
@@ -413,8 +377,6 @@ mod collision_tests {
             dict.insert(key, i as i32);
         }
 
-        // Should track collisions due to small table size
-        let _collision_count = dict.collision_count();
         assert_eq!(dict.len(), 3); // Can only fit 3 in a size-3 table
 
         // Verify we can find the stored keys
@@ -428,27 +390,16 @@ mod collision_tests {
     }
 
     #[test]
-    fn test_collision_counting_with_full_table() {
+    fn test_full_table_operations() {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
         // Fill table completely
         assert_eq!(dict.insert(1, "one"), None);
-        let count_after_first = dict.collision_count();
-
         assert_eq!(dict.insert(2, "two"), None);
-        let count_after_second = dict.collision_count();
-
-        // Should be monotonic
-        assert!(count_after_second >= count_after_first);
 
         // Table is now full, create tombstone and reuse
         assert_eq!(dict.remove(&1), Some("one")); // Creates tombstone
-
         assert_eq!(dict.insert(3, "three"), None); // Reuses space
-        let final_count = dict.collision_count();
-
-        // Should still be monotonic
-        assert!(final_count >= count_after_second);
 
         assert_eq!(dict.len(), 2);
         assert_eq!(dict.get(&1), None);
@@ -457,46 +408,38 @@ mod collision_tests {
     }
 
     #[test]
-    fn test_default_constructor_has_zero_collisions() {
+    fn test_default_constructor() {
         let dict: Dictionary<i32, &'static str, 10> = Dictionary::default();
-        assert_eq!(dict.collision_count(), 0);
         assert!(dict.is_empty());
+        assert_eq!(dict.len(), 0);
     }
 
     #[test]
-    fn test_collision_tracking_with_get_mut() {
+    fn test_get_mut_functionality() {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
         dict.insert(1, "one");
         dict.insert(2, "two");
 
-        let initial_collisions = dict.collision_count();
-
-        // get_mut operations may cause collisions during lookup
+        // get_mut operations should work correctly with collisions
         if let Some(value) = dict.get_mut(&2) {
             *value = "two_modified";
         }
 
-        // Should maintain monotonic collision counting
-        assert!(dict.collision_count() >= initial_collisions);
+        assert_eq!(dict.get(&1), Some(&"one"));
         assert_eq!(dict.get(&2), Some(&"two_modified"));
     }
 
     #[test]
-    fn test_contains_key_collision_tracking() {
+    fn test_contains_key_functionality() {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
         dict.insert(1, "one");
         dict.insert(2, "two");
 
-        let initial_collisions = dict.collision_count();
-
-        // contains_key operations may cause collisions during lookup
+        // contains_key operations should work correctly with collisions
         assert!(dict.contains_key(&1));
         assert!(dict.contains_key(&2));
         assert!(!dict.contains_key(&3));
-
-        // Should maintain monotonic collision counting
-        assert!(dict.collision_count() >= initial_collisions);
     }
 }

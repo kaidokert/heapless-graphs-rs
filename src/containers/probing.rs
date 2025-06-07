@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Shared linear probing logic for hash tables with collision tracking
+//! Shared linear probing logic for hash tables
 
 use core::hash::{Hash, Hasher};
-use core::sync::atomic::{AtomicUsize, Ordering};
 
 use super::djb2hash::Djb2Hasher;
 
@@ -33,11 +32,7 @@ pub fn hash_key<K: Hash, const N: usize>(key: &K) -> usize {
 /// Returns (found, index) where:
 /// - found: true if the key was found in an occupied slot
 /// - index: either the slot containing the key, or an appropriate slot for insertion
-pub fn find_key_with_hash<K, S, const N: usize>(
-    slots: &[S; N],
-    key: &K,
-    collision_count: &AtomicUsize,
-) -> (bool, usize)
+pub fn find_key_with_hash<K, S, const N: usize>(slots: &[S; N], key: &K) -> (bool, usize)
 where
     K: Eq + Hash,
     S: ProbableSlot<K>,
@@ -46,7 +41,7 @@ where
     let mut index = start_hash;
     let mut first_tombstone = None;
 
-    for i in 0..N {
+    for _i in 0..N {
         let slot = &slots[index];
 
         if slot.contains_key(key) {
@@ -58,15 +53,6 @@ where
             // Track the first tombstone for potential insertion
             if first_tombstone.is_none() {
                 first_tombstone = Some(index);
-            }
-            // Collision: tombstone counts as occupied for probing
-            if i > 0 {
-                collision_count.fetch_add(1, Ordering::Relaxed);
-            }
-        } else {
-            // Slot is occupied with a different key - collision
-            if i > 0 {
-                collision_count.fetch_add(1, Ordering::Relaxed);
             }
         }
 
