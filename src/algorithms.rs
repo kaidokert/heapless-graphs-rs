@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Provides some common graph algorithms
+//!
+//! Sample implementations of frequently used graph algorithms.
+//!
+//! Note: These are not necessarily efficient implementations,
+//! nor thoroughly tested.
+
 pub mod bellman_ford;
 pub mod dijkstra;
 pub mod greedy_coloring;

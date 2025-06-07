@@ -1,4 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Common traversal algorithms
+//!
+//! Implements common traversal algorithms.
+
 use super::AlgorithmError;
+
 use crate::containers::queues::Deque;
 use crate::graph::{GraphRef, GraphVal, NodeIndexTrait};
 use crate::visited::VisitedTracker;
