@@ -17,7 +17,7 @@ where
 {
     inner: super::simple_matrix::Matrix<N, EDGEVALUE, COLUMNS, ROW>,
     index_map: M,
-    phantom_: core::marker::PhantomData<NI>,
+    _phantom: core::marker::PhantomData<NI>,
 }
 
 impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
@@ -35,7 +35,7 @@ where
         Self {
             inner: super::simple_matrix::Matrix::new(matrix),
             index_map,
-            phantom_: Default::default(),
+            _phantom: Default::default(),
         }
     }
 }
