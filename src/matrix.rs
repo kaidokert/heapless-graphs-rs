@@ -3,7 +3,10 @@
 //! Adjacency matrix graphs
 //!
 //! This module provides adjacency matrix graph structures that
-//! implement the [`Graph`] trait.
+//! implement the [`GraphRef`] and [`GraphVal`] traits.
+//!
+//! [`GraphRef`]: crate::graph::GraphRef
+//! [`GraphVal`]: crate::graph::GraphVal
 
 pub mod bit_map_matrix;
 pub mod bit_matrix;

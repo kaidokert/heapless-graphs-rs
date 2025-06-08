@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+//! Dijkstra algorithm for finding shortest paths
+
 use crate::containers::maps::MapTrait;
 use crate::graph::{GraphValWithEdgeValues, NodeIndexTrait};
 
