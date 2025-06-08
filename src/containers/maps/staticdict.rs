@@ -13,7 +13,14 @@ enum Slot<K, V> {
     Tombstone,      // Previously occupied, now deleted
 }
 
-/// A dictionary implementation with linear probing for collision handling
+/// A fixed-capacity hash map implementation with linear probing for collision handling
+///
+/// This dictionary provides O(1) average case insert, remove, and lookup operations
+/// using open addressing with linear probing. It uses tombstones to handle
+/// deletions efficiently while maintaining probe sequences.
+///
+/// The dictionary has a fixed capacity `N` determined at compile time and does not
+/// allocate memory at runtime, making it suitable for no-std environments.
 #[derive(Debug)]
 pub struct Dictionary<K, V, const N: usize> {
     slots: [Slot<K, V>; N], // Stores key-value pairs, empty slots, or tombstones

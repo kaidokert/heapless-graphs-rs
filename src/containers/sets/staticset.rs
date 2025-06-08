@@ -13,7 +13,14 @@ enum Slot<K> {
     Tombstone,   // Previously occupied, now deleted
 }
 
-/// A set implementation with linear probing for collision handling
+/// A fixed-capacity hash set implementation with linear probing for collision handling
+///
+/// This set provides O(1) average case insert, remove, and lookup operations
+/// using open addressing with linear probing. It uses tombstones to handle
+/// deletions efficiently while maintaining probe sequences.
+///
+/// The set has a fixed capacity `N` determined at compile time and does not
+/// allocate memory at runtime, making it suitable for no-std environments.
 #[derive(Debug)]
 pub struct Set<K, const N: usize> {
     slots: [Slot<K>; N], // Stores keys, empty slots, or tombstones

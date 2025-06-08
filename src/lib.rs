@@ -27,8 +27,11 @@
 //! array elements as [`Option`], and/or using a backing store like
 //! [`heapless::Vec`]
 //!
-//! The core abstraction is the [`Graph`] trait, which is automatically
-//! for edge list and adjacency list representations.
+//! The core abstractions are the [`GraphRef`] and [`GraphVal`] traits, which are automatically
+//! implemented for edge list and adjacency list representations.
+//!
+//! [`GraphRef`]: graph::GraphRef
+//! [`GraphVal`]: graph::GraphVal
 //!
 pub mod adjacency_list;
 pub mod algorithms;

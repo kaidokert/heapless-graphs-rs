@@ -18,13 +18,23 @@ pub mod traversal;
 use crate::edgelist::edge_list::EdgeListError;
 use crate::graph::{GraphError, NodeIndexTrait};
 
+/// Errors that can occur during graph algorithm execution
+///
+/// This enum represents various error conditions that may arise when running
+/// graph algorithms, including capacity limitations and graph-related errors.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AlgorithmError<NI: NodeIndexTrait> {
+    /// Queue capacity exceeded during breadth-first operations
     QueueCapacityExceeded,
+    /// Stack capacity exceeded during depth-first operations
     StackCapacityExceeded,
+    /// Buffer for edges too small
     EdgeCapacityExceeded,
+    /// Cycle detected in algorithm that requires acyclic graph
     CycleDetected,
+    /// Output buffer too small
     ResultCapacityExceeded,
+    /// Graph operation error
     GraphError(GraphError<NI>),
 }
 

@@ -5,11 +5,18 @@
 //! Defines the [`GraphRef`] and [`GraphVal`] traits and related error values
 //! and sub-traits.
 
+/// Trait for types that can be used as node indices in graphs
+///
+/// Node indices must support equality and ordering comparisons.
+/// This is typically implemented for numeric types like `usize`, `u32`, etc.
 pub trait NodeIndexTrait: PartialEq + PartialOrd {}
 impl<T> NodeIndexTrait for T where T: PartialEq + PartialOrd {}
 
+/// Errors that can occur during graph operations
+///
+/// This enum represents various error conditions that may arise when working
+/// with graph structures, such as accessing non-existent nodes or edges.
 #[derive(PartialEq, Debug, Clone, Copy)]
-/// Errors for Graph
 pub enum GraphError<NI: NodeIndexTrait> {
     NodeNotFound,
     EdgeNotFound,
@@ -17,6 +24,15 @@ pub enum GraphError<NI: NodeIndexTrait> {
     PlaceHolder(NI),
 }
 
+/// Reference-based graph trait for immutable graph access
+///
+/// This trait provides read-only access to graph structure through borrowed references.
+/// It's designed for cases where you need to examine graph structure without taking
+/// ownership of the data.
+///
+/// The underlying storage is defined by concrete implementations like
+/// [`EdgeList`](crate::edgelist::edge_list::EdgeList) or
+/// [`MapAdjacencyList`](crate::adjacency_list::map_adjacency_list::MapAdjacencyList).
 pub trait GraphRef<NodeIndex: NodeIndexTrait> {
     type Error: From<GraphError<NodeIndex>>;
 
@@ -48,6 +64,13 @@ pub trait GraphRef<NodeIndex: NodeIndexTrait> {
     }
 }
 
+/// Value-based graph trait for immutable graph access
+///
+/// This trait provides read-only access to graph structure through owned values.
+/// It's designed for cases where you can efficiently copy node indices and prefer
+/// to work with owned data rather than borrowed references.
+///
+/// Requires `NodeIndex: Copy` since iterators return owned values rather than references.
 pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
     type Error: From<GraphError<NodeIndex>>;
 
@@ -71,6 +94,11 @@ pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
     }
 }
 
+/// Extension of [`GraphRef`] that provides access to node values
+///
+/// This trait extends basic graph functionality with the ability to associate
+/// values of type `NV` with each node in the graph. Node values are optional,
+/// allowing for sparse assignment of data to nodes.
 pub trait GraphRefWithNodeValues<NI, NV>: GraphRef<NI>
 where
     NI: NodeIndexTrait,
@@ -84,6 +112,11 @@ where
     fn node_value(&self, node: &NI) -> Result<Option<&NV>, Self::Error>;
 }
 
+/// Extension of [`GraphVal`] that provides access to node values
+///
+/// This trait extends basic graph functionality with the ability to associate
+/// values of type `NV` with each node in the graph. Node values are optional,
+/// allowing for sparse assignment of data to nodes.
 pub trait GraphValWithNodeValues<NI, NV>: GraphVal<NI>
 where
     NI: NodeIndexTrait + Copy,
@@ -96,6 +129,11 @@ where
         NV: 'a;
 }
 
+/// Extension of [`GraphRef`] that provides access to edge values
+///
+/// This trait extends basic graph functionality with the ability to associate
+/// values of type `EV` with each edge in the graph. Edge values are optional,
+/// allowing for sparse assignment of data to edges.
 pub trait GraphRefWithEdgeValues<NI, EV>: GraphRef<NI>
 where
     NI: NodeIndexTrait,
@@ -107,6 +145,11 @@ where
         EV: 'a,
         NI: 'a;
 }
+/// Extension of [`GraphVal`] that provides access to edge values
+///
+/// This trait extends basic graph functionality with the ability to associate
+/// values of type `EV` with each edge in the graph. Edge values are optional,
+/// allowing for sparse assignment of data to edges.
 pub trait GraphValWithEdgeValues<NI, EV>: GraphVal<NI>
 where
     NI: NodeIndexTrait + Copy,

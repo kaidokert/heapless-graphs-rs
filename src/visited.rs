@@ -9,6 +9,11 @@ use core::slice::SliceIndex;
 
 use crate::containers::{maps::MapTrait, sets::SetTrait};
 
+/// Represents the visitation state of a node during graph traversal
+///
+/// This enum is used by tri-state visited trackers to track whether a node
+/// has been unvisited, is currently being visited, or has been fully visited.
+/// This is particularly useful for cycle detection algorithms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeState {
     /// Node not visited, default
@@ -19,11 +24,14 @@ pub enum NodeState {
     Visited,
 }
 
-/// Abstraction for visiting nodes in a graph
+/// Trait for tracking visited nodes during graph traversal
 ///
-/// Implementations: a simple array of booleans for very small
-/// graphs where node indices are within array
-/// bounds, or more typically a set
+/// This trait provides a common interface for different strategies of tracking
+/// which nodes have been visited during graph algorithms like DFS or BFS.
+///
+/// Implementations include:
+/// - Simple array of booleans for compact graphs with small node indices
+/// - Set-based tracking for sparse graphs with arbitrary node types
 pub trait VisitedTracker<NI> {
     /// Reset tracker state
     fn reset(&mut self);
@@ -35,10 +43,11 @@ pub trait VisitedTracker<NI> {
     fn is_unvisited(&self, node: &NI) -> bool;
 }
 
-/// Visited tracker with 3-rd state: visiting
+/// Extension of [`VisitedTracker`] that supports three states: unvisited, visiting, and visited
 ///
-/// This is similar to VisitedTracker, but also allows
-/// tracking whether node is currently on visiting stack
+/// This trait is particularly useful for algorithms that need to detect cycles,
+/// such as topological sorting or strongly connected component detection.
+/// The "visiting" state indicates a node is currently on the traversal stack.
 pub trait TriStateVisitedTracker<NI>: VisitedTracker<NI> {
     // Mark node as visiting
     fn mark_visiting(&mut self, node: &NI);

@@ -3,7 +3,10 @@
 //! Adjacency list graphs
 //!
 //! This module provides adjacency list graph structures that
-//! implement the [`Graph`] trait.
+//! implement the [`GraphRef`] and [`GraphVal`] traits.
+//!
+//! [`GraphRef`]: crate::graph::GraphRef
+//! [`GraphVal`]: crate::graph::GraphVal
 
 pub mod map_adjacency_list;
 pub mod outgoing_nodes;
