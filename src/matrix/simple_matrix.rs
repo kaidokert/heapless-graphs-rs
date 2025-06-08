@@ -22,6 +22,9 @@ where
     }
 }
 
+// Note: Implementing GraphVal isn't practical, there's no way to iterate over node refs without
+// storage for them.
+
 impl<const N: usize, EDGEVALUE, ROW, COLUMNS> GraphVal<usize> for Matrix<N, EDGEVALUE, COLUMNS, ROW>
 where
     ROW: AsRef<[Option<EDGEVALUE>]>,

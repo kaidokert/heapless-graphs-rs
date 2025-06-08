@@ -1,8 +1,13 @@
-use crate::{
-    containers::maps::MapTrait,
-    graph::{GraphError, GraphRef, GraphVal, NodeIndexTrait},
-};
+use crate::{containers::maps::MapTrait, graph::NodeIndexTrait};
 
+pub mod by_ref;
+pub mod by_val;
+
+/// A matrix-based graph representation that maps arbitrary node indices to matrix positions
+///
+/// This struct wraps a [`Matrix`](super::simple_matrix::Matrix) and provides a mapping
+/// from arbitrary node indices to matrix row/column positions, allowing graphs with
+/// non-contiguous or non-zero-based node indices.
 pub struct MapMatrix<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW>
 where
     NI: NodeIndexTrait,
@@ -12,34 +17,25 @@ where
 {
     inner: super::simple_matrix::Matrix<N, EDGEVALUE, COLUMNS, ROW>,
     index_map: M,
-    phantom: core::marker::PhantomData<NI>,
+    phantom_: core::marker::PhantomData<NI>,
 }
 
-impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> GraphRef<NI>
-    for MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
+impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
 where
     NI: NodeIndexTrait,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
     M: MapTrait<usize, NI>,
 {
-    type Error = GraphError<NI>;
-
-    fn iter_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a NI>, Self::Error>
-    where
-        NI: 'a,
-    {
-        Ok(self.index_map.iter().map(|(_, v)| v))
-    }
-
-    fn iter_edges<'a>(&'a self) -> Result<impl Iterator<Item = (&'a NI, &'a NI)>, Self::Error>
-    where
-        NI: 'a,
-    {
-        Ok(self.inner.iter_edges().unwrap().map(|(i, j)| {
-            let n = self.index_map.get(&i).unwrap();
-            let m = self.index_map.get(&j).unwrap();
-            (n, m)
-        }))
+    /// Creates a new MapMatrix with the given matrix data and index mapping
+    ///
+    /// The `matrix` parameter provides the adjacency matrix data, and `index_map`
+    /// maps from matrix indices (0..N) to the actual node indices.
+    pub fn new(matrix: COLUMNS, index_map: M) -> Self {
+        Self {
+            inner: super::simple_matrix::Matrix::new(matrix),
+            index_map,
+            phantom_: Default::default(),
+        }
     }
 }
