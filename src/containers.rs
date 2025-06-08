@@ -10,5 +10,6 @@
 
 mod djb2hash;
 pub mod maps;
+pub mod probing;
 pub mod queues;
 pub mod sets;

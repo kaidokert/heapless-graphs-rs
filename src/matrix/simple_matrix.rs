@@ -22,6 +22,9 @@ where
     }
 }
 
+// Note: Implementing GraphVal isn't practical, there's no way to iterate over node refs without
+// storage for them.
+
 impl<const N: usize, EDGEVALUE, ROW, COLUMNS> GraphVal<usize> for Matrix<N, EDGEVALUE, COLUMNS, ROW>
 where
     ROW: AsRef<[Option<EDGEVALUE>]>,
@@ -48,6 +51,24 @@ where
                     })
             }))
     }
+
+    /// Optimized O(V) outgoing_edges for matrix
+    fn outgoing_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
+        // For now, use a simple approach that works with the type system
+        Ok((0..N).filter_map(move |col_index| {
+            if node < N {
+                self.matrix
+                    .as_ref()
+                    .get(node)?
+                    .as_ref()
+                    .get(col_index)?
+                    .as_ref()
+                    .map(|_| col_index)
+            } else {
+                None
+            }
+        }))
+    }
 }
 
 #[cfg(test)]
@@ -71,8 +92,14 @@ mod tests {
             [Some(7), Some(8), Some(9)],
         ]);
 
-        let nodes: Vec<usize> = matrix.iter_nodes().unwrap().collect();
-        assert_eq!(nodes, vec![0, 1, 2]);
+        let mut nodes = [0usize; 8];
+        let mut len = 0;
+        for node in matrix.iter_nodes().unwrap() {
+            nodes[len] = node;
+            len += 1;
+        }
+        assert_eq!(len, 3);
+        assert_eq!(&nodes[..len], &[0, 1, 2]);
 
         // Test with different size
         let matrix = Matrix::<5, i32, _, _>::new([
@@ -83,8 +110,14 @@ mod tests {
             [Some(21), Some(22), Some(23), Some(24), Some(25)],
         ]);
 
-        let nodes: Vec<usize> = matrix.iter_nodes().unwrap().collect();
-        assert_eq!(nodes, vec![0, 1, 2, 3, 4]);
+        let mut nodes = [0usize; 8];
+        let mut len = 0;
+        for node in matrix.iter_nodes().unwrap() {
+            nodes[len] = node;
+            len += 1;
+        }
+        assert_eq!(len, 5);
+        assert_eq!(&nodes[..len], &[0, 1, 2, 3, 4]);
     }
 
     #[test]

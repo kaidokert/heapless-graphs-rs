@@ -1,7 +1,7 @@
 use crate::{
     edges::EdgesIterable,
-    graph::{GraphError, GraphVal, NodeIndexTrait},
-    nodes::NodesIterable,
+    graph::{GraphError, GraphVal, GraphValWithNodeValues, NodeIndexTrait},
+    nodes::{NodesIterable, NodesValuesIterable},
 };
 
 use super::EdgeNodeList;
@@ -23,13 +23,38 @@ where
     }
 }
 
+impl<E, N, NI, V> GraphValWithNodeValues<NI, V> for EdgeNodeList<E, N, NI>
+where
+    NI: NodeIndexTrait + Copy,
+    N: NodesValuesIterable<V, Node = NI>,
+    E: EdgesIterable<Node = NI>,
+{
+    fn node_value(&self, node: NI) -> Result<Option<&V>, Self::Error> {
+        self.nodes
+            .iter_nodes_values()
+            .find(|(n, _)| **n == node)
+            .map(|(_, value)| value)
+            .ok_or(GraphError::NodeNotFound)
+    }
+
+    fn iter_node_values<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = (NI, Option<&'a V>)>, Self::Error>
+    where
+        V: 'a,
+    {
+        Ok(self.nodes.iter_nodes_values().map(|(n, v)| (*n, v)))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
     fn test_edge_node_list() {
-        let graph = EdgeNodeList::new([(0usize, 1usize), (0, 2), (1, 2)], [0, 1, 2]);
-        graph.iter_nodes().unwrap().for_each(|x| println!("{}", x));
+        let graph = EdgeNodeList::new([(0usize, 1usize), (0, 2), (1, 2)], [0, 1, 2]).unwrap();
+        // Test iteration without println for no_std compatibility
+        let _: () = graph.iter_nodes().unwrap().for_each(|_x| {});
     }
 }

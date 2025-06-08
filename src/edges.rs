@@ -40,12 +40,19 @@ struct EdgeVec<const E: usize, NI>(heapless::Vec<(NI, NI), E>);
 #[derive(Debug, Default)]
 struct EdgeVecValue<const E: usize, NI, V>(heapless::Vec<(NI, NI, V), E>);
 
-/// Reference to a value of an edge
+/// Extension of [`EdgeRef`] that provides access to edge values
+///
+/// This trait allows retrieving values associated with edges in addition
+/// to the basic edge reference functionality.
 pub trait EdgeRefValue<V>: EdgeRef {
     fn get_edge_value(&self, index: usize) -> Option<&V>;
 }
 
-/// Reference to a en edge, a pair of node indexes
+/// Reference to an edge, represented as a pair of node indices
+///
+/// This trait provides basic access to edge data in edge collections.
+/// It's used to implement iterators and provide a common interface
+/// for accessing edge information.
 pub trait EdgeRef {
     type NodeIndex;
     /// Reference to an edge at given index
@@ -602,8 +609,10 @@ where
 }
 
 /// Provide a reference iterator over edges
+/// Trait for iterating over edges in an edge collection
 ///
-/// This trait is blanket implemented for anything that implements [EdgeRef]
+/// Provides read-only iteration over edge references. This trait is
+/// automatically implemented for any type that implements [`EdgeRef`].
 pub trait EdgesIterable {
     type Node;
     // todo: Maybe doesn't need to be DoubleEnded
@@ -628,9 +637,11 @@ where
     }
 }
 
-/// Provide a reference iterator over edges with values
+/// Trait for iterating over edges with their associated values
 ///
-/// This trait is blanket implemented for anything that implements [EdgeRefValue]
+/// Extends [`EdgesIterable`] to provide iteration over both edges and their
+/// values. This trait is automatically implemented for any type that implements
+/// [`EdgeRefValue`].
 pub trait EdgeValuesIterable<V>: EdgesIterable {
     type IterValues<'a>: DoubleEndedIterator<Item = (&'a Self::Node, &'a Self::Node, Option<&'a V>)>
     where
@@ -655,7 +666,10 @@ where
     }
 }
 
-/// Trait for edge structs where edges can be added
+/// Trait for edge collections that support adding new edges
+///
+/// This trait allows dynamic addition of edges to an edge collection,
+/// returning the index where the edge was inserted if successful.
 pub trait AddEdge {
     type Edge;
     fn add_edge(&mut self, edge: Self::Edge) -> Option<usize>;

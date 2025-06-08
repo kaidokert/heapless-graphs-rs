@@ -15,3 +15,21 @@ where
     where
         NI: 'a;
 }
+
+impl<E, NI> AsOutgoingNodes<NI, E> for E
+where
+    NI: NodeIndexTrait,
+    E: NodesIterable<Node = NI>,
+{
+    type Iter<'a>
+        = E::Iter<'a>
+    where
+        NI: 'a,
+        Self: 'a;
+    fn as_outgoing_nodes<'a>(&'a self) -> Self::Iter<'a>
+    where
+        NI: 'a,
+    {
+        self.iter_nodes()
+    }
+}

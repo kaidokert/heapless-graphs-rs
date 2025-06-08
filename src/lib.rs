@@ -1,4 +1,4 @@
-// #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 // SPDX-License-Identifier: Apache-2.0
 
 //! stack-friendly graph structures that do not require dynamic memory allocation.
@@ -14,7 +14,7 @@
 //!   // Create edges and nodes
 //!   let graph = EdgeNodeList::new(
 //!     [(1_usize, 5), (5, 3), (7, 7)],
-//!     [7, 4, 3, 1, 5]);
+//!     [7, 4, 3, 1, 5]).unwrap();
 //!   let mut visited = [false; 10];
 //!   dfs_recursive(&graph, &5, visited.as_mut_slice(), &mut |x| {
 //!     println!("node: {}",x)
@@ -27,8 +27,11 @@
 //! array elements as [`Option`], and/or using a backing store like
 //! [`heapless::Vec`]
 //!
-//! The core abstraction is the [`Graph`] trait, which is automatically
-//! for edge list and adjacency list representations.
+//! The core abstractions are the [`GraphRef`] and [`GraphVal`] traits, which are automatically
+//! implemented for edge list and adjacency list representations.
+//!
+//! [`GraphRef`]: graph::GraphRef
+//! [`GraphVal`]: graph::GraphVal
 //!
 pub mod adjacency_list;
 pub mod algorithms;
@@ -40,4 +43,5 @@ pub mod matrix;
 pub mod nodes;
 pub mod visited;
 
+pub use algorithms::AlgorithmError;
 pub use visited::VisitedTracker;

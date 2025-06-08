@@ -6,7 +6,7 @@ use heapless_graphs::{
 
 fn main() {
     // Make a graph from edges and nodes
-    let graph = EdgeNodeList::new([(1_usize, 5), (5, 3), (7, 7)], [7, 4, 3, 1, 5]);
+    let graph = EdgeNodeList::new([(1_usize, 5), (5, 3), (7, 7)], [7, 4, 3, 1, 5]).unwrap();
     // Visited array tracker
     let mut visited = [false; 10];
     // Do a depth-first traversal, starting from node 5
