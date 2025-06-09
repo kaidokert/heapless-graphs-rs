@@ -95,7 +95,7 @@ where
                     if let Some(Some(u_dist)) = distance_map.get(&u) {
                         let new_distance = *u_dist + *weight;
                         if let Some(dst_dist_opt) = distance_map.get(&dst) {
-                            if dst_dist_opt.map_or(true, |old| new_distance < old) {
+                            if dst_dist_opt.is_none_or(|old| new_distance < old) {
                                 distance_map.insert(dst, Some(new_distance));
                             }
                         }

@@ -20,6 +20,10 @@ where
             _phantom: core::marker::PhantomData,
         }
     }
+
+    pub(crate) fn get_edge_value(&self, row: usize, col: usize) -> Option<&EDGEVALUE> {
+        self.matrix.as_ref().get(row)?.as_ref().get(col)?.as_ref()
+    }
 }
 
 // Note: Implementing GraphRef isn't practical, there's no way to iterate over node refs without

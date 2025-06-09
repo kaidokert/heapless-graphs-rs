@@ -1,6 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
-    graph::{GraphError, GraphVal, NodeIndexTrait},
+    graph::{GraphError, GraphVal, GraphValWithEdgeValues, NodeIndexTrait},
 };
 
 use super::MapMatrix;
@@ -45,6 +45,29 @@ where
 
     fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
         Ok(self.index_map.iter().any(|(_, &v)| v == node))
+    }
+}
+
+impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> GraphValWithEdgeValues<NI, EDGEVALUE>
+    for MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
+where
+    NI: NodeIndexTrait + Copy,
+    ROW: AsRef<[Option<EDGEVALUE>]>,
+    COLUMNS: AsRef<[ROW]>,
+    M: MapTrait<usize, NI>,
+{
+    fn iter_edge_values<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = (NI, NI, Option<&'a EDGEVALUE>)>, Self::Error>
+    where
+        EDGEVALUE: 'a,
+    {
+        Ok(self.inner.iter_edges().unwrap().filter_map(|(i, j)| {
+            let n = *self.index_map.get(&i)?;
+            let m = *self.index_map.get(&j)?;
+            let value = self.inner.get_edge_value(i, j);
+            Some((n, m, value))
+        }))
     }
 }
 
@@ -334,5 +357,75 @@ mod tests {
         // Should have 3 nodes but no edges
         assert_eq!(map_matrix.iter_nodes().unwrap().count(), 3);
         assert_eq!(map_matrix.iter_edges().unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_graphval_with_edge_values() {
+        let matrix = [
+            [Some(1), Some(2), None],
+            [None, Some(5), Some(6)],
+            [Some(7), None, Some(9)],
+        ];
+
+        let mut index_map = Dictionary::<usize, u32, 3>::new();
+        index_map.insert(0, 10);
+        index_map.insert(1, 20);
+        index_map.insert(2, 30);
+
+        type ValMatrix = MapMatrix<
+            3,
+            u32,
+            Dictionary<usize, u32, 3>,
+            i32,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let map_matrix = ValMatrix::new(matrix, index_map);
+
+        // Test iter_edge_values
+        let mut edges_with_values = [(0u32, 0u32, 0i32); 16];
+        let mut count = 0;
+        for (src, dst, value_opt) in map_matrix.iter_edge_values().unwrap() {
+            if let Some(value) = value_opt {
+                edges_with_values[count] = (src, dst, *value);
+                count += 1;
+            }
+        }
+
+        assert_eq!(count, 6); // 6 Some values in matrix
+
+        // Verify expected edges with values exist
+        let expected_edges = [
+            (10, 10, 1), // (0,0) -> Some(1)
+            (10, 20, 2), // (0,1) -> Some(2)
+            (20, 20, 5), // (1,1) -> Some(5)
+            (20, 30, 6), // (1,2) -> Some(6)
+            (30, 10, 7), // (2,0) -> Some(7)
+            (30, 30, 9), // (2,2) -> Some(9)
+        ];
+
+        for &expected_edge in &expected_edges {
+            let mut found = false;
+            for i in 0..count {
+                if edges_with_values[i] == expected_edge {
+                    found = true;
+                    break;
+                }
+            }
+            assert!(found, "Expected edge {:?} not found", expected_edge);
+        }
+
+        // Test outgoing_edge_values from node 10
+        let mut outgoing = [(0u32, 0i32); 8];
+        let mut count = 0;
+        for (dst, value_opt) in map_matrix.outgoing_edge_values(10).unwrap() {
+            if let Some(value) = value_opt {
+                outgoing[count] = (dst, *value);
+                count += 1;
+            }
+        }
+        assert_eq!(count, 2);
+        assert!(outgoing[..count].contains(&(10, 1)));
+        assert!(outgoing[..count].contains(&(20, 2)));
     }
 }
