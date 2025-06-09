@@ -122,6 +122,7 @@ mod tests {
     #[cfg(feature = "heapless")]
     use heapless::FnvIndexSet;
 
+    #[cfg(feature = "heapless")]
     use super::{staticset, SetTrait};
 
     #[cfg(feature = "heapless")]
