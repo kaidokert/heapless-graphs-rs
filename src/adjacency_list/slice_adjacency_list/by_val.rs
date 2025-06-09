@@ -50,7 +50,7 @@ where
 mod tests {
     use super::*;
     use crate::adjacency_list::slice_adjacency_list::SliceAdjacencyList;
-    use crate::tests::array_collect;
+    use crate::tests::collect;
 
     #[test]
     fn test_graphval_iter_nodes() {
@@ -58,9 +58,8 @@ mod tests {
         let graph = SliceAdjacencyList::new_unchecked(adj_list_data);
 
         let mut nodes = [0usize; 4];
-        let len = array_collect(graph.iter_nodes().unwrap(), &mut nodes);
-        assert_eq!(len, 3);
-        assert_eq!(&nodes[..len], &[0, 1, 2]);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
     #[test]
@@ -102,24 +101,21 @@ mod tests {
 
         // Test node 0 outgoing edges
         let mut edges = [0usize; 4];
-        let len = array_collect(graph.outgoing_edges(0).unwrap(), &mut edges);
-        assert_eq!(len, 2);
-        assert_eq!(&edges[..len], &[1, 2]);
+        let edges_slice = collect(graph.outgoing_edges(0).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[1, 2]);
 
         // Test node 1 outgoing edges
         let mut edges = [0usize; 4];
-        let len = array_collect(graph.outgoing_edges(1).unwrap(), &mut edges);
-        assert_eq!(len, 2);
-        assert_eq!(&edges[..len], &[2, 0]);
+        let edges_slice = collect(graph.outgoing_edges(1).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[2, 0]);
 
         // Test node 2 outgoing edges
         let mut edges = [0usize; 4];
-        let len = array_collect(
+        let edges_slice = collect(
             crate::graph::GraphVal::outgoing_edges(&graph, 2).unwrap(),
             &mut edges,
         );
-        assert_eq!(len, 2);
-        assert_eq!(&edges[..len], &[0, 0]);
+        assert_eq!(edges_slice, &[0, 0]);
 
         // Test non-existent node
         assert_eq!(
@@ -172,12 +168,11 @@ mod tests {
 
         // Test outgoing edges with self-loops
         let mut edges = [0usize; 4];
-        let len = array_collect(
+        let edges_slice = collect(
             crate::graph::GraphVal::outgoing_edges(&graph, 0).unwrap(),
             &mut edges,
         );
-        assert_eq!(len, 2);
-        assert_eq!(&edges[..len], &[0, 1]);
+        assert_eq!(edges_slice, &[0, 1]);
     }
 
     #[test]
@@ -187,12 +182,11 @@ mod tests {
 
         // Test single node
         let mut nodes = [0usize; 2];
-        let len = array_collect(
+        let nodes_slice = collect(
             crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
-        assert_eq!(len, 1);
-        assert_eq!(&nodes[..len], &[42]);
+        assert_eq!(nodes_slice, &[42]);
 
         // Test contains_node
         assert!(crate::graph::GraphVal::contains_node(&graph, 42).unwrap());

@@ -36,7 +36,7 @@ mod tests {
     use super::*;
     use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
     use crate::containers::maps::staticdict::Dictionary;
-    use crate::tests::array_collect_ref;
+    use crate::tests::collect_ref;
 
     #[test]
     fn test_graphref_iter_nodes() {
@@ -48,15 +48,13 @@ mod tests {
         let graph = MapAdjacencyList::new_unchecked(dict);
 
         let mut nodes = [0usize; 4];
-        let len = array_collect_ref(
+        let nodes_slice = collect_ref(
             crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
-        assert_eq!(len, 3);
         // Note: order may vary with map implementation
-        assert!(nodes[..len].contains(&0));
-        assert!(nodes[..len].contains(&1));
-        assert!(nodes[..len].contains(&2));
+        nodes_slice.sort_unstable();
+        assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
     #[test]
@@ -113,12 +111,11 @@ mod tests {
         let graph = MapAdjacencyList::new_unchecked(dict);
 
         let mut nodes = [0usize; 2];
-        let len = array_collect_ref(
+        let nodes_slice = collect_ref(
             crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
-        assert_eq!(len, 1);
-        assert_eq!(&nodes[..len], &[42]);
+        assert_eq!(nodes_slice, &[42]);
 
         assert_eq!(
             crate::graph::GraphRef::iter_edges(&graph).unwrap().count(),

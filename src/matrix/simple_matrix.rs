@@ -78,7 +78,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::array_collect;
+    use crate::tests::collect;
 
     #[test]
     fn test_matrix() {
@@ -134,8 +134,7 @@ mod tests {
         ]);
 
         let mut edges = [(0usize, 0usize); 10];
-        let len = array_collect(matrix.iter_edges().unwrap(), &mut edges);
-        assert_eq!(len, 5);
-        assert_eq!(&edges[..len], &[(0, 1), (1, 0), (1, 2), (2, 1), (2, 2)]);
+        let edges_slice = collect(matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (1, 0), (1, 2), (2, 1), (2, 2)]);
     }
 }

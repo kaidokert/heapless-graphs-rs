@@ -60,7 +60,7 @@ mod tests {
     use super::*;
     use crate::edges::EdgeNodeError;
     use crate::graph::GraphError;
-    use crate::tests::array_collect;
+    use crate::tests::collect;
 
     #[test]
     fn test_edge_list_new() {
@@ -197,10 +197,8 @@ mod tests {
         // Test node iteration (this uses EdgesToNodesIterator internally)
         let nodes_iter = crate::graph::GraphVal::iter_nodes(&edge_list).unwrap();
         let mut nodes = [0usize; 10];
-        let len = array_collect(nodes_iter, &mut nodes);
-        assert_eq!(len, 3);
-        assert!(nodes[..len].contains(&0));
-        assert!(nodes[..len].contains(&1));
-        assert!(nodes[..len].contains(&2));
+        let nodes_slice = collect(nodes_iter, &mut nodes);
+        nodes_slice.sort_unstable();
+        assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 }

@@ -30,7 +30,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::tests::array_collect;
+    use crate::tests::collect;
 
     #[test]
     fn test_edge_list() {
@@ -44,9 +44,8 @@ mod test {
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 2)]);
         let edges = graph.iter_edges().unwrap();
         let mut edge_list = [(&0usize, &0usize); 8];
-        let len = array_collect(edges, &mut edge_list);
-        assert_eq!(len, 3);
-        assert_eq!(&edge_list[..len], &[(&0, &1), (&0, &2), (&1, &2)]);
+        let edge_slice = collect(edges, &mut edge_list);
+        assert_eq!(edge_slice, &[(&0, &1), (&0, &2), (&1, &2)]);
     }
 
     #[test]
@@ -54,8 +53,7 @@ mod test {
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 2)]);
         let edges = graph.outgoing_edges(&0).unwrap();
         let mut edge_nodes = [&0usize; 8];
-        let len = array_collect(edges, &mut edge_nodes);
-        assert_eq!(len, 2);
-        assert_eq!(&edge_nodes[..len], &[&1, &2]);
+        let edge_slice = collect(edges, &mut edge_nodes);
+        assert_eq!(edge_slice, &[&1, &2]);
     }
 }

@@ -42,7 +42,7 @@ mod tests {
     use super::*;
     use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
     use crate::containers::maps::staticdict::Dictionary;
-    use crate::tests::array_collect;
+    use crate::tests::collect;
 
     #[test]
     fn test_graphval_iter_nodes() {
@@ -54,12 +54,8 @@ mod tests {
         let graph = MapAdjacencyList::new_unchecked(dict);
 
         let mut nodes = [0usize; 4];
-        let len = array_collect(graph.iter_nodes().unwrap(), &mut nodes);
-        assert_eq!(len, 3);
-        // Note: order may vary with map implementation
-        assert!(nodes[..len].contains(&0));
-        assert!(nodes[..len].contains(&1));
-        assert!(nodes[..len].contains(&2));
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[2, 0, 1]);
     }
 
     #[test]
@@ -72,15 +68,12 @@ mod tests {
         let graph = MapAdjacencyList::new_unchecked(dict);
 
         let mut edges = [(0usize, 0usize); 8];
-        let len = array_collect(graph.iter_edges().unwrap(), &mut edges);
-        assert_eq!(len, 6);
-
-        // Check that all expected edges are present (order may vary)
-        assert!(edges[..len].contains(&(0, 1)));
-        assert!(edges[..len].contains(&(0, 2)));
-        assert!(edges[..len].contains(&(1, 2)));
-        assert!(edges[..len].contains(&(1, 0)));
-        assert!(edges[..len].contains(&(2, 0)));
+        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice.len(), 6);
+        assert_eq!(
+            edges_slice,
+            &[(2, 0), (2, 0), (0, 1), (0, 2), (1, 2), (1, 0)]
+        );
     }
 
     #[test]
@@ -110,23 +103,18 @@ mod tests {
 
         // Test node 0 outgoing edges
         let mut edges = [0usize; 4];
-        let len = array_collect(graph.outgoing_edges(0).unwrap(), &mut edges);
-        assert_eq!(len, 2);
-        assert!(edges[..len].contains(&1));
-        assert!(edges[..len].contains(&2));
+        let edges_slice = collect(graph.outgoing_edges(0).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[1, 2]);
 
         // Test node 1 outgoing edges
         let mut edges = [0usize; 4];
-        let len = array_collect(graph.outgoing_edges(1).unwrap(), &mut edges);
-        assert_eq!(len, 2);
-        assert!(edges[..len].contains(&2));
-        assert!(edges[..len].contains(&0));
+        let edges_slice = collect(graph.outgoing_edges(1).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[2, 0]);
 
         // Test node 2 outgoing edges
         let mut edges = [0usize; 4];
-        let len = array_collect(graph.outgoing_edges(2).unwrap(), &mut edges);
-        assert_eq!(len, 2);
-        assert_eq!(&edges[..len], &[0, 0]); // Both edges go to node 0
+        let edges_slice = collect(graph.outgoing_edges(2).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[0, 0]); // Both edges go to node 0
 
         // Test non-existent node
         assert_eq!(graph.outgoing_edges(99).unwrap().count(), 0);
@@ -157,9 +145,8 @@ mod tests {
 
         // Test single node
         let mut nodes = [0usize; 2];
-        let len = array_collect(graph.iter_nodes().unwrap(), &mut nodes);
-        assert_eq!(len, 1);
-        assert_eq!(&nodes[..len], &[42]);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[42]);
 
         // Test contains_node
         assert!(graph.contains_node(42).unwrap());
@@ -182,22 +169,14 @@ mod tests {
 
         // Test self-loop edges
         let mut edges = [(0usize, 0usize); 8];
-        let len = array_collect(graph.iter_edges().unwrap(), &mut edges);
-        assert_eq!(len, 4);
-
-        // Check that all expected edges are present (order may vary)
-        assert!(edges[..len].contains(&(0, 0)));
-        assert!(edges[..len].contains(&(0, 1)));
-        assert!(edges[..len].contains(&(1, 1)));
-        // Should have two (1,1) edges
-        assert_eq!(edges[..len].iter().filter(|&&e| e == (1, 1)).count(), 2);
+        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
+        edges_slice.sort_unstable();
+        assert_eq!(edges_slice, &[(0, 0), (0, 1), (1, 1), (1, 1)]);
 
         // Test outgoing edges with self-loops
         let mut edges = [0usize; 4];
-        let len = array_collect(graph.outgoing_edges(0).unwrap(), &mut edges);
-        assert_eq!(len, 2);
-        assert!(edges[..len].contains(&0));
-        assert!(edges[..len].contains(&1));
+        let edges_slice = collect(graph.outgoing_edges(0).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[0, 1]);
     }
 
     #[test]
@@ -211,16 +190,11 @@ mod tests {
 
         // Test multiple edges pointing to same target
         let mut edges = [(0usize, 0usize); 8];
-        let len = array_collect(graph.iter_edges().unwrap(), &mut edges);
-        assert_eq!(len, 6);
-
-        // Check that all expected edges are present
-        assert!(edges[..len].contains(&(0, 1)));
-        assert!(edges[..len].contains(&(2, 1)));
-        assert!(edges[..len].contains(&(2, 0)));
-        assert!(edges[..len].contains(&(1, 0)));
-        // Should have two edges from 0->1 and two from 1->0
-        assert_eq!(edges[..len].iter().filter(|&&e| e == (0, 1)).count(), 2);
-        assert_eq!(edges[..len].iter().filter(|&&e| e == (1, 0)).count(), 2);
+        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
+        edges_slice.sort_unstable();
+        assert_eq!(
+            edges_slice,
+            &[(0, 1), (0, 1), (1, 0), (1, 0), (2, 0), (2, 1)]
+        );
     }
 }

@@ -48,7 +48,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::array_collect_ref;
+    use crate::tests::collect_ref;
 
     #[test]
     fn test_slice_adjacency_list_new() {
@@ -56,12 +56,11 @@ mod tests {
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
         let mut nodes = [0usize; 4];
-        let len = array_collect_ref(
+        let nodes_slice = collect_ref(
             crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
-        assert_eq!(len, 3);
-        assert_eq!(&nodes[..len], &[0, 1, 2]);
+        assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
     #[test]
@@ -70,12 +69,11 @@ mod tests {
         let graph = SliceAdjacencyList::new_unchecked(adj_list_data);
 
         let mut nodes = [0usize; 4];
-        let len = array_collect_ref(
+        let nodes_slice = collect_ref(
             crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
-        assert_eq!(len, 3);
-        assert_eq!(&nodes[..len], &[0, 1, 2]);
+        assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
     #[test]
@@ -95,11 +93,10 @@ mod tests {
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
         let mut nodes = [0usize; 2];
-        let len = array_collect_ref(
+        let nodes_slice = collect_ref(
             crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
-        assert_eq!(len, 1);
-        assert_eq!(&nodes[..len], &[42]);
+        assert_eq!(nodes_slice, &[42]);
     }
 }

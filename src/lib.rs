@@ -48,22 +48,26 @@ pub use visited::VisitedTracker;
 
 #[cfg(test)]
 mod tests {
-    /// Helper function to collect iterator items (owned values) into an array slice
-    /// Returns the number of items collected
-    pub(crate) fn array_collect<T: Copy, I: Iterator<Item = T>>(iter: I, dest: &mut [T]) -> usize {
-        iter.zip(dest.iter_mut())
-            .map(|(item, slot)| *slot = item)
-            .count()
-    }
-
-    /// Helper function to collect iterator items (references) into an array slice
-    /// Returns the number of items collected
-    pub(crate) fn array_collect_ref<'a, T: Copy + 'a, I: Iterator<Item = &'a T>>(
+    pub(crate) fn collect<T: Copy, I: Iterator<Item = T>>(
         iter: I,
         dest: &mut [T],
-    ) -> usize {
-        iter.zip(dest.iter_mut())
+    ) -> &mut [T] {
+        let slice_len = iter
+            .zip(dest.iter_mut())
+            .map(|(item, slot)| *slot = item)
+            .count();
+        &mut dest[..slice_len]
+    }
+
+    // Collects items from an iterator into a slice, returning a slice of the items
+    pub(crate) fn collect_ref<'a, T: Copy + 'a, I: Iterator<Item = &'a T>>(
+        iter: I,
+        dest: &'a mut [T],
+    ) -> &'a mut [T] {
+        let slice_len = iter
+            .zip(dest.iter_mut())
             .map(|(item, slot)| *slot = *item)
-            .count()
+            .count();
+        &mut dest[..slice_len]
     }
 }
