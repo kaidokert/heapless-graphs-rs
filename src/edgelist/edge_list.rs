@@ -54,3 +54,154 @@ impl<const N: usize, E, NI> EdgeList<N, E, NI> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::edges::EdgeNodeError;
+    use crate::graph::GraphError;
+    use crate::graph::{GraphRef, GraphVal};
+    use crate::tests::array_collect;
+
+    #[test]
+    fn test_edge_list_new() {
+        let edges = [(0, 1), (1, 2), (2, 0)];
+        let edge_list = EdgeList::<10, _, usize>::new(edges);
+
+        // Test that we can create the edge list
+        assert_eq!(
+            core::mem::size_of_val(&edge_list.edges),
+            core::mem::size_of_val(&edges)
+        );
+    }
+
+    #[test]
+    fn test_edge_list_new_empty() {
+        let edges: [(usize, usize); 0] = [];
+        let edge_list = EdgeList::<10, _, usize>::new(edges);
+
+        // Test that we can create an empty edge list
+        assert_eq!(core::mem::size_of_val(&edge_list.edges), 0);
+    }
+
+    #[test]
+    fn test_edge_list_new_single_edge() {
+        let edges = [(42, 99)];
+        let edge_list = EdgeList::<10, _, usize>::new(edges);
+
+        // Test that we can create an edge list with a single edge
+        assert_eq!(
+            core::mem::size_of_val(&edge_list.edges),
+            core::mem::size_of_val(&edges)
+        );
+    }
+
+    #[test]
+    fn test_edge_list_with_different_node_types() {
+        // Test with different node index types
+        let edges_u32 = [(0u32, 1u32), (1u32, 2u32)];
+        let _edge_list_u32 = EdgeList::<10, _, u32>::new(edges_u32);
+
+        let edges_i32 = [(0i32, 1i32), (1i32, 2i32)];
+        let _edge_list_i32 = EdgeList::<10, _, i32>::new(edges_i32);
+
+        let edges_u8 = [(0u8, 1u8), (1u8, 2u8)];
+        let _edge_list_u8 = EdgeList::<10, _, u8>::new(edges_u8);
+    }
+
+    #[test]
+    fn test_edge_list_error_from_edge_node_error() {
+        let edge_node_error = EdgeNodeError::NotEnoughCapacity;
+        let edge_list_error = EdgeListError::<usize>::from(edge_node_error);
+
+        assert!(matches!(
+            edge_list_error,
+            EdgeListError::EdgeNodeError(EdgeNodeError::NotEnoughCapacity)
+        ));
+    }
+
+    #[test]
+    fn test_edge_list_error_from_graph_error() {
+        let graph_error = GraphError::<usize>::NodeNotFound;
+        let edge_list_error = EdgeListError::<usize>::from(graph_error);
+
+        assert!(matches!(
+            edge_list_error,
+            EdgeListError::GraphError(GraphError::NodeNotFound)
+        ));
+    }
+
+    #[test]
+    fn test_edge_list_error_types() {
+        // Test EmptyEdges variant
+        let edge_node_error = EdgeListError::<usize>::EdgeNodeError(EdgeNodeError::EmptyEdges);
+        assert!(matches!(
+            edge_node_error,
+            EdgeListError::EdgeNodeError(EdgeNodeError::EmptyEdges)
+        ));
+
+        // Test NotEnoughCapacity variant
+        let capacity_error =
+            EdgeListError::<usize>::EdgeNodeError(EdgeNodeError::NotEnoughCapacity);
+        assert!(matches!(
+            capacity_error,
+            EdgeListError::EdgeNodeError(EdgeNodeError::NotEnoughCapacity)
+        ));
+
+        let graph_error = EdgeListError::<usize>::GraphError(GraphError::NodeNotFound);
+        assert!(matches!(
+            graph_error,
+            EdgeListError::GraphError(GraphError::NodeNotFound)
+        ));
+    }
+
+    #[test]
+    fn test_edge_list_with_vec_like_edges() {
+        // Test with array slice
+        let edge_array = [(0, 1), (1, 2), (2, 0)];
+        let _edge_list = EdgeList::<10, _, usize>::new(&edge_array[..]);
+
+        // Test with different edge container types that might implement EdgesIterable
+        let edge_slice: &[(usize, usize)] = &[(0, 1), (1, 2)];
+        let _edge_list_slice = EdgeList::<10, _, usize>::new(edge_slice);
+    }
+
+    #[test]
+    fn test_edge_list_different_capacities() {
+        let edges = [(0, 1), (1, 2)];
+
+        // Test different capacity parameters
+        let _edge_list_small = EdgeList::<3, _, usize>::new(edges);
+        let _edge_list_medium = EdgeList::<100, _, usize>::new(edges);
+        let _edge_list_large = EdgeList::<1000, _, usize>::new(edges);
+    }
+
+    #[test]
+    fn test_edge_list_graphref_functionality() {
+        let edges = [(0, 1), (1, 2), (2, 0)];
+        let edge_list = EdgeList::<10, _, usize>::new(edges);
+
+        // Test that GraphRef trait is implemented
+        let edges_iter = crate::graph::GraphRef::iter_edges(&edge_list).unwrap();
+        assert_eq!(edges_iter.count(), 3);
+    }
+
+    #[test]
+    fn test_edge_list_graphval_functionality() {
+        let edges = [(0, 1), (1, 2), (2, 0)];
+        let edge_list = EdgeList::<10, _, usize>::new(edges);
+
+        // Test that GraphVal trait is implemented
+        let edges_iter = crate::graph::GraphVal::iter_edges(&edge_list).unwrap();
+        assert_eq!(edges_iter.count(), 3);
+
+        // Test node iteration (this uses EdgesToNodesIterator internally)
+        let nodes_iter = crate::graph::GraphVal::iter_nodes(&edge_list).unwrap();
+        let mut nodes = [0usize; 10];
+        let len = array_collect(nodes_iter, &mut nodes);
+        assert_eq!(len, 3);
+        assert!(nodes[..len].contains(&0));
+        assert!(nodes[..len].contains(&1));
+        assert!(nodes[..len].contains(&2));
+    }
+}

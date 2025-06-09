@@ -200,6 +200,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::tests::array_collect;
 
     #[test]
     fn test_iter_with_gaps() {
@@ -208,11 +209,12 @@ mod test {
         dict.insert(2, 'b');
         dict.insert(3, 'c');
 
-        let values: Vec<char> = dict.iter().map(|(_, v)| *v).collect();
-        assert_eq!(values.len(), 3, "Iterator should yield all 3 values");
-        assert!(values.contains(&'a'), "Should contain 'a'");
-        assert!(values.contains(&'b'), "Should contain 'b'");
-        assert!(values.contains(&'c'), "Should contain 'c'");
+        let mut values = ['\0'; 5];
+        let len = array_collect(dict.iter().map(|(_, v)| *v), &mut values);
+        assert_eq!(len, 3, "Iterator should yield all 3 values");
+        assert!(values[..len].contains(&'a'), "Should contain 'a'");
+        assert!(values[..len].contains(&'b'), "Should contain 'b'");
+        assert!(values[..len].contains(&'c'), "Should contain 'c'");
     }
 
     #[test]

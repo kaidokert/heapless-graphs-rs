@@ -39,6 +39,7 @@ where
 mod test {
     use super::*;
     use crate::edges::EdgeValueStruct;
+    use crate::tests::array_collect;
 
     #[test]
     fn test_edge_list() {
@@ -80,11 +81,7 @@ mod test {
 
         let nodes = graph.iter_nodes().unwrap();
         let mut node_list = [0usize; 8];
-        let mut len = 0;
-        for node in nodes {
-            node_list[len] = node;
-            len += 1;
-        }
+        let len = array_collect(nodes, &mut node_list);
         assert_eq!(len, 4);
         assert_eq!(&node_list[..len], &[0, 1, 2, 3]);
     }

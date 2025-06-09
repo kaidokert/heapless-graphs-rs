@@ -44,3 +44,63 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph::{GraphRef, GraphVal};
+    use crate::tests::array_collect_ref;
+
+    #[test]
+    fn test_slice_adjacency_list_new() {
+        let adj_list_data = [(0, [1, 2]), (1, [2, 0]), (2, [0, 0])];
+        let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
+
+        let mut nodes = [0usize; 4];
+        let len = array_collect_ref(
+            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            &mut nodes,
+        );
+        assert_eq!(len, 3);
+        assert_eq!(&nodes[..len], &[0, 1, 2]);
+    }
+
+    #[test]
+    fn test_slice_adjacency_list_new_unchecked() {
+        let adj_list_data = [(0, [1, 2]), (1, [2, 0]), (2, [0, 0])];
+        let graph = SliceAdjacencyList::new_unchecked(adj_list_data);
+
+        let mut nodes = [0usize; 4];
+        let len = array_collect_ref(
+            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            &mut nodes,
+        );
+        assert_eq!(len, 3);
+        assert_eq!(&nodes[..len], &[0, 1, 2]);
+    }
+
+    #[test]
+    fn test_slice_adjacency_list_with_empty_graph() {
+        let adj_list_data: [(usize, [usize; 0]); 0] = [];
+        let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
+
+        assert_eq!(
+            crate::graph::GraphRef::iter_nodes(&graph).unwrap().count(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_slice_adjacency_list_single_node() {
+        let adj_list_data = [(42, [])];
+        let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
+
+        let mut nodes = [0usize; 2];
+        let len = array_collect_ref(
+            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            &mut nodes,
+        );
+        assert_eq!(len, 1);
+        assert_eq!(&nodes[..len], &[42]);
+    }
+}

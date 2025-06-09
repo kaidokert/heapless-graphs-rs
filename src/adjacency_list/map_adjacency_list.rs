@@ -45,3 +45,78 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::graph::GraphRef;
+    use crate::tests::array_collect_ref;
+
+    #[test]
+    fn test_map_adjacency_list_new() {
+        let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
+        dict.insert(0, [1, 2]);
+        dict.insert(1, [2, 0]);
+        dict.insert(2, [0, 0]);
+
+        let graph = MapAdjacencyList::new(dict).unwrap();
+
+        let mut nodes = [0usize; 4];
+        let len = array_collect_ref(
+            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            &mut nodes,
+        );
+        assert_eq!(len, 3);
+        assert!(nodes[..len].contains(&0));
+        assert!(nodes[..len].contains(&1));
+        assert!(nodes[..len].contains(&2));
+    }
+
+    #[test]
+    fn test_map_adjacency_list_new_unchecked() {
+        let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
+        dict.insert(0, [1, 2]);
+        dict.insert(1, [2, 0]);
+        dict.insert(2, [0, 0]);
+
+        let graph = MapAdjacencyList::new_unchecked(dict);
+
+        let mut nodes = [0usize; 4];
+        let len = array_collect_ref(
+            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            &mut nodes,
+        );
+        assert_eq!(len, 3);
+        assert!(nodes[..len].contains(&0));
+        assert!(nodes[..len].contains(&1));
+        assert!(nodes[..len].contains(&2));
+    }
+
+    #[test]
+    fn test_map_adjacency_list_empty() {
+        let dict = Dictionary::<usize, [usize; 0], 5>::new();
+        let graph = MapAdjacencyList::new(dict).unwrap();
+
+        assert_eq!(
+            crate::graph::GraphRef::iter_nodes(&graph).unwrap().count(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_map_adjacency_list_single_node() {
+        let mut dict = Dictionary::<usize, [usize; 0], 5>::new();
+        dict.insert(42, []);
+
+        let graph = MapAdjacencyList::new(dict).unwrap();
+
+        let mut nodes = [0usize; 2];
+        let len = array_collect_ref(
+            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            &mut nodes,
+        );
+        assert_eq!(len, 1);
+        assert_eq!(&nodes[..len], &[42]);
+    }
+}
