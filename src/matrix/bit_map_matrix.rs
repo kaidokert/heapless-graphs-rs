@@ -45,11 +45,13 @@ where
     }
 
     fn iter_edges(&self) -> Result<impl Iterator<Item = (NI, NI)>, Self::Error> {
-        Ok(self.bitmap.iter_edges().unwrap().filter_map(|(i, j)| {
-            let n = self.index_map.get(&i)?;
-            let m = self.index_map.get(&j)?;
-            Some((*n, *m))
-        }))
+        Ok(self.bitmap.iter_edges()
+            .map_err(|_| GraphError::Unexpected)?
+            .filter_map(|(i, j)| {
+                let n = self.index_map.get(&i)?;
+                let m = self.index_map.get(&j)?;
+                Some((*n, *m))
+            }))
     }
 
     fn outgoing_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {

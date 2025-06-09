@@ -20,6 +20,7 @@ impl<T> NodeIndexTrait for T where T: PartialEq + PartialOrd {}
 pub enum GraphError<NI: NodeIndexTrait> {
     NodeNotFound(NI),
     EdgeHasInvalidNode,
+    Unexpected,
 }
 
 /// Reference-based graph trait for immutable graph access
