@@ -88,23 +88,15 @@ where
         visited.insert(u, true);
 
         // Update distances to neighbors
-        for (src, dst, weight_opt) in graph.iter_edge_values()? {
-            if src == u {
-                if let Some(weight) = weight_opt {
-                    if let (Some(u_dist_opt), Some(dst_visited)) =
-                        (distance_map.get(&u), visited.get(&dst))
-                    {
-                        if !*dst_visited {
-                            if let Some(u_dist) = u_dist_opt {
-                                let new_distance = *u_dist + *weight;
-
-                                if let Some(dst_dist_opt) = distance_map.get(&dst) {
-                                    if dst_dist_opt.is_none()
-                                        || new_distance < dst_dist_opt.unwrap()
-                                    {
-                                        distance_map.insert(dst, Some(new_distance));
-                                    }
-                                }
+        // iterate only outgoing edges from `u`
+        for (dst, weight_opt) in graph.outgoing_edge_values(u)? {
+            if let Some(weight) = weight_opt {
+                if !*visited.get(&dst).unwrap_or(&false) {
+                    if let Some(Some(u_dist)) = distance_map.get(&u) {
+                        let new_distance = *u_dist + *weight;
+                        if let Some(dst_dist_opt) = distance_map.get(&dst) {
+                            if dst_dist_opt.map_or(true, |old| new_distance < old) {
+                                distance_map.insert(dst, Some(new_distance));
                             }
                         }
                     }

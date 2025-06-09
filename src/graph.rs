@@ -157,6 +157,19 @@ where
     ) -> Result<impl Iterator<Item = (NI, NI, Option<&'a EV>)>, Self::Error>
     where
         EV: 'a;
+
+    fn outgoing_edge_values<'a>(
+        &'a self,
+        node: NI,
+    ) -> Result<impl Iterator<Item = (NI, Option<&'a EV>)>, Self::Error>
+    where
+        EV: 'a,
+    {
+        Ok(self
+            .iter_edge_values()?
+            .filter(move |(src, _dst, _weight)| *src == node)
+            .map(|(_src, dst, weight)| (dst, weight)))
+    }
 }
 
 /// Integrity check for graphs - validates that all edges reference valid nodes
