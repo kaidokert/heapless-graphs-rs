@@ -18,10 +18,8 @@ impl<T> NodeIndexTrait for T where T: PartialEq + PartialOrd {}
 /// with graph structures, such as accessing non-existent nodes or edges.
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum GraphError<NI: NodeIndexTrait> {
-    NodeNotFound,
-    EdgeNotFound,
+    NodeNotFound(NI),
     EdgeHasInvalidNode,
-    PlaceHolder(NI),
 }
 
 /// Reference-based graph trait for immutable graph access

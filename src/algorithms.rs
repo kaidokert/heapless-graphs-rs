@@ -16,6 +16,7 @@ pub mod topological_sort;
 pub mod traversal;
 
 use crate::edgelist::edge_list::EdgeListError;
+use crate::edges::EdgeNodeError;
 use crate::graph::{GraphError, NodeIndexTrait};
 
 /// Errors that can occur during graph algorithm execution
@@ -36,6 +37,8 @@ pub enum AlgorithmError<NI: NodeIndexTrait> {
     ResultCapacityExceeded,
     /// Graph operation error
     GraphError(GraphError<NI>),
+    /// Edge node error
+    EdgeNodeError(EdgeNodeError),
 }
 
 impl<NI: NodeIndexTrait> From<GraphError<NI>> for AlgorithmError<NI> {
@@ -48,7 +51,7 @@ impl<NI: NodeIndexTrait> From<EdgeListError<NI>> for AlgorithmError<NI> {
     fn from(e: EdgeListError<NI>) -> Self {
         match e {
             EdgeListError::GraphError(ge) => AlgorithmError::GraphError(ge),
-            EdgeListError::EdgeNodeError(_) => AlgorithmError::GraphError(GraphError::NodeNotFound),
+            EdgeListError::EdgeNodeError(ene) => AlgorithmError::EdgeNodeError(ene),
         }
     }
 }

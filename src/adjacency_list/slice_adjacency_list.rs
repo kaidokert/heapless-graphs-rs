@@ -13,7 +13,7 @@ where
     C: AsOutgoingNodes<NI, E>,
     T: AsRef<[(NI, C)]>,
 {
-    nodes_contrainer: T,
+    nodes_container: T,
     _phantom: core::marker::PhantomData<(E, C)>,
 }
 
@@ -28,18 +28,18 @@ where
     ///
     /// This function validates that all edge destinations exist in the node set.
     /// Returns an error if any edge references a non-existent node.
-    pub fn new(nodes_contrainer: T) -> Result<Self, GraphError<NI>>
+    pub fn new(nodes_container: T) -> Result<Self, GraphError<NI>>
     where
         Self: GraphRef<NI, Error = GraphError<NI>>,
     {
-        let result = Self::new_unchecked(nodes_contrainer);
+        let result = Self::new_unchecked(nodes_container);
         integrity_check::<NI, _>(&result)?;
         Ok(result)
     }
 
-    pub fn new_unchecked(nodes_contrainer: T) -> Self {
+    pub fn new_unchecked(nodes_container: T) -> Self {
         Self {
-            nodes_contrainer,
+            nodes_container,
             _phantom: core::marker::PhantomData,
         }
     }
@@ -48,7 +48,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::{GraphRef, GraphVal};
     use crate::tests::array_collect_ref;
 
     #[test]

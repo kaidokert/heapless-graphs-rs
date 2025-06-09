@@ -1,7 +1,7 @@
 use crate::graph::NodeIndexTrait;
 use crate::nodes::NodesIterable;
 
-/// A list of outgoing edges from a node, in an adjacency list.
+/// A list of outgoing nodes from a node, in an adjacency list.
 pub trait AsOutgoingNodes<NI, E>
 where
     NI: NodeIndexTrait,

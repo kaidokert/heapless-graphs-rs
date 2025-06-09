@@ -13,12 +13,12 @@ where
     type Error = GraphError<NI>;
 
     fn iter_nodes(&self) -> Result<impl Iterator<Item = NI>, Self::Error> {
-        Ok(self.nodes_contrainer.as_ref().iter().map(|(n, _)| *n))
+        Ok(self.nodes_container.as_ref().iter().map(|(n, _)| *n))
     }
 
     fn iter_edges(&self) -> Result<impl Iterator<Item = (NI, NI)>, Self::Error> {
         Ok(self
-            .nodes_contrainer
+            .nodes_container
             .as_ref()
             .iter()
             .flat_map(|(n, c)| c.as_outgoing_nodes().map(move |m| (*n, *m))))
@@ -27,7 +27,7 @@ where
     /// Optimized O(n) contains_node for slice adjacency list
     fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
         Ok(self
-            .nodes_contrainer
+            .nodes_container
             .as_ref()
             .iter()
             .any(|(n, _)| *n == node))
@@ -37,7 +37,7 @@ where
     fn outgoing_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
         // Same pattern: use Option to unify iterator types, then flatten
         let edges_option = self
-            .nodes_contrainer
+            .nodes_container
             .as_ref()
             .iter()
             .find(|(n, _)| *n == node)

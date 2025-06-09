@@ -50,7 +50,6 @@ where
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
-    use crate::graph::GraphRef;
     use crate::tests::array_collect_ref;
 
     #[test]

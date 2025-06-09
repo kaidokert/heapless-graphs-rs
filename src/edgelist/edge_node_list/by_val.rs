@@ -34,7 +34,7 @@ where
             .iter_nodes_values()
             .find(|(n, _)| **n == node)
             .map(|(_, value)| value)
-            .ok_or(GraphError::NodeNotFound)
+            .ok_or(GraphError::NodeNotFound(node))
     }
 
     fn iter_node_values<'a>(

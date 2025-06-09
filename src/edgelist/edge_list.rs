@@ -60,7 +60,6 @@ mod tests {
     use super::*;
     use crate::edges::EdgeNodeError;
     use crate::graph::GraphError;
-    use crate::graph::{GraphRef, GraphVal};
     use crate::tests::array_collect;
 
     #[test]
@@ -122,12 +121,12 @@ mod tests {
 
     #[test]
     fn test_edge_list_error_from_graph_error() {
-        let graph_error = GraphError::<usize>::NodeNotFound;
+        let graph_error = GraphError::<usize>::NodeNotFound(0);
         let edge_list_error = EdgeListError::<usize>::from(graph_error);
 
         assert!(matches!(
             edge_list_error,
-            EdgeListError::GraphError(GraphError::NodeNotFound)
+            EdgeListError::GraphError(GraphError::NodeNotFound(0))
         ));
     }
 
@@ -148,10 +147,10 @@ mod tests {
             EdgeListError::EdgeNodeError(EdgeNodeError::NotEnoughCapacity)
         ));
 
-        let graph_error = EdgeListError::<usize>::GraphError(GraphError::NodeNotFound);
+        let graph_error = EdgeListError::<usize>::GraphError(GraphError::NodeNotFound(0));
         assert!(matches!(
             graph_error,
-            EdgeListError::GraphError(GraphError::NodeNotFound)
+            EdgeListError::GraphError(GraphError::NodeNotFound(0))
         ));
     }
 
