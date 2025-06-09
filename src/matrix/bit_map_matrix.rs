@@ -5,7 +5,7 @@ use crate::{
 
 /// A bit-packed adjacency matrix with arbitrary node indices
 ///
-/// This struct combines a [`BitMatrix`] for efficient edge storage with an index map
+/// This struct combines a [`crate::matrix::bit_matrix::BitMatrix`] for efficient edge storage with an index map
 /// that allows arbitrary node indices. It provides the same memory efficiency as
 /// BitMatrix while supporting non-contiguous node identifiers.
 pub struct BitMapMatrix<const N: usize, NI, M>
