@@ -11,40 +11,50 @@ where
     NI: NodeIndexTrait + Copy,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<NI, usize>,
 {
     type Error = GraphError<NI>;
 
     fn iter_nodes(&self) -> Result<impl Iterator<Item = NI>, Self::Error> {
-        Ok(self.index_map.iter().map(|(_, &v)| v))
+        Ok(self.index_map.iter().map(|(&k, _)| k))
     }
 
     fn iter_edges(&self) -> Result<impl Iterator<Item = (NI, NI)>, Self::Error> {
-        Ok(self.inner.iter_edges().unwrap().filter_map(|(i, j)| {
-            let n = *self.index_map.get(&i)?;
-            let m = *self.index_map.get(&j)?;
-            Some((n, m))
-        }))
+        Ok(self
+            .index_map
+            .iter()
+            .flat_map(move |(&from_node, &from_idx)| {
+                self.index_map
+                    .iter()
+                    .filter_map(move |(&to_node, &to_idx)| {
+                        if self.inner.get_edge_value(from_idx, to_idx).is_some() {
+                            Some((from_node, to_node))
+                        } else {
+                            None
+                        }
+                    })
+            }))
     }
 
     fn outgoing_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
-        // Find the matrix index for this node, or use usize::MAX for not found
-        let matrix_idx = self
-            .index_map
-            .iter()
-            .find(|(_, &v)| v == node)
-            .map(|(&k, _)| k)
-            .unwrap_or(usize::MAX);
+        // Fast direct lookup of matrix index for this node
+        let matrix_idx = self.index_map.get(&node).copied();
 
         Ok(self
             .inner
-            .outgoing_edges(matrix_idx)
+            .outgoing_edges(matrix_idx.unwrap_or(usize::MAX))
             .unwrap()
-            .filter_map(move |target_idx| self.index_map.get(&target_idx).copied()))
+            .filter(move |_| matrix_idx.is_some()) // Filter out everything if node doesn't exist
+            .filter_map(move |target_idx| {
+                self.index_map
+                    .iter()
+                    .find(|(_, &idx)| idx == target_idx)
+                    .map(|(&node, _)| node)
+            }))
     }
 
     fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
-        Ok(self.index_map.iter().any(|(_, &v)| v == node))
+        Ok(self.index_map.contains_key(&node))
     }
 }
 
@@ -54,7 +64,7 @@ where
     NI: NodeIndexTrait + Copy,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<NI, usize>,
 {
     fn iter_edge_values<'a>(
         &'a self,
@@ -62,12 +72,21 @@ where
     where
         EDGEVALUE: 'a,
     {
-        Ok(self.inner.iter_edges().unwrap().filter_map(|(i, j)| {
-            let n = *self.index_map.get(&i)?;
-            let m = *self.index_map.get(&j)?;
-            let value = self.inner.get_edge_value(i, j);
-            Some((n, m, value))
-        }))
+        Ok(self
+            .index_map
+            .iter()
+            .flat_map(move |(&from_node, &from_idx)| {
+                self.index_map
+                    .iter()
+                    .filter_map(move |(&to_node, &to_idx)| {
+                        let value = self.inner.get_edge_value(from_idx, to_idx);
+                        if value.is_some() {
+                            Some((from_node, to_node, value))
+                        } else {
+                            None
+                        }
+                    })
+            }))
     }
 }
 
@@ -84,15 +103,15 @@ mod tests {
             [Some(7), None, Some(9)],
         ];
 
-        let mut index_map = Dictionary::<usize, u32, 3>::new();
-        index_map.insert(0, 100);
-        index_map.insert(1, 200);
-        index_map.insert(2, 300);
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(100, 0);
+        index_map.insert(200, 1);
+        index_map.insert(300, 2);
 
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<usize, u32, 3>,
+            Dictionary<u32, usize, 3>,
             i32,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
@@ -136,15 +155,15 @@ mod tests {
             [Some(7), None, Some(9)],
         ];
 
-        let mut index_map = Dictionary::<usize, u32, 3>::new();
-        index_map.insert(0, 10);
-        index_map.insert(1, 20);
-        index_map.insert(2, 30);
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(10, 0);
+        index_map.insert(20, 1);
+        index_map.insert(30, 2);
 
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<usize, u32, 3>,
+            Dictionary<u32, usize, 3>,
             i32,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
@@ -191,15 +210,15 @@ mod tests {
             [Some(7), None, None],    // 30 -> 10
         ];
 
-        let mut index_map = Dictionary::<usize, u32, 3>::new();
-        index_map.insert(0, 10);
-        index_map.insert(1, 20);
-        index_map.insert(2, 30);
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(10, 0);
+        index_map.insert(20, 1);
+        index_map.insert(30, 2);
 
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<usize, u32, 3>,
+            Dictionary<u32, usize, 3>,
             i32,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
@@ -257,14 +276,14 @@ mod tests {
             [None, None, None],
         ];
 
-        let mut index_map = Dictionary::<usize, i32, 3>::new();
-        index_map.insert(0, 42);
-        index_map.insert(1, 84);
+        let mut index_map = Dictionary::<i32, usize, 3>::new();
+        index_map.insert(42, 0);
+        index_map.insert(84, 1);
 
         type ValMatrix = MapMatrix<
             3,
             i32,
-            Dictionary<usize, i32, 3>,
+            Dictionary<i32, usize, 3>,
             i32,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
@@ -285,15 +304,15 @@ mod tests {
             [Some(7), None, Some(9)],
         ];
 
-        let mut index_map = Dictionary::<usize, i32, 3>::new();
-        index_map.insert(0, 100);
-        index_map.insert(1, 200);
-        index_map.insert(2, 300);
+        let mut index_map = Dictionary::<i32, usize, 3>::new();
+        index_map.insert(100, 0);
+        index_map.insert(200, 1);
+        index_map.insert(300, 2);
 
         type ValMatrix = MapMatrix<
             3,
             i32,
-            Dictionary<usize, i32, 3>,
+            Dictionary<i32, usize, 3>,
             i32,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
@@ -309,14 +328,14 @@ mod tests {
     fn test_graphval_with_char_nodes() {
         let matrix = [[Some(true), Some(false)], [None, Some(true)]];
 
-        let mut index_map = Dictionary::<usize, char, 2>::new();
-        index_map.insert(0, 'X');
-        index_map.insert(1, 'Y');
+        let mut index_map = Dictionary::<char, usize, 2>::new();
+        index_map.insert('X', 0);
+        index_map.insert('Y', 1);
 
         type CharMatrix = MapMatrix<
             2,
             char,
-            Dictionary<usize, char, 2>,
+            Dictionary<char, usize, 2>,
             bool,
             [[Option<bool>; 2]; 2],
             [Option<bool>; 2],
@@ -339,15 +358,15 @@ mod tests {
     fn test_graphval_empty_matrix() {
         let matrix = [[None, None, None], [None, None, None], [None, None, None]];
 
-        let mut index_map = Dictionary::<usize, u32, 3>::new();
-        index_map.insert(0, 10);
-        index_map.insert(1, 20);
-        index_map.insert(2, 30);
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(10, 0);
+        index_map.insert(20, 1);
+        index_map.insert(30, 2);
 
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<usize, u32, 3>,
+            Dictionary<u32, usize, 3>,
             i32,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
@@ -367,15 +386,15 @@ mod tests {
             [Some(7), None, Some(9)],
         ];
 
-        let mut index_map = Dictionary::<usize, u32, 3>::new();
-        index_map.insert(0, 10);
-        index_map.insert(1, 20);
-        index_map.insert(2, 30);
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(10, 0);
+        index_map.insert(20, 1);
+        index_map.insert(30, 2);
 
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<usize, u32, 3>,
+            Dictionary<u32, usize, 3>,
             i32,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],

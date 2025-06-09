@@ -10,7 +10,7 @@ impl<const N: usize> BitMatrix<N> {
         Self { bits }
     }
 
-    fn get(&self, row: usize, col: usize) -> bool {
+    pub(super) fn get(&self, row: usize, col: usize) -> bool {
         if row >= 8 || col >= 8 * N {
             return false;
         }

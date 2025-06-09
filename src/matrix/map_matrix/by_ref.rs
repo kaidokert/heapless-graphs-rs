@@ -11,7 +11,7 @@ where
     NI: NodeIndexTrait,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<NI, usize>,
 {
     type Error = GraphError<NI>;
 
@@ -19,18 +19,25 @@ where
     where
         NI: 'a,
     {
-        Ok(self.index_map.iter().map(|(_, v)| v))
+        Ok(self.index_map.iter().map(|(k, _)| k))
     }
 
     fn iter_edges<'a>(&'a self) -> Result<impl Iterator<Item = (&'a NI, &'a NI)>, Self::Error>
     where
         NI: 'a,
     {
-        Ok(self.inner.iter_edges().unwrap().filter_map(|(i, j)| {
-            let n = self.index_map.get(&i)?;
-            let m = self.index_map.get(&j)?;
-            Some((n, m))
-        }))
+        Ok(self
+            .index_map
+            .iter()
+            .flat_map(move |(from_node, &from_idx)| {
+                self.index_map.iter().filter_map(move |(to_node, &to_idx)| {
+                    if self.inner.get_edge_value(from_idx, to_idx).is_some() {
+                        Some((from_node, to_node))
+                    } else {
+                        None
+                    }
+                })
+            }))
     }
 
     fn outgoing_edges<'a>(
@@ -40,23 +47,24 @@ where
     where
         NI: 'a,
     {
-        // Find the matrix index for this node, or use usize::MAX for not found
-        let matrix_idx = self
-            .index_map
-            .iter()
-            .find(|(_, v)| *v == node)
-            .map(|(&k, _)| k)
-            .unwrap_or(usize::MAX);
+        // Fast direct lookup of matrix index for this node
+        let matrix_idx = self.index_map.get(node).copied();
 
         Ok(self
             .inner
-            .outgoing_edges(matrix_idx)
+            .outgoing_edges(matrix_idx.unwrap_or(usize::MAX))
             .unwrap()
-            .filter_map(move |target_idx| self.index_map.get(&target_idx)))
+            .filter(move |_| matrix_idx.is_some()) // Filter out everything if node doesn't exist
+            .filter_map(move |target_idx| {
+                self.index_map
+                    .iter()
+                    .find(|(_, &idx)| idx == target_idx)
+                    .map(|(node, _)| node)
+            }))
     }
 
     fn contains_node(&self, node: &NI) -> Result<bool, Self::Error> {
-        Ok(self.index_map.iter().any(|(_, v)| v == node))
+        Ok(self.index_map.contains_key(node))
     }
 }
 
@@ -68,7 +76,7 @@ mod tests {
     type TestMatrix = MapMatrix<
         3,
         &'static str,
-        Dictionary<usize, &'static str, 3>,
+        Dictionary<&'static str, usize, 3>,
         i32,
         [[Option<i32>; 3]; 3],
         [Option<i32>; 3],
@@ -82,10 +90,10 @@ mod tests {
             [Some(7), None, Some(9)],
         ];
 
-        let mut index_map = Dictionary::<usize, &'static str, 3>::new();
-        index_map.insert(0, "a");
-        index_map.insert(1, "b");
-        index_map.insert(2, "c");
+        let mut index_map = Dictionary::<&'static str, usize, 3>::new();
+        index_map.insert("a", 0);
+        index_map.insert("b", 1);
+        index_map.insert("c", 2);
 
         let map_matrix = TestMatrix::new(matrix, index_map);
 
@@ -101,10 +109,10 @@ mod tests {
             [Some(7), None, Some(9)],
         ];
 
-        let mut index_map = Dictionary::<usize, &'static str, 3>::new();
-        index_map.insert(0, "alice");
-        index_map.insert(1, "bob");
-        index_map.insert(2, "charlie");
+        let mut index_map = Dictionary::<&'static str, usize, 3>::new();
+        index_map.insert("alice", 0);
+        index_map.insert("bob", 1);
+        index_map.insert("charlie", 2);
 
         let map_matrix = TestMatrix::new(matrix, index_map);
 
@@ -144,10 +152,10 @@ mod tests {
             [Some(7), None, Some(9)], // charlie -> alice, charlie -> charlie
         ];
 
-        let mut index_map = Dictionary::<usize, &'static str, 3>::new();
-        index_map.insert(0, "alice");
-        index_map.insert(1, "bob");
-        index_map.insert(2, "charlie");
+        let mut index_map = Dictionary::<&'static str, usize, 3>::new();
+        index_map.insert("alice", 0);
+        index_map.insert("bob", 1);
+        index_map.insert("charlie", 2);
 
         let map_matrix = TestMatrix::new(matrix, index_map);
 
@@ -193,10 +201,10 @@ mod tests {
             [Some(7), None, None],    // charlie -> alice
         ];
 
-        let mut index_map = Dictionary::<usize, &'static str, 3>::new();
-        index_map.insert(0, "alice");
-        index_map.insert(1, "bob");
-        index_map.insert(2, "charlie");
+        let mut index_map = Dictionary::<&'static str, usize, 3>::new();
+        index_map.insert("alice", 0);
+        index_map.insert("bob", 1);
+        index_map.insert("charlie", 2);
 
         let map_matrix = TestMatrix::new(matrix, index_map);
 
@@ -250,9 +258,9 @@ mod tests {
             [None, None, None],
         ];
 
-        let mut index_map = Dictionary::<usize, &'static str, 3>::new();
-        index_map.insert(0, "exists");
-        index_map.insert(1, "also_exists");
+        let mut index_map = Dictionary::<&'static str, usize, 3>::new();
+        index_map.insert("exists", 0);
+        index_map.insert("also_exists", 1);
 
         let map_matrix = TestMatrix::new(matrix, index_map);
 
@@ -266,10 +274,10 @@ mod tests {
     fn test_graphref_empty_matrix() {
         let matrix = [[None, None, None], [None, None, None], [None, None, None]];
 
-        let mut index_map = Dictionary::<usize, &'static str, 3>::new();
-        index_map.insert(0, "x");
-        index_map.insert(1, "y");
-        index_map.insert(2, "z");
+        let mut index_map = Dictionary::<&'static str, usize, 3>::new();
+        index_map.insert("x", 0);
+        index_map.insert("y", 1);
+        index_map.insert("z", 2);
 
         let map_matrix = TestMatrix::new(matrix, index_map);
 
@@ -287,15 +295,15 @@ mod tests {
             [None, None, Some(30)],
         ];
 
-        let mut index_map = Dictionary::<usize, u32, 3>::new();
-        index_map.insert(0, 100); // Map matrix index 0 to node 100
-        index_map.insert(1, 200); // Map matrix index 1 to node 200
-        index_map.insert(2, 300); // Map matrix index 2 to node 300
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(100, 0); // Map node 100 to matrix index 0
+        index_map.insert(200, 1); // Map node 200 to matrix index 1
+        index_map.insert(300, 2); // Map node 300 to matrix index 2
 
         type SparseMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<usize, u32, 3>,
+            Dictionary<u32, usize, 3>,
             i32,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],

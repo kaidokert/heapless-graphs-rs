@@ -11,7 +11,7 @@ use crate::{
 pub struct BitMapMatrix<const N: usize, NI, M>
 where
     NI: NodeIndexTrait,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<NI, usize>,
 {
     bitmap: super::bit_matrix::BitMatrix<N>,
     index_map: M,
@@ -21,7 +21,7 @@ where
 impl<const N: usize, NI, M> BitMapMatrix<N, NI, M>
 where
     NI: NodeIndexTrait,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<NI, usize>,
 {
     /// Creates a new BitMapMatrix with the given bitmap and index mapping
     pub fn new(bitmap: super::bit_matrix::BitMatrix<N>, index_map: M) -> Self {
@@ -36,48 +36,54 @@ where
 impl<const N: usize, NI, M> GraphVal<NI> for BitMapMatrix<N, NI, M>
 where
     NI: NodeIndexTrait + Copy,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<NI, usize>,
 {
     type Error = GraphError<NI>;
 
     fn iter_nodes(&self) -> Result<impl Iterator<Item = NI>, Self::Error> {
-        Ok(self.index_map.iter().map(|(_, &v)| v))
+        Ok(self.index_map.iter().map(|(&k, _)| k))
     }
 
     fn iter_edges(&self) -> Result<impl Iterator<Item = (NI, NI)>, Self::Error> {
-        Ok(self.bitmap.iter_edges()
-            .map_err(|_| GraphError::Unexpected)?
-            .filter_map(|(i, j)| {
-                let n = self.index_map.get(&i)?;
-                let m = self.index_map.get(&j)?;
-                Some((*n, *m))
+        Ok(self
+            .index_map
+            .iter()
+            .flat_map(move |(&from_node, &from_idx)| {
+                self.index_map
+                    .iter()
+                    .filter_map(move |(&to_node, &to_idx)| {
+                        if self.bitmap.get(from_idx, to_idx) {
+                            Some((from_node, to_node))
+                        } else {
+                            None
+                        }
+                    })
             }))
     }
 
     fn outgoing_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
-        // Find the matrix index for this node
-        let matrix_idx = self
-            .index_map
-            .iter()
-            .find(|(_, &v)| v == node)
-            .map(|(&k, _)| k);
+        // Fast direct lookup of matrix index for this node
+        let matrix_idx = self.index_map.get(&node).copied();
 
-        // Get outgoing edges from bitmap, or use empty iterator if node not found
+        // Get outgoing edges from bitmap, using 0 as fallback (will be filtered out)
         let outgoing = self
             .bitmap
-            .outgoing_edges(matrix_idx.unwrap_or(usize::MAX))
+            .outgoing_edges(matrix_idx.unwrap_or(0))
             .map_err(|_| GraphError::NodeNotFound(node))?;
 
-        // Chain filters to:
-        // 1. Only yield items if the node exists in the index map
-        // 2. Map the matrix indices to actual node indices
+        // Map matrix indices back to node indices by checking all nodes
         Ok(outgoing
-            .filter(move |_| matrix_idx.is_some())
-            .filter_map(move |target_idx| self.index_map.get(&target_idx).copied()))
+            .filter(move |_| matrix_idx.is_some()) // Filter out everything if node doesn't exist
+            .filter_map(move |target_idx| {
+                self.index_map
+                    .iter()
+                    .find(|(_, &idx)| idx == target_idx)
+                    .map(|(&node, _)| node)
+            }))
     }
 
     fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
-        Ok(self.index_map.iter().any(|(_, &v)| v == node))
+        Ok(self.index_map.contains_key(&node))
     }
 }
 
@@ -101,10 +107,10 @@ mod tests {
         ];
         let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
 
-        // Map matrix indices 0,1 to custom node IDs 'A','B'
-        let mut index_map = Dictionary::<usize, char, 8>::new();
-        index_map.insert(0, 'A');
-        index_map.insert(1, 'B');
+        // Map custom node IDs 'A','B' to matrix indices 0,1
+        let mut index_map = Dictionary::<char, usize, 8>::new();
+        index_map.insert('A', 0);
+        index_map.insert('B', 1);
 
         let bit_map_matrix = BitMapMatrix::new(bitmap, index_map);
 
@@ -152,7 +158,7 @@ mod tests {
         let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
 
         // Empty index map
-        let index_map = Dictionary::<usize, u32, 8>::new();
+        let index_map = Dictionary::<u32, usize, 8>::new();
         let bit_map_matrix = BitMapMatrix::new(bitmap, index_map);
 
         // Should have no nodes
@@ -179,8 +185,8 @@ mod tests {
         ];
         let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
 
-        let mut index_map = Dictionary::<usize, u32, 8>::new();
-        index_map.insert(0, 100);
+        let mut index_map = Dictionary::<u32, usize, 8>::new();
+        index_map.insert(100, 0);
 
         let bit_map_matrix = BitMapMatrix::new(bitmap, index_map);
 

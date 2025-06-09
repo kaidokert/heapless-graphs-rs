@@ -13,7 +13,7 @@ where
     NI: NodeIndexTrait,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<NI, usize>,
 {
     inner: super::simple_matrix::Matrix<N, EDGEVALUE, COLUMNS, ROW>,
     index_map: M,
@@ -25,12 +25,12 @@ where
     NI: NodeIndexTrait,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
-    M: MapTrait<usize, NI>,
+    M: MapTrait<NI, usize>,
 {
     /// Creates a new MapMatrix with the given matrix data and index mapping
     ///
     /// The `matrix` parameter provides the adjacency matrix data, and `index_map`
-    /// maps from matrix indices (0..N) to the actual node indices.
+    /// maps from the actual node indices to matrix indices (0..N).
     pub fn new(matrix: COLUMNS, index_map: M) -> Self {
         Self {
             inner: super::simple_matrix::Matrix::new(matrix),
