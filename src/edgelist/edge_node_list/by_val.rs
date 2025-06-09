@@ -67,6 +67,9 @@ where
 mod test {
     use super::*;
     use crate::edges::EdgeValueStruct;
+    use crate::graph::GraphError;
+    use crate::nodes::{NodeValueStructOption, NodesValuesIterable};
+    use crate::tests::collect;
 
     #[test]
     fn test_edge_node_list() {
@@ -110,5 +113,52 @@ mod test {
         assert_eq!(len, 2);
         assert!(outgoing[..len].contains(&(1, 5)));
         assert!(outgoing[..len].contains(&(2, 8)));
+    }
+
+    #[test]
+    fn test_iter_nodes_values() {
+        // Test that iter_nodes_values() and node_value() work correctly with mixed values including None
+        let node_data = NodeValueStructOption([
+            Some((0, Some("value_0"))), // Node 0 exists with a value
+            Some((1, Some("value_1"))), // Node 1 exists with a value
+            Some((2, None)),            // Node 2 exists but has None value
+            None,                       // Index 3 has no node
+            Some((3, Some("value_3"))), // Node 3 exists with a value
+        ]);
+
+        // Test the iterator behavior
+        let mut nodes_and_values = [(0usize, None); 5];
+        let nodes_values_slice = collect(
+            node_data.iter_nodes_values().map(|(n, v)| (*n, v)),
+            &mut nodes_and_values,
+        );
+
+        // Should yield all 4 existing nodes in order: 0, 1, 2, 3
+        assert_eq!(
+            nodes_values_slice,
+            &[
+                (0, Some(&Some("value_0"))),
+                (1, Some(&Some("value_1"))),
+                (2, Some(&None)), // Node exists but has None value
+                (3, Some(&Some("value_3")))
+            ]
+        );
+
+        // Test with EdgeNodeList
+        let edges = [(0usize, 1usize), (1, 2), (2, 3)];
+        let graph = EdgeNodeList::new(edges, node_data).unwrap();
+
+        // Test node_value() for each node
+        assert_eq!(graph.node_value(0).unwrap(), Some(&Some("value_0")));
+        assert_eq!(graph.node_value(1).unwrap(), Some(&Some("value_1")));
+        assert_eq!(graph.node_value(2).unwrap(), Some(&None)); // Node exists with None value
+        assert_eq!(graph.node_value(3).unwrap(), Some(&Some("value_3")));
+
+        // Non-existent node should return error
+        assert!(graph.node_value(99).is_err());
+        assert!(matches!(
+            graph.node_value(99).unwrap_err(),
+            GraphError::NodeNotFound(99)
+        ));
     }
 }

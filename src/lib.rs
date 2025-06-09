@@ -48,10 +48,7 @@ pub use visited::VisitedTracker;
 
 #[cfg(test)]
 mod tests {
-    pub(crate) fn collect<T: Copy, I: Iterator<Item = T>>(
-        iter: I,
-        dest: &mut [T],
-    ) -> &mut [T] {
+    pub(crate) fn collect<T: Copy, I: Iterator<Item = T>>(iter: I, dest: &mut [T]) -> &mut [T] {
         let slice_len = iter
             .zip(dest.iter_mut())
             .map(|(item, slot)| *slot = item)
