@@ -53,19 +53,24 @@ where
     }
 
     fn outgoing_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
-        // Find the matrix index for this node, or use usize::MAX for not found
-        // The BitMatrix will handle invalid indices safely by returning no edges
+        // Find the matrix index for this node
         let matrix_idx = self
             .index_map
             .iter()
             .find(|(_, &v)| v == node)
-            .map(|(&k, _)| k)
-            .unwrap_or(usize::MAX);
+            .map(|(&k, _)| k);
 
-        Ok(self
+        // Get outgoing edges from bitmap, or use empty iterator if node not found
+        let outgoing = self
             .bitmap
-            .outgoing_edges(matrix_idx)
-            .unwrap()
+            .outgoing_edges(matrix_idx.unwrap_or(usize::MAX))
+            .map_err(|_| GraphError::NodeNotFound(node))?;
+
+        // Chain filters to:
+        // 1. Only yield items if the node exists in the index map
+        // 2. Map the matrix indices to actual node indices
+        Ok(outgoing
+            .filter(move |_| matrix_idx.is_some())
             .filter_map(move |target_idx| self.index_map.get(&target_idx).copied()))
     }
 
