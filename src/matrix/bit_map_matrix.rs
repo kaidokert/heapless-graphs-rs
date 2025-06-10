@@ -68,7 +68,7 @@ where
         // Get outgoing edges from bitmap, using 0 as fallback (will be filtered out)
         let outgoing = self
             .bitmap
-            .outgoing_edges(matrix_idx.unwrap_or(0))
+            .outgoing_edges(matrix_idx.unwrap_or(usize::MAX))
             .map_err(|_| GraphError::NodeNotFound(node))?;
 
         // Map matrix indices back to node indices by checking all nodes

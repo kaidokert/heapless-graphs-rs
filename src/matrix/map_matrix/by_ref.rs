@@ -53,7 +53,7 @@ where
         Ok(self
             .inner
             .outgoing_edges(matrix_idx.unwrap_or(usize::MAX))
-            .unwrap()
+            .map_err(|_| GraphError::Unexpected)?
             .filter(move |_| matrix_idx.is_some()) // Filter out everything if node doesn't exist
             .filter_map(move |target_idx| {
                 self.index_map
