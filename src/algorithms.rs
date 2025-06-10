@@ -7,15 +7,25 @@
 //! Note: These are not necessarily efficient implementations,
 //! nor thoroughly tested.
 
-pub mod bellman_ford;
-pub mod connected_components;
-pub mod dijkstra;
-pub mod greedy_coloring;
-pub mod kahns;
-pub mod kruskals;
-pub mod tarjan_scc;
-pub mod topological_sort;
-pub mod traversal;
+mod bellman_ford;
+mod connected_components;
+mod dijkstra;
+mod greedy_coloring;
+mod kahns;
+mod kruskals;
+mod tarjan_scc;
+mod topological_sort;
+mod traversal;
+
+pub use bellman_ford::bellman_ford;
+pub use connected_components::{connected_components, count_connected_components};
+pub use dijkstra::dijkstra;
+pub use greedy_coloring::greedy_color;
+pub use kahns::kahns;
+pub use kruskals::kruskals;
+pub use tarjan_scc::{tarjan_scc, count_tarjan_scc};
+pub use topological_sort::topological_sort_dfs;
+pub use traversal::{bfs, bfs_unchecked, dfs_iterative, dfs_recursive, dfs_recursive_unchecked};
 
 use crate::edgelist::edge_list::EdgeListError;
 use crate::edges::EdgeNodeError;
