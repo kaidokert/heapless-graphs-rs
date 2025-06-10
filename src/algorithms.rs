@@ -8,10 +8,12 @@
 //! nor thoroughly tested.
 
 pub mod bellman_ford;
+pub mod connected_components;
 pub mod dijkstra;
 pub mod greedy_coloring;
 pub mod kahns;
 pub mod kruskals;
+pub mod tarjan_scc;
 pub mod topological_sort;
 pub mod traversal;
 
