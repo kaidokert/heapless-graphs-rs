@@ -18,8 +18,11 @@ impl<T> NodeIndexTrait for T where T: PartialEq + PartialOrd {}
 /// with graph structures, such as accessing non-existent nodes or edges.
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum GraphError<NI: NodeIndexTrait> {
-    NodeNotFound(NI),
+    /// Edge is referring to a node not present in graph
     EdgeHasInvalidNode,
+    /// Given node wasn't found in the graph
+    NodeNotFound(NI),
+    /// Unexpected condition occurred
     Unexpected,
 }
 
@@ -35,15 +38,22 @@ pub enum GraphError<NI: NodeIndexTrait> {
 pub trait GraphRef<NodeIndex: NodeIndexTrait> {
     type Error: From<GraphError<NodeIndex>>;
 
+    /// Return an iterator over all nodes in the graph
     fn iter_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a NodeIndex>, Self::Error>
     where
         NodeIndex: 'a;
+    /// Return an iterator over all edges in the graph
     fn iter_edges<'a>(
         &'a self,
     ) -> Result<impl Iterator<Item = (&'a NodeIndex, &'a NodeIndex)>, Self::Error>
     where
         NodeIndex: 'a;
 
+    /// Get outgoing edges from a node
+    ///
+    /// Default implementation filters all edges, which is inefficient.
+    /// Implementers should override this method when they can provide
+    /// direct access to outgoing edges (e.g., adjacency lists, matrices).
     fn outgoing_edges<'a>(
         &'a self,
         node: &'a NodeIndex,
@@ -57,7 +67,29 @@ pub trait GraphRef<NodeIndex: NodeIndexTrait> {
             .map(|(_src, dst)| dst))
     }
 
+    /// Get incoming edges to a node
+    ///
+    /// Default implementation filters all edges, which is inefficient.
+    /// Implementers should override this method when they can provide
+    /// direct access to incoming edges (e.g., adjacency matrices).
+    fn incoming_edges<'a>(
+        &'a self,
+        node: &'a NodeIndex,
+    ) -> Result<impl Iterator<Item = &'a NodeIndex>, Self::Error>
+    where
+        NodeIndex: 'a,
+    {
+        Ok(self
+            .iter_edges()?
+            .filter(move |(_src, dst)| *dst == node)
+            .map(|(src, _dst)| src))
+    }
+
     /// Check if a node is present in the graph
+    ///
+    /// Default implementation iterates all nodes, which is inefficient.
+    /// Implementers should override this method when they can provide
+    /// faster lookup (e.g., hash-based or tree-based storage).
     fn contains_node(&self, node: &NodeIndex) -> Result<bool, Self::Error> {
         Ok(self.iter_nodes()?.any(|x| x == node))
     }
@@ -73,10 +105,16 @@ pub trait GraphRef<NodeIndex: NodeIndexTrait> {
 pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
     type Error: From<GraphError<NodeIndex>>;
 
+    /// Return an iterator over all nodes in the graph
     fn iter_nodes(&self) -> Result<impl Iterator<Item = NodeIndex>, Self::Error>;
+    /// Return an iterator over all edges in the graph
     fn iter_edges(&self) -> Result<impl Iterator<Item = (NodeIndex, NodeIndex)>, Self::Error>;
 
-    /// Get outgoing edges from a node
+    /// Return an iterator over all outgoing edges for a node
+    ///
+    /// Default implementation filters all edges, which is inefficient.
+    /// Implementers should override this method when they can provide
+    /// direct access to outgoing edges (e.g., adjacency lists, matrices).
     fn outgoing_edges(
         &self,
         node: NodeIndex,
@@ -87,7 +125,26 @@ pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
             .map(|(_src, dst)| dst))
     }
 
+    /// Return an iterator over all incoming edges for a node
+    ///
+    /// Default implementation filters all edges, which is inefficient.
+    /// Implementers should override this method when they can provide
+    /// direct access to incoming edges (e.g., adjacency matrices).
+    fn incoming_edges(
+        &self,
+        node: NodeIndex,
+    ) -> Result<impl Iterator<Item = NodeIndex>, Self::Error> {
+        Ok(self
+            .iter_edges()?
+            .filter(move |(_src, dst)| *dst == node)
+            .map(|(src, _dst)| src))
+    }
+
     /// Check if a node is present in the graph
+    ///
+    /// Default implementation iterates all nodes, which is inefficient.
+    /// Implementers should override this method when they can provide
+    /// faster lookup (e.g., hash-based or tree-based storage).
     fn contains_node(&self, node: NodeIndex) -> Result<bool, Self::Error> {
         Ok(self.iter_nodes()?.any(|x| x == node))
     }
@@ -102,12 +159,14 @@ pub trait GraphRefWithNodeValues<NI, NV>: GraphRef<NI>
 where
     NI: NodeIndexTrait,
 {
+    /// Return an iterator over all node values in the graph
     fn iter_node_values<'a>(
         &'a self,
     ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a NV>)>, Self::Error>
     where
         NV: 'a,
         NI: 'a;
+    /// Get the value associated with a node
     fn node_value(&self, node: &NI) -> Result<Option<&NV>, Self::Error>;
 }
 
@@ -120,7 +179,9 @@ pub trait GraphValWithNodeValues<NI, NV>: GraphVal<NI>
 where
     NI: NodeIndexTrait + Copy,
 {
+    /// Get the value associated with a node
     fn node_value(&self, node: NI) -> Result<Option<&NV>, Self::Error>;
+    /// Return an iterator over all node values in the graph
     fn iter_node_values<'a>(
         &'a self,
     ) -> Result<impl Iterator<Item = (NI, Option<&'a NV>)>, Self::Error>
@@ -137,6 +198,7 @@ pub trait GraphRefWithEdgeValues<NI, EV>: GraphRef<NI>
 where
     NI: NodeIndexTrait,
 {
+    /// Return an iterator over all edge values in the graph
     fn iter_edge_values<'a>(
         &'a self,
     ) -> Result<impl Iterator<Item = (&'a NI, &'a NI, Option<&'a EV>)>, Self::Error>
@@ -191,5 +253,7 @@ where
             return Err(GraphError::EdgeHasInvalidNode.into());
         }
     }
+
+    // TODO: Perhaps check for duplicate nodes
     Ok(())
 }
