@@ -47,6 +47,8 @@ pub enum AlgorithmError<NI: NodeIndexTrait> {
     CycleDetected,
     /// Output buffer too small
     ResultCapacityExceeded,
+    /// Invalid algorithm state (e.g., empty stack when expecting nodes)
+    InvalidState,
     /// Graph operation error
     GraphError(GraphError<NI>),
     /// Edge node error

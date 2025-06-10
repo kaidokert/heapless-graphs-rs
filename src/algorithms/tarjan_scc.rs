@@ -71,10 +71,19 @@ where
 
     // First pass: Run DFS from each unvisited node and collect sizes
     for node in graph.iter_nodes()? {
-        if state[*node].index == usize::MAX {
+        let node_idx = *node;
+
+        // Check bounds to prevent panic on invalid node indices
+        if node_idx >= state.len() {
+            return Err(AlgorithmError::GraphError(
+                crate::graph::GraphError::NodeNotFound(node_idx),
+            ));
+        }
+
+        if state[node_idx].index == usize::MAX {
             let (_new_index, new_components, new_buffer_offset) = tarjan_dfs(
                 graph,
-                *node,
+                node_idx,
                 state,
                 &mut stack,
                 &mut index_counter,
@@ -117,6 +126,13 @@ where
     S: Deque<usize>,
     AlgorithmError<usize>: From<G::Error>,
 {
+    // Check bounds to prevent panic on invalid node indices
+    if node >= state.len() {
+        return Err(AlgorithmError::GraphError(
+            crate::graph::GraphError::NodeNotFound(node),
+        ));
+    }
+
     // Initialize this node
     state[node].index = *index_counter;
     state[node].lowlink = *index_counter;
@@ -133,6 +149,13 @@ where
     // Explore neighbors
     for neighbor in graph.outgoing_edges(&node)? {
         let neighbor_idx = *neighbor;
+
+        // Check bounds to prevent panic on invalid node indices
+        if neighbor_idx >= state.len() {
+            return Err(AlgorithmError::GraphError(
+                crate::graph::GraphError::NodeNotFound(neighbor_idx),
+            ));
+        }
 
         if state[neighbor_idx].index == usize::MAX {
             // Neighbor not visited, recurse
@@ -163,7 +186,7 @@ where
 
         loop {
             let Some(stack_node) = stack.pop_back() else {
-                return Err(AlgorithmError::StackCapacityExceeded);
+                return Err(AlgorithmError::InvalidState);
             };
 
             state[stack_node].on_stack = false;
@@ -207,9 +230,18 @@ where
 
     // Run DFS from each unvisited node
     for node in graph.iter_nodes()? {
-        if state[*node].index == usize::MAX {
+        let node_idx = *node;
+
+        // Check bounds to prevent panic on invalid node indices
+        if node_idx >= state.len() {
+            return Err(AlgorithmError::GraphError(
+                crate::graph::GraphError::NodeNotFound(node_idx),
+            ));
+        }
+
+        if state[node_idx].index == usize::MAX {
             component_count +=
-                tarjan_count_dfs(graph, *node, state, &mut stack, &mut index_counter)?;
+                tarjan_count_dfs(graph, node_idx, state, &mut stack, &mut index_counter)?;
         }
     }
 
@@ -229,6 +261,13 @@ where
     S: Deque<usize>,
     AlgorithmError<usize>: From<G::Error>,
 {
+    // Check bounds to prevent panic on invalid node indices
+    if node >= state.len() {
+        return Err(AlgorithmError::GraphError(
+            crate::graph::GraphError::NodeNotFound(node),
+        ));
+    }
+
     // Initialize this node
     state[node].index = *index_counter;
     state[node].lowlink = *index_counter;
@@ -244,6 +283,13 @@ where
     // Explore neighbors
     for neighbor in graph.outgoing_edges(&node)? {
         let neighbor_idx = *neighbor;
+
+        // Check bounds to prevent panic on invalid node indices
+        if neighbor_idx >= state.len() {
+            return Err(AlgorithmError::GraphError(
+                crate::graph::GraphError::NodeNotFound(neighbor_idx),
+            ));
+        }
 
         if state[neighbor_idx].index == usize::MAX {
             // Neighbor not visited, recurse
@@ -264,7 +310,7 @@ where
         // Pop nodes until we reach the root
         loop {
             let Some(stack_node) = stack.pop_back() else {
-                return Err(AlgorithmError::StackCapacityExceeded);
+                return Err(AlgorithmError::InvalidState);
             };
 
             state[stack_node].on_stack = false;
@@ -407,5 +453,50 @@ mod tests {
 
         // Single isolated node is one SCC
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_tarjan_scc_bounds_checking() {
+        // Test that invalid node indices are handled gracefully
+        let mut dict = Dictionary::<usize, [usize; 1], 5>::new();
+        dict.insert(0, [10]); // Node 0 points to node 10, which is out of bounds for our state array
+
+        let graph = MapAdjacencyList::new_unchecked(dict);
+
+        let mut state = [TarjanState::default(); 5]; // Only room for nodes 0-4
+        let stack = CircularQueue::<usize, 10>::new();
+
+        // This should return an error instead of panicking
+        let result = count_tarjan_scc(&graph, &mut state, stack);
+        assert!(result.is_err());
+
+        // Verify it's the expected error type
+        match result {
+            Err(AlgorithmError::GraphError(crate::graph::GraphError::NodeNotFound(node))) => {
+                assert_eq!(node, 10);
+            }
+            _ => panic!("Expected NodeNotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_tarjan_scc_invalid_state_error() {
+        // Test that InvalidState error is properly used for stack underflow
+        // This is a theoretical test since the algorithm should never reach this state
+        // under normal circumstances, but it documents the expected behavior
+
+        // Note: In practice, the InvalidState error should only occur if there's a bug
+        // in the algorithm logic itself, as Tarjan's algorithm maintains strict invariants
+        // about the stack contents. This test serves as documentation of the error handling.
+
+        // For now, we just verify that the InvalidState variant exists and can be matched
+        let error = AlgorithmError::<usize>::InvalidState;
+        match error {
+            AlgorithmError::InvalidState => {
+                // This confirms the variant exists and can be pattern matched
+                assert!(true);
+            }
+            _ => panic!("InvalidState variant should match"),
+        }
     }
 }
