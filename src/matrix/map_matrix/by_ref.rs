@@ -369,7 +369,7 @@ mod tests {
     fn test_graphref_incoming_edges() {
         let matrix = [
             [Some(1), Some(2), None], // alice -> alice, bob
-            [Some(3), None, None],    // bob -> alice  
+            [Some(3), None, None],    // bob -> alice
             [Some(4), Some(5), None], // charlie -> alice, bob
         ];
 
@@ -427,6 +427,11 @@ mod tests {
         let map_matrix = TestMatrix::new(matrix, index_map);
 
         // Test incoming edges for non-existent node should return empty iterator
-        assert_eq!(GraphRef::incoming_edges(&map_matrix, &"not_exists").unwrap().count(), 0);
+        assert_eq!(
+            GraphRef::incoming_edges(&map_matrix, &"not_exists")
+                .unwrap()
+                .count(),
+            0
+        );
     }
 }

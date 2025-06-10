@@ -6,7 +6,7 @@ use crate::{
 
 use super::EdgeNodeList;
 
-impl<E, N, NI> GraphRef<NI> for EdgeNodeList<E, N, NI>
+impl<NI, E, N> GraphRef<NI> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndexTrait,
     N: NodesIterable<Node = NI>,

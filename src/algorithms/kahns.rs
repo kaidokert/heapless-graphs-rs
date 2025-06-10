@@ -26,7 +26,7 @@ use crate::graph::{GraphVal, NodeIndexTrait};
 ///
 /// # Time Complexity
 /// O(V + E) where V is the number of vertices and E is the number of edges.
-/// For matrix-based graphs with optimized incoming_edges, the in-degree 
+/// For matrix-based graphs with optimized incoming_edges, the in-degree
 /// calculation is O(V) instead of O(V + E).
 pub fn kahns<'a, G, NI, D, M>(
     graph: &G,

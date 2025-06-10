@@ -7,7 +7,7 @@ use super::outgoing_nodes::AsOutgoingNodes;
 mod by_ref;
 mod by_val;
 
-pub struct MapAdjacencyList<M, NI, E, C>
+pub struct MapAdjacencyList<NI, E, C, M>
 where
     NI: NodeIndexTrait,
     E: NodesIterable<Node = NI>,
@@ -18,7 +18,7 @@ where
     _phantom: core::marker::PhantomData<(E, C)>,
 }
 
-impl<M, NI, E, C> MapAdjacencyList<M, NI, E, C>
+impl<NI, E, C, M> MapAdjacencyList<NI, E, C, M>
 where
     NI: NodeIndexTrait,
     E: NodesIterable<Node = NI>,

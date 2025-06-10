@@ -62,14 +62,14 @@ The library provides several graph implementations:
 - **AdjacencyList**: Stores outgoing edges per node, optimized for outgoing_edges()
 - **Matrix-based**: Adjacency matrices with various optimizations:
   - **BitMatrix**: Bit-packed matrix for unweighted graphs
-  - **SimpleMatrix**: Basic matrix for weighted graphs  
+  - **SimpleMatrix**: Basic matrix for weighted graphs
   - **MapMatrix**: Matrix with arbitrary node indices via mapping
   - **BitMapMatrix**: Bit-packed matrix with arbitrary node indices
 
 ### Performance Characteristics
 
-Matrix implementations provide O(1) access for both incoming_edges() and 
-outgoing_edges() operations, while other implementations may fall back to 
+Matrix implementations provide O(1) access for both incoming_edges() and
+outgoing_edges() operations, while other implementations may fall back to
 O(E) filtering of all edges for incoming_edges(). Algorithms automatically
 benefit from these optimizations when available.
 

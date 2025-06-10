@@ -4,7 +4,7 @@ use crate::nodes::NodesIterable;
 
 use super::{super::outgoing_nodes::AsOutgoingNodes, MapAdjacencyList};
 
-impl<M, NI, E, C> GraphRef<NI> for MapAdjacencyList<M, NI, E, C>
+impl<NI, E, C, M> GraphRef<NI> for MapAdjacencyList<NI, E, C, M>
 where
     NI: NodeIndexTrait,
     E: NodesIterable<Node = NI>,

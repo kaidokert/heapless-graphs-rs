@@ -12,23 +12,23 @@ use crate::graph::{integrity_check, GraphError, GraphRef, NodeIndexTrait};
 ///
 /// # Type Parameters
 ///
+/// - `NI`: The type that represents the node indices in the graph. This could be
+///   a simple type like `usize` or a more complex index type. It is expected
+///   to implement [`PartialEq`] to allow node comparison.
 /// - `E`: The type of the container or collection that stores the edges. It is
 ///   expected to implement the [`crate::edges::EdgesIterable`] trait, which defines the
 ///   behavior for iterating over edges.
 /// - `N`: The type of the container or collection that stores the nodes. It is
 ///   expected to implement the [`crate::nodes::NodesIterable`] trait, which defines the
 ///   behavior for iterating over nodes.
-/// - `NI`: The type that represents the node indices in the graph. This could be
-///   a simple type like `usize` or a more complex index type. It is expected
-///   to implement [`PartialEq`] to allow node comparison.
 ///
-pub struct EdgeNodeList<E, N, NI> {
+pub struct EdgeNodeList<NI, E, N> {
     edges: E,
     nodes: N,
     _phantom: core::marker::PhantomData<NI>,
 }
 
-impl<E, N, NI> EdgeNodeList<E, N, NI> {
+impl<NI, E, N> EdgeNodeList<NI, E, N> {
     pub fn new(edges: E, nodes: N) -> Result<Self, GraphError<NI>>
     where
         Self: GraphRef<NI, Error = GraphError<NI>>,

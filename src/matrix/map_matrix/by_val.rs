@@ -469,7 +469,7 @@ mod tests {
     fn test_graphval_incoming_edges() {
         let matrix = [
             [Some(1), Some(2), None], // 10 -> 10, 20
-            [Some(3), None, None],    // 20 -> 10  
+            [Some(3), None, None],    // 20 -> 10
             [Some(4), Some(5), None], // 30 -> 10, 20
         ];
 

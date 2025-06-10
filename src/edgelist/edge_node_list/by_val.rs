@@ -6,7 +6,7 @@ use crate::{
 
 use super::EdgeNodeList;
 
-impl<E, N, NI> GraphVal<NI> for EdgeNodeList<E, N, NI>
+impl<NI, E, N> GraphVal<NI> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndexTrait + Copy,
     N: NodesIterable<Node = NI>,
@@ -23,7 +23,7 @@ where
     }
 }
 
-impl<E, N, NI, V> GraphValWithNodeValues<NI, V> for EdgeNodeList<E, N, NI>
+impl<NI, E, N, V> GraphValWithNodeValues<NI, V> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndexTrait + Copy,
     N: NodesValuesIterable<V, Node = NI>,
@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<E, N, NI, V> GraphValWithEdgeValues<NI, V> for EdgeNodeList<E, N, NI>
+impl<NI, E, N, V> GraphValWithEdgeValues<NI, V> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndexTrait + Copy,
     N: NodesIterable<Node = NI>,
