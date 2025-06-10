@@ -8,7 +8,7 @@ pub mod by_val;
 /// This struct wraps a [`Matrix`](super::simple_matrix::Matrix) and provides a mapping
 /// from arbitrary node indices to matrix row/column positions, allowing graphs with
 /// non-contiguous or non-zero-based node indices.
-pub struct MapMatrix<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW>
+pub struct MapMatrix<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
     NI: NodeIndexTrait,
     ROW: AsRef<[Option<EDGEVALUE>]>,
@@ -20,7 +20,7 @@ where
     _phantom: core::marker::PhantomData<NI>,
 }
 
-impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
     NI: NodeIndexTrait,
     ROW: AsRef<[Option<EDGEVALUE>]>,

@@ -5,8 +5,8 @@ use crate::{
 
 use super::MapMatrix;
 
-impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> GraphRef<NI>
-    for MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> GraphRef<NI>
+    for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
     NI: NodeIndexTrait,
     ROW: AsRef<[Option<EDGEVALUE>]>,
@@ -99,8 +99,8 @@ mod tests {
     type TestMatrix = MapMatrix<
         3,
         &'static str,
-        Dictionary<&'static str, usize, 3>,
         i32,
+        Dictionary<&'static str, usize, 3>,
         [[Option<i32>; 3]; 3],
         [Option<i32>; 3],
     >;
@@ -326,8 +326,8 @@ mod tests {
         type SparseMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<u32, usize, 3>,
             i32,
+            Dictionary<u32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;

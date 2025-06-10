@@ -5,8 +5,8 @@ use crate::{
 
 use super::MapMatrix;
 
-impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> GraphVal<NI>
-    for MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> GraphVal<NI>
+    for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
     NI: NodeIndexTrait + Copy,
     ROW: AsRef<[Option<EDGEVALUE>]>,
@@ -75,8 +75,8 @@ where
     }
 }
 
-impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> GraphValWithEdgeValues<NI, EDGEVALUE>
-    for MapMatrix<N, NI, M, EDGEVALUE, COLUMNS, ROW>
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> GraphValWithEdgeValues<NI, EDGEVALUE>
+    for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
     NI: NodeIndexTrait + Copy,
     ROW: AsRef<[Option<EDGEVALUE>]>,
@@ -128,8 +128,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<u32, usize, 3>,
             i32,
+            Dictionary<u32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
@@ -180,8 +180,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<u32, usize, 3>,
             i32,
+            Dictionary<u32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
@@ -235,8 +235,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<u32, usize, 3>,
             i32,
+            Dictionary<u32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
@@ -300,8 +300,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             i32,
-            Dictionary<i32, usize, 3>,
             i32,
+            Dictionary<i32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
@@ -329,8 +329,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             i32,
-            Dictionary<i32, usize, 3>,
             i32,
+            Dictionary<i32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
@@ -352,8 +352,8 @@ mod tests {
         type CharMatrix = MapMatrix<
             2,
             char,
-            Dictionary<char, usize, 2>,
             bool,
+            Dictionary<char, usize, 2>,
             [[Option<bool>; 2]; 2],
             [Option<bool>; 2],
         >;
@@ -383,8 +383,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<u32, usize, 3>,
             i32,
+            Dictionary<u32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
@@ -411,8 +411,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<u32, usize, 3>,
             i32,
+            Dictionary<u32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
@@ -481,8 +481,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<u32, usize, 3>,
             i32,
+            Dictionary<u32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
@@ -532,8 +532,8 @@ mod tests {
         type ValMatrix = MapMatrix<
             3,
             u32,
-            Dictionary<u32, usize, 3>,
             i32,
+            Dictionary<u32, usize, 3>,
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;

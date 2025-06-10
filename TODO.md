@@ -8,13 +8,12 @@ Readonly graph class
 - [x] Adjacency list for slices of nodes
 - [x] Adjacency list for Maps/dicts/StaticDict
 - [x] Implement hashmap based adjacency list
-- [ ] Implement Adj list of a HashMap of nodes + Set of edges
-- [x] Adjacency matrix
+- [x] Implement Adj list of a HashMap of nodes + Set of edges
 - [x] Topological sort demo
 - [x] Add edges tests
 - [ ] Remove Edges tests
 - [x] Access edge values in algorithms
-- [ ] Access node values in algorithms
+- [x] Access node values in algorithms
 - [ ] Implement MutableEdges graphs - e.g graphs with edges added / removed
 - [ ] Add / remove Nodes tests - some done
 - [ ] Implement edgelist with add/remove nodes ( ? ) and edges
@@ -22,7 +21,7 @@ Readonly graph class
 - [ ] Maybe make GraphError take a lifetime for node refs ?
 - [ ] Check duplicate nodes in integrity_check ?
 - [ ] Adjacency list AsRef[NI,C] doesn't work with heapless::Vec, figure that out
-- [ ] Sort out inconsistent parameter type ordering, it's all over the place. NI first ? or const usize: ?
+- [x] Sort out inconsistent parameter type ordering, it's all over the place. NI first ? or const usize: ?
 - [ ] Deal with the DoubleEndedIterator dependency - doesn't really work everywhere and shouldn't be a hard requirement
       it's currently only used by `.rev()` call in iterative DFS impl.
 - [ ] clean up TODOs in code

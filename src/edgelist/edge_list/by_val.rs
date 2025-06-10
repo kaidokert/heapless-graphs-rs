@@ -5,7 +5,7 @@ use crate::{
 
 use super::{EdgeList, EdgeListError};
 
-impl<const N: usize, E, NI> GraphVal<NI> for EdgeList<N, E, NI>
+impl<const N: usize, NI, E> GraphVal<NI> for EdgeList<N, NI, E>
 where
     E: EdgesIterable<Node = NI>,
     NI: NodeIndexTrait + Ord + Copy,
@@ -20,7 +20,7 @@ where
     }
 }
 
-impl<const N: usize, E, NI, V> GraphValWithEdgeValues<NI, V> for EdgeList<N, E, NI>
+impl<const N: usize, NI, E, V> GraphValWithEdgeValues<NI, V> for EdgeList<N, NI, E>
 where
     E: EdgeValuesIterable<V, Node = NI>,
     NI: NodeIndexTrait + Ord + Copy,
