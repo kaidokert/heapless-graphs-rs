@@ -66,6 +66,29 @@ where
     fn contains_node(&self, node: &NI) -> Result<bool, Self::Error> {
         Ok(self.index_map.contains_key(node))
     }
+
+    fn incoming_edges<'a>(
+        &'a self,
+        node: &'a NI,
+    ) -> Result<impl Iterator<Item = &'a NI>, Self::Error>
+    where
+        NI: 'a,
+    {
+        // Fast direct lookup of matrix index for this node
+        let matrix_idx = self.index_map.get(node).copied();
+
+        Ok(self
+            .inner
+            .incoming_edges(matrix_idx.unwrap_or(usize::MAX))
+            .map_err(|_| GraphError::Unexpected)?
+            .filter(move |_| matrix_idx.is_some()) // Filter out everything if node doesn't exist
+            .filter_map(move |source_idx| {
+                self.index_map
+                    .iter()
+                    .find(|(_, &idx)| idx == source_idx)
+                    .map(|(node, _)| node)
+            }))
+    }
 }
 
 #[cfg(test)]
@@ -340,5 +363,70 @@ mod tests {
             }
             assert!(found, "Expected edge {:?} not found", expected_edge);
         }
+    }
+
+    #[test]
+    fn test_graphref_incoming_edges() {
+        let matrix = [
+            [Some(1), Some(2), None], // alice -> alice, bob
+            [Some(3), None, None],    // bob -> alice  
+            [Some(4), Some(5), None], // charlie -> alice, bob
+        ];
+
+        let mut index_map = Dictionary::<&'static str, usize, 3>::new();
+        index_map.insert("alice", 0);
+        index_map.insert("bob", 1);
+        index_map.insert("charlie", 2);
+
+        let map_matrix = TestMatrix::new(matrix, index_map);
+
+        // Test incoming edges to alice (should be from alice, bob, charlie)
+        let mut alice_sources = [&""; 8];
+        let mut count = 0;
+        for source in GraphRef::incoming_edges(&map_matrix, &"alice").unwrap() {
+            alice_sources[count] = source;
+            count += 1;
+        }
+        assert_eq!(count, 3);
+        assert!(alice_sources[..count].contains(&&"alice"));
+        assert!(alice_sources[..count].contains(&&"bob"));
+        assert!(alice_sources[..count].contains(&&"charlie"));
+
+        // Test incoming edges to bob (should be from alice, charlie)
+        let mut bob_sources = [&""; 8];
+        count = 0;
+        for source in GraphRef::incoming_edges(&map_matrix, &"bob").unwrap() {
+            bob_sources[count] = source;
+            count += 1;
+        }
+        assert_eq!(count, 2);
+        assert!(bob_sources[..count].contains(&&"alice"));
+        assert!(bob_sources[..count].contains(&&"charlie"));
+
+        // Test incoming edges to charlie (should be empty)
+        let mut charlie_sources = [&""; 8];
+        count = 0;
+        for source in GraphRef::incoming_edges(&map_matrix, &"charlie").unwrap() {
+            charlie_sources[count] = source;
+            count += 1;
+        }
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_graphref_incoming_edges_nonexistent_node() {
+        let matrix = [
+            [Some(1), None, None],
+            [None, None, None],
+            [None, None, None],
+        ];
+
+        let mut index_map = Dictionary::<&'static str, usize, 3>::new();
+        index_map.insert("exists", 0);
+
+        let map_matrix = TestMatrix::new(matrix, index_map);
+
+        // Test incoming edges for non-existent node should return empty iterator
+        assert_eq!(GraphRef::incoming_edges(&map_matrix, &"not_exists").unwrap().count(), 0);
     }
 }

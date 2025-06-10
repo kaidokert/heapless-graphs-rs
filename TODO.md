@@ -9,7 +9,7 @@ Readonly graph class
 - [x] Adjacency list for Maps/dicts/StaticDict
 - [x] Implement hashmap based adjacency list
 - [ ] Implement Adj list of a HashMap of nodes + Set of edges
-- [ ] Adjacency matrix
+- [x] Adjacency matrix
 - [x] Topological sort demo
 - [x] Add edges tests
 - [ ] Remove Edges tests
@@ -28,7 +28,7 @@ Readonly graph class
 - [ ] clean up TODOs in code
 - [ ] Provide `std` implementations of all the traits as well ?
 - [x] Consolidate error impls for algorithms
-- [ ] Implement an adjacency matrix
+- [x] Implement an adjacency matrix
 - [ ] EdgesOnly is a bit useless abstraction for Adjacency List, this should work directly on the container
 - [ ] Can we turn DFS / BFS into iterators ? That'd be awkward as they need extra storage
 - [ ] All struct formats in nodes/ and edges/ are just wrappers for arrays, simplify and implement
@@ -50,6 +50,7 @@ Graph Properties:
 - [x] Cycle Detection: Detects cycles in a graph, useful for ensuring acyclic properties in DAGs and dependency graphs.
 - [ ] Strongly Connected Components (SCC): Finds SCCs in a directed graph using Kosaraju's or Tarjan's algorithm.
 - [x] Minimum Spanning Tree (MST): Finds the minimum spanning tree in a graph using algorithms like Kruskal's or Prim's.
+- [x] Graph Coloring: Greedy coloring algorithm to assign colors to vertices such that no adjacent vertices share the same color.
 
 Graph Manipulation:
 - [ ] Node Removal: Removes a specific node and its associated edges from the graph.

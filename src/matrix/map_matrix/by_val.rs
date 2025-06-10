@@ -56,6 +56,23 @@ where
     fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
         Ok(self.index_map.contains_key(&node))
     }
+
+    fn incoming_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
+        // Fast direct lookup of matrix index for this node
+        let matrix_idx = self.index_map.get(&node).copied();
+
+        Ok(self
+            .inner
+            .incoming_edges(matrix_idx.unwrap_or(usize::MAX))
+            .map_err(|_| GraphError::Unexpected)?
+            .filter(move |_| matrix_idx.is_some()) // Filter out everything if node doesn't exist
+            .filter_map(move |source_idx| {
+                self.index_map
+                    .iter()
+                    .find(|(_, &idx)| idx == source_idx)
+                    .map(|(&node, _)| node)
+            }))
+    }
 }
 
 impl<const N: usize, NI, M, EDGEVALUE, COLUMNS, ROW> GraphValWithEdgeValues<NI, EDGEVALUE>
@@ -446,5 +463,84 @@ mod tests {
         assert_eq!(count, 2);
         assert!(outgoing[..count].contains(&(10, 1)));
         assert!(outgoing[..count].contains(&(20, 2)));
+    }
+
+    #[test]
+    fn test_graphval_incoming_edges() {
+        let matrix = [
+            [Some(1), Some(2), None], // 10 -> 10, 20
+            [Some(3), None, None],    // 20 -> 10  
+            [Some(4), Some(5), None], // 30 -> 10, 20
+        ];
+
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(10, 0);
+        index_map.insert(20, 1);
+        index_map.insert(30, 2);
+
+        type ValMatrix = MapMatrix<
+            3,
+            u32,
+            Dictionary<u32, usize, 3>,
+            i32,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let map_matrix = ValMatrix::new(matrix, index_map);
+
+        // Test incoming edges to node 10 (should be from 10, 20, 30)
+        let mut sources = [0u32; 8];
+        let mut count = 0;
+        for source in map_matrix.incoming_edges(10).unwrap() {
+            sources[count] = source;
+            count += 1;
+        }
+        assert_eq!(count, 3);
+        assert!(sources[..count].contains(&10));
+        assert!(sources[..count].contains(&20));
+        assert!(sources[..count].contains(&30));
+
+        // Test incoming edges to node 20 (should be from 10, 30)
+        let mut sources = [0u32; 8];
+        count = 0;
+        for source in map_matrix.incoming_edges(20).unwrap() {
+            sources[count] = source;
+            count += 1;
+        }
+        assert_eq!(count, 2);
+        assert!(sources[..count].contains(&10));
+        assert!(sources[..count].contains(&30));
+
+        // Test incoming edges to node 30 (should be empty)
+        let incoming_count = map_matrix.incoming_edges(30).unwrap().count();
+        assert_eq!(incoming_count, 0);
+    }
+
+    #[test]
+    fn test_graphval_incoming_edges_nonexistent_node() {
+        let matrix = [
+            [Some(1), Some(2), None],
+            [None, Some(5), Some(6)],
+            [Some(7), None, Some(9)],
+        ];
+
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(10, 0);
+        index_map.insert(20, 1);
+        index_map.insert(30, 2);
+
+        type ValMatrix = MapMatrix<
+            3,
+            u32,
+            Dictionary<u32, usize, 3>,
+            i32,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let map_matrix = ValMatrix::new(matrix, index_map);
+
+        // Test incoming edges for non-existent node should return empty iterator
+        let incoming_count = map_matrix.incoming_edges(999).unwrap().count();
+        assert_eq!(incoming_count, 0);
     }
 }

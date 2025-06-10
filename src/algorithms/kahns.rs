@@ -25,7 +25,9 @@ use crate::graph::{GraphVal, NodeIndexTrait};
 /// * `Err(AlgorithmError::ResultCapacityExceeded)` if result buffer is full
 ///
 /// # Time Complexity
-/// O(V + E) where V is the number of vertices and E is the number of edges
+/// O(V + E) where V is the number of vertices and E is the number of edges.
+/// For matrix-based graphs with optimized incoming_edges, the in-degree 
+/// calculation is O(V) instead of O(V + E).
 pub fn kahns<'a, G, NI, D, M>(
     graph: &G,
     mut queue: D,
@@ -51,20 +53,10 @@ where
         Ok(())
     };
 
-    // Initialize in-degree map with all nodes having 0 in-degree
+    // Calculate in-degrees by directly counting incoming edges for each node
     for node in graph.iter_nodes()? {
-        in_degree_map.insert(node, 0);
-    }
-
-    // Calculate in-degrees by examining all edges
-    for node in graph.iter_nodes()? {
-        for target in graph.outgoing_edges(node)? {
-            if let Some(degree) = in_degree_map.get_mut(&target) {
-                *degree += 1;
-            } else {
-                in_degree_map.insert(target, 1);
-            }
-        }
+        let in_degree = graph.incoming_edges(node)?.count() as isize;
+        in_degree_map.insert(node, in_degree);
     }
 
     // Find all nodes with zero in-degree and add to queue

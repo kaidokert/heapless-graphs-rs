@@ -82,6 +82,27 @@ where
             }))
     }
 
+    fn incoming_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
+        // Fast direct lookup of matrix index for this node
+        let matrix_idx = self.index_map.get(&node).copied();
+
+        // Get incoming edges from bitmap, using 0 as fallback (will be filtered out)
+        let incoming = self
+            .bitmap
+            .incoming_edges(matrix_idx.unwrap_or(usize::MAX))
+            .map_err(|_| GraphError::NodeNotFound(node))?;
+
+        // Map matrix indices back to node indices by checking all nodes
+        Ok(incoming
+            .filter(move |_| matrix_idx.is_some()) // Filter out everything if node doesn't exist
+            .filter_map(move |source_idx| {
+                self.index_map
+                    .iter()
+                    .find(|(_, &idx)| idx == source_idx)
+                    .map(|(&node, _)| node)
+            }))
+    }
+
     fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
         Ok(self.index_map.contains_key(&node))
     }
@@ -192,5 +213,52 @@ mod tests {
 
         // Test outgoing edges for non-existent node should return empty iterator
         assert_eq!(bit_map_matrix.outgoing_edges(999).unwrap().count(), 0);
+
+        // Test incoming edges for non-existent node should return empty iterator
+        assert_eq!(bit_map_matrix.incoming_edges(999).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_bit_map_matrix_incoming_edges() {
+        // Create a matrix with edges: A->A, A->B, B->A
+        let bits = [
+            [0b00000011u8], // Row 0: edges to nodes 0 and 1 (A->A, A->B)
+            [0b00000001u8], // Row 1: edge to node 0 (B->A)
+            [0b00000000u8], // Row 2: no edges
+            [0b00000000u8], // Row 3: no edges
+            [0b00000000u8], // Row 4: no edges
+            [0b00000000u8], // Row 5: no edges
+            [0b00000000u8], // Row 6: no edges
+            [0b00000000u8], // Row 7: no edges
+        ];
+        let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
+
+        // Map custom node IDs 'A','B' to matrix indices 0,1
+        let mut index_map = Dictionary::<char, usize, 8>::new();
+        index_map.insert('A', 0);
+        index_map.insert('B', 1);
+
+        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map);
+
+        // Test incoming edges to A (should be from A and B)
+        let mut incoming_a = ['\0'; 8];
+        let mut count = 0;
+        for source in bit_map_matrix.incoming_edges('A').unwrap() {
+            incoming_a[count] = source;
+            count += 1;
+        }
+        assert_eq!(count, 2); // A->A, B->A
+        assert!(incoming_a[..count].contains(&'A'));
+        assert!(incoming_a[..count].contains(&'B'));
+
+        // Test incoming edges to B (should be from A only)
+        let mut incoming_b = ['\0'; 8];
+        count = 0;
+        for source in bit_map_matrix.incoming_edges('B').unwrap() {
+            incoming_b[count] = source;
+            count += 1;
+        }
+        assert_eq!(count, 1); // A->B
+        assert_eq!(incoming_b[0], 'A');
     }
 }

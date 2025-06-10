@@ -37,12 +37,17 @@ impl<const N: usize> GraphVal<usize> for BitMatrix<N> {
     fn outgoing_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
         Ok((0..8 * N).filter(move |&col| self.get(node, col)))
     }
+
+    fn incoming_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
+        Ok((0..8 * N).filter(move |&row| self.get(row, node)))
+    }
 }
 
 #[cfg(test)]
 mod tests {
 
     use super::*;
+    use crate::tests::collect;
 
     #[test]
     fn test_bit_matrix_basic() {
@@ -346,5 +351,116 @@ mod tests {
         assert!(!matrix.get(0, 16)); // Column 16 should be out of bounds
         assert!(!matrix.get(0, 100)); // Way out of bounds
         assert_eq!(matrix.outgoing_edges(8).unwrap().count(), 0); // Row 8 out of bounds
+    }
+
+    #[test]
+    fn test_incoming_edges() {
+        let bits = [
+            [0b00000010u8], // 0->1
+            [0b00000100u8], // 1->2
+            [0b00000001u8], // 2->0
+            [0b00000010u8], // 3->1
+            [0b00000000u8], // 4-> no edges
+            [0b00000000u8], // 5-> no edges
+            [0b00000000u8], // 6-> no edges
+            [0b00000000u8], // 7-> no edges
+        ];
+        let matrix = BitMatrix::new(bits);
+
+        // Test node 0's incoming edges (should be from node 2)
+        let mut edges = [0usize; 4];
+        let edges_slice = collect(matrix.incoming_edges(0).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[2]);
+
+        // Test node 1's incoming edges (should be from nodes 0 and 3)
+        let mut edges = [0usize; 4];
+        let edges_slice = collect(matrix.incoming_edges(1).unwrap(), &mut edges);
+        edges_slice.sort_unstable();
+        assert_eq!(edges_slice, &[0, 3]);
+
+        // Test node 2's incoming edges (should be from node 1)
+        let mut edges = [0usize; 4];
+        let edges_slice = collect(matrix.incoming_edges(2).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[1]);
+
+        // Test node 3's incoming edges (should be empty)
+        let mut edges = [0usize; 4];
+        let edges_slice = collect(matrix.incoming_edges(3).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[]);
+    }
+
+    #[test]
+    fn test_incoming_edges_empty() {
+        let bits = [
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+        ];
+        let matrix = BitMatrix::new(bits);
+
+        // Test all nodes have no incoming edges in an empty matrix
+        for node in 0..4 {
+            let mut edges = [0usize; 4];
+            let edges_slice = collect(matrix.incoming_edges(node).unwrap(), &mut edges);
+            assert_eq!(edges_slice, &[]);
+        }
+    }
+
+    #[test]
+    fn test_incoming_edges_self_loops() {
+        let bits = [
+            [0b00000001u8], // 0->0
+            [0b00000000u8], // no edges
+            [0b00000100u8], // 2->2
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+        ];
+        let matrix = BitMatrix::new(bits);
+
+        // Test node 0's incoming edges (should include self-loop)
+        let mut edges = [0usize; 4];
+        let edges_slice = collect(matrix.incoming_edges(0).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[0]);
+
+        // Test node 2's incoming edges (should include self-loop)
+        let mut edges = [0usize; 4];
+        let edges_slice = collect(matrix.incoming_edges(2).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[2]);
+
+        // Test nodes 1 and 3 have no incoming edges
+        for node in [1, 3] {
+            let mut edges = [0usize; 4];
+            let edges_slice = collect(matrix.incoming_edges(node).unwrap(), &mut edges);
+            assert_eq!(edges_slice, &[]);
+        }
+    }
+
+    #[test]
+    fn test_incoming_edges_multiple_incoming() {
+        let bits = [
+            [0b00000010u8], // 0->1
+            [0b00000000u8], // no edges
+            [0b00000010u8], // 2->1
+            [0b00000010u8], // 3->1
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+            [0b00000000u8], // no edges
+        ];
+        let matrix = BitMatrix::new(bits);
+
+        // Test node 1's incoming edges
+        let mut edges = [0usize; 4];
+        let edges_slice = collect(matrix.incoming_edges(1).unwrap(), &mut edges);
+        edges_slice.sort_unstable();
+        assert_eq!(edges_slice, &[0, 2, 3]);
     }
 }
