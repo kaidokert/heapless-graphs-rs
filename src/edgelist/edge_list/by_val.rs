@@ -84,4 +84,52 @@ mod test {
         let node_slice = collect(nodes, &mut node_list);
         assert_eq!(node_slice, &[0, 1, 2, 3]);
     }
+
+    #[test]
+    fn test_edge_list_incoming_edge_values() {
+        // Create a graph with edge weights using EdgeValueStruct
+        let edge_data = EdgeValueStruct([
+            (0usize, 1usize, 5i32), // 0 -> 1 with weight 5
+            (1, 2, 3),              // 1 -> 2 with weight 3
+            (0, 2, 8),              // 0 -> 2 with weight 8
+            (3, 1, 7),              // 3 -> 1 with weight 7
+        ]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
+
+        // Test incoming edge values for node 1
+        let mut incoming = [(0usize, 0i32); 8];
+        let incoming_slice = collect(
+            graph
+                .incoming_edge_values(1)
+                .unwrap()
+                .filter_map(|(src, weight)| weight.map(|w| (src, *w))),
+            &mut incoming,
+        );
+        assert_eq!(incoming_slice, &[(0, 5), (3, 7)]);
+
+        // Test incoming edge values for node 2
+        let mut incoming = [(0usize, 0i32); 8];
+        let incoming_slice = collect(
+            graph
+                .incoming_edge_values(2)
+                .unwrap()
+                .filter_map(|(src, weight)| weight.map(|w| (src, *w))),
+            &mut incoming,
+        );
+        assert_eq!(incoming_slice, &[(1, 3), (0, 8)]);
+
+        // Test incoming edge values for node 0 (no incoming edges)
+        let mut incoming = [(0usize, 0i32); 8];
+        let incoming_slice = collect(
+            graph
+                .incoming_edge_values(0)
+                .unwrap()
+                .filter_map(|(src, weight)| weight.map(|w| (src, *w))),
+            &mut incoming,
+        );
+        assert_eq!(incoming_slice, &[]);
+
+        // Test incoming edge values for non-existent node
+        assert_eq!(graph.incoming_edge_values(99).unwrap().count(), 0);
+    }
 }

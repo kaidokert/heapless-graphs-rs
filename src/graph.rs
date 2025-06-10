@@ -205,6 +205,34 @@ where
     where
         EV: 'a,
         NI: 'a;
+
+    fn outgoing_edge_values<'a>(
+        &'a self,
+        node: NI,
+    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a EV>)>, Self::Error>
+    where
+        EV: 'a,
+        NI: 'a,
+    {
+        Ok(self
+            .iter_edge_values()?
+            .filter(move |(src, _dst, _weight)| *src == &node)
+            .map(|(_src, dst, weight)| (dst, weight)))
+    }
+
+    fn incoming_edge_values<'a>(
+        &'a self,
+        node: NI,
+    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a EV>)>, Self::Error>
+    where
+        EV: 'a,
+        NI: 'a,
+    {
+        Ok(self
+            .iter_edge_values()?
+            .filter(move |(_src, dst, _weight)| *dst == &node)
+            .map(|(src, _dst, weight)| (src, weight)))
+    }
 }
 /// Extension of [`GraphVal`] that provides access to edge values
 ///
@@ -232,6 +260,19 @@ where
             .iter_edge_values()?
             .filter(move |(src, _dst, _weight)| *src == node)
             .map(|(_src, dst, weight)| (dst, weight)))
+    }
+
+    fn incoming_edge_values<'a>(
+        &'a self,
+        node: NI,
+    ) -> Result<impl Iterator<Item = (NI, Option<&'a EV>)>, Self::Error>
+    where
+        EV: 'a,
+    {
+        Ok(self
+            .iter_edge_values()?
+            .filter(move |(_src, dst, _weight)| *dst == node)
+            .map(|(src, _dst, weight)| (src, weight)))
     }
 }
 
