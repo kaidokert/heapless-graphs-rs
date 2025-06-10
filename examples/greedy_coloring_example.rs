@@ -80,12 +80,15 @@ fn main() {
             for activity_id in 0..6 {
                 if let Some(color_opt) = result.get(&activity_id) {
                     if let Some(color) = color_opt {
-                        let time_slot_index = (*color - 1) as usize; // Convert to 0-based index
-                        if time_slot_index < time_slots.len() {
-                            println!(
-                                "  {}: {} (Color {})",
-                                activities[activity_id], time_slots[time_slot_index], color
-                            );
+                        // Check for valid color before subtraction to prevent underflow
+                        if *color > 0 {
+                            let time_slot_index = (*color - 1) as usize; // Convert to 0-based index
+                            if time_slot_index < time_slots.len() {
+                                println!(
+                                    "  {}: {} (Color {})",
+                                    activities[activity_id], time_slots[time_slot_index], color
+                                );
+                            }
                         }
                     }
                 }
@@ -98,19 +101,25 @@ fn main() {
             let conflict_pairs = [(0, 1), (0, 2), (0, 5), (1, 3), (1, 4), (2, 3), (4, 5)];
 
             for &(a, b) in &conflict_pairs {
-                let color_a = result.get(&a).unwrap().unwrap();
-                let color_b = result.get(&b).unwrap().unwrap();
-                if color_a == color_b {
-                    println!(
-                        "  ✗ Conflict: {} and {} have same color {}",
-                        activities[a], activities[b], color_a
-                    );
-                    valid = false;
-                } else {
-                    println!(
-                        "  ✓ {} (Color {}) and {} (Color {}) have different colors",
-                        activities[a], color_a, activities[b], color_b
-                    );
+                match (result.get(&a), result.get(&b)) {
+                    (Some(Some(color_a)), Some(Some(color_b))) => {
+                        if color_a == color_b {
+                            println!(
+                                "  ✗ Conflict: {} and {} have same color {}",
+                                activities[a], activities[b], color_a
+                            );
+                            valid = false;
+                        } else {
+                            println!(
+                                "  ✓ {} (Color {}) and {} (Color {}) have different colors",
+                                activities[a], color_a, activities[b], color_b
+                            );
+                        }
+                    }
+                    _ => {
+                        println!("  ERROR: Missing color assignment for activities {} or {}", a, b);
+                        valid = false;
+                    }
                 }
             }
 
