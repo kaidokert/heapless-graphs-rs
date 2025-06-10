@@ -210,7 +210,11 @@ where
         }
 
         // Store component size temporarily (slice will be filled in second pass)
-        components[state[node].component_offset + component_count] = (&[], component_size);
+        let component_index = state[node].component_offset + component_count;
+        if component_index >= components.len() {
+            return Err(AlgorithmError::ResultCapacityExceeded);
+        }
+        components[component_index] = (&[], component_size);
         component_count += 1;
         buffer_offset += component_size;
     }
