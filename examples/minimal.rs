@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use heapless_graphs::{
-    algorithms::traversal::dfs_recursive, edgelist::edge_node_list::EdgeNodeList,
-};
+use heapless_graphs::{algorithms::dfs_recursive, edgelist::edge_node_list::EdgeNodeList};
 
 fn main() {
     // Make a graph from edges and nodes

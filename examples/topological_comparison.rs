@@ -3,7 +3,7 @@
 //! Example comparing DFS-based and Kahn's topological sort algorithms
 
 use heapless_graphs::{
-    algorithms::{kahns::kahns, topological_sort::topological_sort_dfs},
+    algorithms::{kahns, topological_sort_dfs},
     containers::{
         maps::{staticdict::Dictionary, MapTrait},
         queues::CircularQueue,

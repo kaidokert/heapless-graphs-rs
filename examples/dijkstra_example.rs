@@ -5,7 +5,7 @@
 //! This example shows how to use Dijkstra's algorithm to find shortest paths
 //! from a source node to all other nodes in a weighted graph.
 
-use heapless_graphs::algorithms::dijkstra::dijkstra;
+use heapless_graphs::algorithms::dijkstra;
 use heapless_graphs::containers::maps::staticdict::Dictionary;
 use heapless_graphs::containers::maps::MapTrait;
 use heapless_graphs::edgelist::edge_list::EdgeList;

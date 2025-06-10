@@ -20,7 +20,7 @@ use crate::visited::VisitedTracker;
 /// # Arguments
 /// * `graph` - The graph to analyze
 /// * `visited` - Tracker for visited nodes
-/// * `components` - Buffer to store the connected components
+/// * `components` - Buffer to store the connected components as (slice, size) tuples
 /// * `node_buffer` - Temporary buffer for collecting nodes in each component
 ///
 /// # Returns
@@ -29,7 +29,7 @@ use crate::visited::VisitedTracker;
 /// # Example
 /// ```ignore
 /// let mut visited = [false; 10];
-/// let mut components = [&[0usize][..]; 5]; // Up to 5 components
+/// let mut components = [(&[0usize][..], 0usize); 5]; // Up to 5 components with sizes
 /// let mut node_buffer = [0usize; 10];
 ///
 /// let component_count = connected_components(
@@ -42,7 +42,7 @@ use crate::visited::VisitedTracker;
 pub fn connected_components<'a, G, NI, VT>(
     graph: &G,
     visited: &mut VT,
-    components: &mut [&'a [NI]],
+    components: &mut [(&'a [NI], usize)],
     node_buffer: &'a mut [NI],
 ) -> Result<usize, AlgorithmError<NI>>
 where
@@ -53,12 +53,11 @@ where
 {
     let mut component_count = 0;
     let mut buffer_offset = 0;
-    let mut component_sizes = [0usize; 32]; // Max 32 components for simplicity
 
-    // First pass: collect all components
+    // First pass: collect all components and store sizes
     for node in graph.iter_nodes()? {
         if !visited.is_visited(node) {
-            if component_count >= components.len() || component_count >= component_sizes.len() {
+            if component_count >= components.len() {
                 return Err(AlgorithmError::ResultCapacityExceeded);
             }
 
@@ -70,7 +69,8 @@ where
                 return Err(AlgorithmError::ResultCapacityExceeded);
             }
 
-            component_sizes[component_count] = component_size;
+            // Store size temporarily (slice will be filled in second pass)
+            components[component_count] = (&[], component_size);
             buffer_offset += component_size;
             component_count += 1;
         }
@@ -78,9 +78,10 @@ where
 
     // Second pass: populate component slices
     let mut current_offset = 0;
-    for i in 0..component_count {
-        let component_size = component_sizes[i];
-        components[i] = &node_buffer[current_offset..current_offset + component_size];
+    for component in components.iter_mut().take(component_count) {
+        let component_size = component.1;
+        let component_slice = &node_buffer[current_offset..current_offset + component_size];
+        *component = (component_slice, component_size);
         current_offset += component_size;
     }
 
@@ -221,7 +222,7 @@ mod tests {
         let graph = EdgeList::<10, usize, _>::new(edges);
 
         let mut visited = [false; 10];
-        let mut components: [&[usize]; 5] = [&[]; 5];
+        let mut components: [(&[usize], usize); 5] = [(&[], 0); 5];
         let mut node_buffer = [0usize; 10];
 
         let component_count = connected_components(
@@ -236,14 +237,14 @@ mod tests {
         assert_eq!(component_count, 2);
 
         // Check component sizes
-        assert_eq!(components[0].len(), 3); // 0-1-2
-        assert_eq!(components[1].len(), 2); // 3-4
+        assert_eq!(components[0].0.len(), 3); // 0-1-2
+        assert_eq!(components[1].0.len(), 2); // 3-4
 
         // Verify all nodes are accounted for
         let mut all_nodes = [0usize; 10];
         let mut total_nodes = 0;
         for i in 0..component_count {
-            for &node in components[i] {
+            for &node in components[i].0 {
                 all_nodes[total_nodes] = node;
                 total_nodes += 1;
             }
@@ -317,7 +318,7 @@ mod tests {
         let graph = EdgeNodeList::<usize, _, _>::new(edges, nodes).unwrap();
 
         let mut visited = [false; 10];
-        let mut components: [&[usize]; 5] = [&[]; 5];
+        let mut components: [(&[usize], usize); 5] = [(&[], 0); 5];
         let mut node_buffer = [0usize; 10];
 
         let component_count = connected_components(
@@ -334,7 +335,7 @@ mod tests {
         // Check component sizes
         let mut sizes = [0; 3];
         for i in 0..component_count {
-            sizes[i] = components[i].len();
+            sizes[i] = components[i].0.len();
         }
         sizes.sort(); // Sort to make assertion order-independent
         assert_eq!(sizes, [1, 2, 3]); // One isolated (1), one pair (2), one triple (3)
@@ -343,7 +344,7 @@ mod tests {
         let mut all_nodes = [0usize; 10];
         let mut total_nodes = 0;
         for i in 0..component_count {
-            for &node in components[i] {
+            for &node in components[i].0 {
                 all_nodes[total_nodes] = node;
                 total_nodes += 1;
             }

@@ -1,6 +1,6 @@
 // Example usage of Bellman-Ford algorithm with edge weights
 
-use heapless_graphs::algorithms::bellman_ford::bellman_ford;
+use heapless_graphs::algorithms::bellman_ford;
 use heapless_graphs::containers::maps::staticdict::Dictionary;
 use heapless_graphs::containers::maps::MapTrait;
 use heapless_graphs::edgelist::edge_list::EdgeList;

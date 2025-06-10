@@ -3,7 +3,7 @@
 //! Example demonstrating Kruskal's algorithm for finding minimum spanning trees
 
 use heapless_graphs::{
-    algorithms::kruskals::kruskals,
+    algorithms::kruskals,
     containers::maps::{staticdict::Dictionary, MapTrait},
     edgelist::edge_list::EdgeList,
     edges::EdgeValueStruct,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use heapless_graphs::{
-    algorithms::traversal::{dfs_iterative, dfs_recursive},
+    algorithms::{dfs_iterative, dfs_recursive},
     containers::queues::CircularQueue,
     edgelist::edge_list::EdgeList,
 };

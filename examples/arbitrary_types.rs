@@ -3,8 +3,7 @@
 use heapless_graphs::containers::sets::staticset::Set;
 use heapless_graphs::containers::sets::SetTrait;
 use heapless_graphs::{
-    algorithms::traversal::dfs_recursive_unchecked, edgelist::edge_list::EdgeList,
-    visited::SetWrapper,
+    algorithms::dfs_recursive_unchecked, edgelist::edge_list::EdgeList, visited::SetWrapper,
 };
 
 fn main() {

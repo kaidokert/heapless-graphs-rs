@@ -9,7 +9,7 @@
 //! Minimal example:
 //! ```
 //!   # use heapless_graphs::VisitedTracker;
-//!   # use heapless_graphs::algorithms::traversal::dfs_recursive;
+//!   # use heapless_graphs::algorithms::dfs_recursive;
 //!   # use heapless_graphs::edgelist::edge_node_list::EdgeNodeList;
 //!   // Create edges and nodes
 //!   let graph = EdgeNodeList::new(

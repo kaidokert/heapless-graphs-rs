@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use heapless_graphs::{
-    algorithms::traversal::dfs_recursive, edgelist::edge_node_list::EdgeNodeList, nodes::NodeRef,
+    algorithms::dfs_recursive, edgelist::edge_node_list::EdgeNodeList, nodes::NodeRef,
 };
 use hybrid_array::{typenum::U4, Array, ArraySize};
 

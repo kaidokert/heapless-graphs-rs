@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use heapless_graphs::{algorithms::traversal::dfs_recursive, edgelist::edge_list::EdgeList};
+use heapless_graphs::{algorithms::dfs_recursive, edgelist::edge_list::EdgeList};
 
 fn main() {
     // Do DFS traversal, starting from node 5

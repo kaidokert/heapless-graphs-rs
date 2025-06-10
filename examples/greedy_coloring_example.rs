@@ -3,7 +3,7 @@
 //! Example demonstrating greedy graph coloring algorithm
 
 use heapless_graphs::{
-    algorithms::greedy_coloring::greedy_color,
+    algorithms::greedy_color,
     containers::{
         maps::{staticdict::Dictionary, MapTrait},
         sets::{staticset::Set, SetTrait},

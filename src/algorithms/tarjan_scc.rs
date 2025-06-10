@@ -43,7 +43,7 @@ impl Default for TarjanState {
 /// * `graph` - The directed graph to analyze
 /// * `state` - Array to track DFS state for each node (indexed by node value for integer nodes)
 /// * `stack` - Stack for tracking the current DFS path
-/// * `components` - Buffer to store the strongly connected components
+/// * `components` - Buffer to store the strongly connected components as (slice, size) tuples
 /// * `node_buffer` - Temporary buffer for collecting nodes in each component
 ///
 /// # Returns
@@ -56,7 +56,7 @@ pub fn tarjan_scc<'a, G, S>(
     graph: &G,
     state: &mut [TarjanState],
     mut stack: S,
-    components: &mut [&'a [usize]],
+    components: &mut [(&'a [usize], usize)],
     node_buffer: &'a mut [usize],
 ) -> Result<usize, AlgorithmError<usize>>
 where
@@ -67,9 +67,9 @@ where
     let mut index_counter = 0;
     let mut component_count = 0;
     let mut buffer_offset = 0;
-    let mut component_sizes = [0usize; 32]; // Max 32 components
+    let mut component_sizes = [0usize; 32]; // Temporary array for component sizes
 
-    // Run DFS from each unvisited node
+    // First pass: Run DFS from each unvisited node and collect sizes
     for node in graph.iter_nodes()? {
         if state[*node].index == usize::MAX {
             let (_new_index, new_components, new_buffer_offset) = tarjan_dfs(
@@ -90,11 +90,12 @@ where
         }
     }
 
-    // Populate component slices
+    // Second pass: populate component slices
     let mut current_offset = 0;
     for i in 0..component_count {
         let component_size = component_sizes[i];
-        components[i] = &node_buffer[current_offset..current_offset + component_size];
+        let component_slice = &node_buffer[current_offset..current_offset + component_size];
+        components[i] = (component_slice, component_size);
         current_offset += component_size;
     }
 
@@ -179,6 +180,7 @@ where
             }
         }
 
+        // Store component size
         component_sizes[component_count] = component_size;
         component_count += 1;
         buffer_offset += component_size;
@@ -294,7 +296,7 @@ mod tests {
 
         let mut state = [TarjanState::default(); 10];
         let stack = CircularQueue::<usize, 10>::new();
-        let mut components: [&[usize]; 5] = [&[]; 5];
+        let mut components: [(&[usize], usize); 5] = [(&[], 0); 5];
         let mut node_buffer = [0usize; 10];
 
         let component_count =
@@ -302,11 +304,11 @@ mod tests {
 
         // Should find 1 SCC containing all 3 nodes
         assert_eq!(component_count, 1);
-        assert_eq!(components[0].len(), 3);
+        assert_eq!(components[0].0.len(), 3);
 
         // Verify all nodes are in the component
         let mut nodes_in_component = [0; 3];
-        for (i, &node) in components[0].iter().enumerate() {
+        for (i, &node) in components[0].0.iter().enumerate() {
             nodes_in_component[i] = node;
         }
         nodes_in_component.sort();
@@ -359,7 +361,7 @@ mod tests {
 
         let mut state = [TarjanState::default(); 10];
         let stack = CircularQueue::<usize, 20>::new();
-        let mut components: [&[usize]; 5] = [&[]; 5];
+        let mut components: [(&[usize], usize); 5] = [(&[], 0); 5];
         let mut node_buffer = [0usize; 10];
 
         let component_count =
@@ -371,7 +373,7 @@ mod tests {
         // Check component sizes
         let mut sizes = [0; 3];
         for i in 0..component_count {
-            sizes[i] = components[i].len();
+            sizes[i] = components[i].0.len();
         }
         sizes.sort();
         assert_eq!(sizes, [1, 2, 3]); // One single node, one pair, one triple
