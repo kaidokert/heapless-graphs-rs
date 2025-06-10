@@ -56,17 +56,15 @@ where
 
         // For undirected graphs represented as directed edges, we need to check
         // both outgoing and incoming edges to find all neighbors
-        for (src, dst) in graph.iter_edges()? {
-            let neighbor = if src == node {
-                Some(dst)
-            } else if dst == node {
-                Some(src)
-            } else {
-                None
-            };
-
-            if let Some(neighbor_node) = neighbor {
-                if let Some(neighbor_color) = color_assignment.get(&neighbor_node) {
+        for neighbor in graph.outgoing_edges(node)? {
+            if let Some(neighbor_color) = color_assignment.get(&neighbor) {
+                neighbor_colors.insert(*neighbor_color);
+            }
+        }
+        for neighbor in graph.incoming_edges(node)? {
+            // Skip if we've already processed this neighbor's color
+            if let Some(neighbor_color) = color_assignment.get(&neighbor) {
+                if !neighbor_colors.contains(neighbor_color) {
                     neighbor_colors.insert(*neighbor_color);
                 }
             }

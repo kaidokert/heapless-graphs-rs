@@ -29,6 +29,17 @@ where
             .iter()
             .flat_map(|(n, c)| c.as_outgoing_nodes().map(move |m| (n, m))))
     }
+
+    fn outgoing_edges<'a>(
+        &'a self,
+        node: &'a NI,
+    ) -> Result<impl Iterator<Item = &'a NI>, Self::Error>
+    where
+        NI: 'a,
+    {
+        let edges_option = self.nodes.get(node).map(|edges| edges.as_outgoing_nodes());
+        Ok(edges_option.into_iter().flatten())
+    }
 }
 
 #[cfg(test)]
@@ -79,13 +90,11 @@ mod tests {
         for i in 0..len {
             edge_pairs[i] = (*edges[i].0, *edges[i].1);
         }
-
-        // Check that all expected edges are present (order may vary)
-        assert!(edge_pairs[..len].contains(&(0, 1)));
-        assert!(edge_pairs[..len].contains(&(0, 2)));
-        assert!(edge_pairs[..len].contains(&(1, 2)));
-        assert!(edge_pairs[..len].contains(&(1, 0)));
-        assert!(edge_pairs[..len].contains(&(2, 0)));
+        edge_pairs[..len].sort_unstable();
+        assert_eq!(
+            &edge_pairs[..len],
+            &[(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 0)]
+        );
     }
 
     #[test]
@@ -144,16 +153,8 @@ mod tests {
         for i in 0..len {
             edge_pairs[i] = (*edges[i].0, *edges[i].1);
         }
-
-        // Check that all expected edges are present (order may vary)
-        assert!(edge_pairs[..len].contains(&(0, 0)));
-        assert!(edge_pairs[..len].contains(&(0, 1)));
-        assert!(edge_pairs[..len].contains(&(1, 1)));
-        // Should have two (1,1) edges
-        assert_eq!(
-            edge_pairs[..len].iter().filter(|&&e| e == (1, 1)).count(),
-            2
-        );
+        edge_pairs[..len].sort_unstable();
+        assert_eq!(&edge_pairs[..len], &[(0, 0), (0, 1), (1, 1), (1, 1)]);
     }
 
     #[test]
@@ -178,20 +179,52 @@ mod tests {
         for i in 0..len {
             edge_pairs[i] = (*edges[i].0, *edges[i].1);
         }
-
-        // Check that all expected edges are present
-        assert!(edge_pairs[..len].contains(&(0, 1)));
-        assert!(edge_pairs[..len].contains(&(2, 1)));
-        assert!(edge_pairs[..len].contains(&(2, 0)));
-        assert!(edge_pairs[..len].contains(&(1, 0)));
-        // Should have two edges from 0->1 and two from 1->0
+        edge_pairs[..len].sort_unstable();
         assert_eq!(
-            edge_pairs[..len].iter().filter(|&&e| e == (0, 1)).count(),
-            2
+            &edge_pairs[..len],
+            &[(0, 1), (0, 1), (1, 0), (1, 0), (2, 0), (2, 1)]
         );
+    }
+
+    #[test]
+    fn test_graphref_outgoing_edges() {
+        let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
+        dict.insert(0, [1, 2]);
+        dict.insert(1, [2, 0]);
+        dict.insert(2, [0, 0]);
+
+        let graph = MapAdjacencyList::new_unchecked(dict);
+
+        // Test node 0 outgoing edges
+        let mut edges = [0usize; 4];
+        let edges_slice = collect_ref(
+            crate::graph::GraphRef::outgoing_edges(&graph, &0).unwrap(),
+            &mut edges,
+        );
+        assert_eq!(edges_slice, &[1, 2]);
+
+        // Test node 1 outgoing edges
+        let mut edges = [0usize; 4];
+        let edges_slice = collect_ref(
+            crate::graph::GraphRef::outgoing_edges(&graph, &1).unwrap(),
+            &mut edges,
+        );
+        assert_eq!(edges_slice, &[2, 0]);
+
+        // Test node 2 outgoing edges
+        let mut edges = [0usize; 4];
+        let edges_slice = collect_ref(
+            crate::graph::GraphRef::outgoing_edges(&graph, &2).unwrap(),
+            &mut edges,
+        );
+        assert_eq!(edges_slice, &[0, 0]); // Both edges go to node 0
+
+        // Test non-existent node
         assert_eq!(
-            edge_pairs[..len].iter().filter(|&&e| e == (1, 0)).count(),
-            2
+            crate::graph::GraphRef::outgoing_edges(&graph, &99)
+                .unwrap()
+                .count(),
+            0
         );
     }
 }

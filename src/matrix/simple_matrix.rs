@@ -58,7 +58,6 @@ where
 
     /// Optimized O(V) outgoing_edges for matrix
     fn outgoing_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
-        // For now, use a simple approach that works with the type system
         Ok((0..N).filter_map(move |col_index| {
             if node < N {
                 self.matrix
@@ -68,6 +67,23 @@ where
                     .get(col_index)?
                     .as_ref()
                     .map(|_| col_index)
+            } else {
+                None
+            }
+        }))
+    }
+
+    /// Optimized O(V) incoming_edges for matrix
+    fn incoming_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
+        Ok((0..N).filter_map(move |row_index| {
+            if node < N {
+                self.matrix
+                    .as_ref()
+                    .get(row_index)?
+                    .as_ref()
+                    .get(node)?
+                    .as_ref()
+                    .map(|_| row_index)
             } else {
                 None
             }
@@ -136,5 +152,31 @@ mod tests {
         let mut edges = [(0usize, 0usize); 10];
         let edges_slice = collect(matrix.iter_edges().unwrap(), &mut edges);
         assert_eq!(edges_slice, &[(0, 1), (1, 0), (1, 2), (2, 1), (2, 2)]);
+    }
+
+    #[test]
+    fn test_incoming_edges() {
+        let matrix = Matrix::<3, _, _, _>::new([
+            [None, Some('b'), None],
+            [Some('t'), None, Some('z')],
+            [None, Some('x'), Some('f')],
+        ]);
+
+        // Test node 0 (has incoming edge from node 1)
+        let mut incoming = [0usize; 10];
+        let incoming_slice = collect(matrix.incoming_edges(0).unwrap(), &mut incoming);
+        assert_eq!(incoming_slice, &[1]);
+
+        // Test node 1 (has incoming edges from nodes 0 and 2)
+        let incoming_slice = collect(matrix.incoming_edges(1).unwrap(), &mut incoming);
+        assert_eq!(incoming_slice, &[0, 2]);
+
+        // Test node 2 (has incoming edges from nodes 1 and 2)
+        let incoming_slice = collect(matrix.incoming_edges(2).unwrap(), &mut incoming);
+        assert_eq!(incoming_slice, &[1, 2]);
+
+        // Test invalid node index
+        let incoming_slice = collect(matrix.incoming_edges(3).unwrap(), &mut incoming);
+        assert_eq!(incoming_slice, &[]);
     }
 }
