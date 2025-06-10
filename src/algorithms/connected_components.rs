@@ -31,7 +31,7 @@ use crate::visited::VisitedTracker;
 /// let mut visited = [false; 10];
 /// let mut components = [&[0usize][..]; 5]; // Up to 5 components
 /// let mut node_buffer = [0usize; 10];
-/// 
+///
 /// let component_count = connected_components(
 ///     &graph,
 ///     visited.as_mut_slice(),
@@ -64,12 +64,7 @@ where
 
             // Collect all nodes in this connected component
             let remaining_buffer = &mut node_buffer[buffer_offset..];
-            let component_size = dfs_component_collection(
-                graph,
-                node,
-                visited,
-                remaining_buffer,
-            )?;
+            let component_size = dfs_component_collection(graph, node, visited, remaining_buffer)?;
 
             if buffer_offset + component_size > node_buffer.len() {
                 return Err(AlgorithmError::ResultCapacityExceeded);
@@ -136,11 +131,11 @@ where
 
     // Mark as visited and add to buffer
     visited.mark_visited(node);
-    
+
     if *count >= buffer.len() {
         return Err(AlgorithmError::ResultCapacityExceeded);
     }
-    
+
     buffer[*count] = *node;
     *count += 1;
 
@@ -211,16 +206,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edgelist::edge_list::EdgeList;
-    use crate::edgelist::edge_node_list::EdgeNodeList;
     use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
     use crate::containers::maps::{staticdict::Dictionary, MapTrait};
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::edgelist::edge_node_list::EdgeNodeList;
 
     #[test]
     fn test_connected_components_edge_list() {
         // Create a graph with 3 connected components:
         // Component 1: 0-1-2
-        // Component 2: 3-4  
+        // Component 2: 3-4
         // Component 3: 5 (isolated)
         let edges = [(0, 1), (1, 2), (3, 4)];
         let graph = EdgeList::<10, usize, _>::new(edges);
@@ -234,7 +229,8 @@ mod tests {
             visited.as_mut_slice(),
             &mut components,
             &mut node_buffer,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Should find 2 components
         assert_eq!(component_count, 2);
@@ -283,10 +279,10 @@ mod tests {
     fn test_connected_components_map_adjacency_list() {
         // Test with different graph type
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 2]);  // 0 connects to 1, 2
-        dict.insert(1, [0, 2]);  // 1 connects to 0, 2
-        dict.insert(2, [0, 1]);  // 2 connects to 0, 1
-        dict.insert(3, [3, 3]);  // 3 is isolated (self-loop)
+        dict.insert(0, [1, 2]); // 0 connects to 1, 2
+        dict.insert(1, [0, 2]); // 1 connects to 0, 2
+        dict.insert(2, [0, 1]); // 2 connects to 0, 1
+        dict.insert(3, [3, 3]); // 3 is isolated (self-loop)
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -302,7 +298,7 @@ mod tests {
         let graph = EdgeList::<5, usize, _>::new(edges);
 
         let mut visited = [false; 5];
-        
+
         // Empty EdgeList will return an error when trying to iterate nodes
         // because EdgesToNodesIterator requires at least one edge
         let result = count_connected_components(&graph, visited.as_mut_slice());
@@ -314,7 +310,7 @@ mod tests {
         // EdgeNodeList allows us to define isolated nodes explicitly
         // Create a graph with 3 connected components:
         // Component 1: 0-1-2
-        // Component 2: 3-4  
+        // Component 2: 3-4
         // Component 3: 5 (isolated)
         let edges = [(0, 1), (1, 2), (3, 4)];
         let nodes = [0, 1, 2, 3, 4, 5]; // Node 5 is isolated
@@ -329,7 +325,8 @@ mod tests {
             visited.as_mut_slice(),
             &mut components,
             &mut node_buffer,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Should find 3 components including the isolated node
         assert_eq!(component_count, 3);

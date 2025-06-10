@@ -122,7 +122,8 @@ where
     state[node].on_stack = true;
     *index_counter += 1;
 
-    stack.push_back(node)
+    stack
+        .push_back(node)
         .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
 
     let mut component_count = 0;
@@ -131,7 +132,7 @@ where
     // Explore neighbors
     for neighbor in graph.outgoing_edges(&node)? {
         let neighbor_idx = *neighbor;
-        
+
         if state[neighbor_idx].index == usize::MAX {
             // Neighbor not visited, recurse
             let (_new_index, new_components, new_buffer_offset) = tarjan_dfs(
@@ -143,10 +144,10 @@ where
                 &mut node_buffer[buffer_offset..],
                 &mut component_sizes[component_count..],
             )?;
-            
+
             component_count += new_components;
             buffer_offset += new_buffer_offset;
-            
+
             // Update lowlink
             state[node].lowlink = state[node].lowlink.min(state[neighbor_idx].lowlink);
         } else if state[neighbor_idx].on_stack {
@@ -158,26 +159,26 @@ where
     // If node is a root node, pop the stack and create an SCC
     if state[node].lowlink == state[node].index {
         let mut component_size = 0;
-        
+
         loop {
             let Some(stack_node) = stack.pop_back() else {
                 return Err(AlgorithmError::StackCapacityExceeded);
             };
-            
+
             state[stack_node].on_stack = false;
-            
+
             if buffer_offset + component_size >= node_buffer.len() {
                 return Err(AlgorithmError::ResultCapacityExceeded);
             }
-            
+
             node_buffer[buffer_offset + component_size] = stack_node;
             component_size += 1;
-            
+
             if stack_node == node {
                 break;
             }
         }
-        
+
         component_sizes[component_count] = component_size;
         component_count += 1;
         buffer_offset += component_size;
@@ -205,13 +206,8 @@ where
     // Run DFS from each unvisited node
     for node in graph.iter_nodes()? {
         if state[*node].index == usize::MAX {
-            component_count += tarjan_count_dfs(
-                graph,
-                *node,
-                state,
-                &mut stack,
-                &mut index_counter,
-            )?;
+            component_count +=
+                tarjan_count_dfs(graph, *node, state, &mut stack, &mut index_counter)?;
         }
     }
 
@@ -237,7 +233,8 @@ where
     state[node].on_stack = true;
     *index_counter += 1;
 
-    stack.push_back(node)
+    stack
+        .push_back(node)
         .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
 
     let mut component_count = 0;
@@ -245,17 +242,11 @@ where
     // Explore neighbors
     for neighbor in graph.outgoing_edges(&node)? {
         let neighbor_idx = *neighbor;
-        
+
         if state[neighbor_idx].index == usize::MAX {
             // Neighbor not visited, recurse
-            component_count += tarjan_count_dfs(
-                graph,
-                neighbor_idx,
-                state,
-                stack,
-                index_counter,
-            )?;
-            
+            component_count += tarjan_count_dfs(graph, neighbor_idx, state, stack, index_counter)?;
+
             // Update lowlink
             state[node].lowlink = state[node].lowlink.min(state[neighbor_idx].lowlink);
         } else if state[neighbor_idx].on_stack {
@@ -267,15 +258,15 @@ where
     // If node is a root node, pop the stack and count an SCC
     if state[node].lowlink == state[node].index {
         component_count += 1;
-        
+
         // Pop nodes until we reach the root
         loop {
             let Some(stack_node) = stack.pop_back() else {
                 return Err(AlgorithmError::StackCapacityExceeded);
             };
-            
+
             state[stack_node].on_stack = false;
-            
+
             if stack_node == node {
                 break;
             }
@@ -288,9 +279,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edgelist::edge_list::EdgeList;
     use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-    use crate::containers::{maps::{staticdict::Dictionary, MapTrait}, queues::CircularQueue};
+    use crate::containers::{
+        maps::{staticdict::Dictionary, MapTrait},
+        queues::CircularQueue,
+    };
+    use crate::edgelist::edge_list::EdgeList;
 
     #[test]
     fn test_tarjan_scc_simple_cycle() {
@@ -303,13 +297,8 @@ mod tests {
         let mut components: [&[usize]; 5] = [&[]; 5];
         let mut node_buffer = [0usize; 10];
 
-        let component_count = tarjan_scc(
-            &graph,
-            &mut state,
-            stack,
-            &mut components,
-            &mut node_buffer,
-        ).unwrap();
+        let component_count =
+            tarjan_scc(&graph, &mut state, stack, &mut components, &mut node_buffer).unwrap();
 
         // Should find 1 SCC containing all 3 nodes
         assert_eq!(component_count, 1);
@@ -373,13 +362,8 @@ mod tests {
         let mut components: [&[usize]; 5] = [&[]; 5];
         let mut node_buffer = [0usize; 10];
 
-        let component_count = tarjan_scc(
-            &graph,
-            &mut state,
-            stack,
-            &mut components,
-            &mut node_buffer,
-        ).unwrap();
+        let component_count =
+            tarjan_scc(&graph, &mut state, stack, &mut components, &mut node_buffer).unwrap();
 
         // Should find 3 SCCs
         assert_eq!(component_count, 3);

@@ -23,7 +23,7 @@ pub use dijkstra::dijkstra;
 pub use greedy_coloring::greedy_color;
 pub use kahns::kahns;
 pub use kruskals::kruskals;
-pub use tarjan_scc::{tarjan_scc, count_tarjan_scc};
+pub use tarjan_scc::{count_tarjan_scc, tarjan_scc};
 pub use topological_sort::topological_sort_dfs;
 pub use traversal::{bfs, bfs_unchecked, dfs_iterative, dfs_recursive, dfs_recursive_unchecked};
 

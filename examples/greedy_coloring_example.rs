@@ -117,7 +117,10 @@ fn main() {
                         }
                     }
                     _ => {
-                        println!("  ERROR: Missing color assignment for activities {} or {}", a, b);
+                        println!(
+                            "  ERROR: Missing color assignment for activities {} or {}",
+                            a, b
+                        );
                         valid = false;
                     }
                 }
