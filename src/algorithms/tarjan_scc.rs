@@ -22,6 +22,8 @@ pub struct TarjanState {
     pub lowlink: usize,
     /// Whether node is currently on the stack
     pub on_stack: bool,
+    /// Component offset for this subtree (used internally)
+    pub component_offset: usize,
 }
 
 impl Default for TarjanState {
@@ -30,6 +32,7 @@ impl Default for TarjanState {
             index: usize::MAX, // Use MAX as "unvisited" marker
             lowlink: usize::MAX,
             on_stack: false,
+            component_offset: 0,
         }
     }
 }
@@ -67,7 +70,6 @@ where
     let mut index_counter = 0;
     let mut component_count = 0;
     let mut buffer_offset = 0;
-    let mut component_sizes = [0usize; 32]; // Temporary array for component sizes
 
     // First pass: Run DFS from each unvisited node and collect sizes
     for node in graph.iter_nodes()? {
@@ -81,6 +83,8 @@ where
         }
 
         if state[node_idx].index == usize::MAX {
+            // Set component offset for this DFS subtree
+            state[node_idx].component_offset = component_count;
             let (_new_index, new_components, new_buffer_offset) = tarjan_dfs(
                 graph,
                 node_idx,
@@ -88,7 +92,7 @@ where
                 &mut stack,
                 &mut index_counter,
                 &mut node_buffer[buffer_offset..],
-                &mut component_sizes[component_count..],
+                components,
             )?;
             component_count += new_components;
             buffer_offset += new_buffer_offset;
@@ -101,10 +105,10 @@ where
 
     // Second pass: populate component slices
     let mut current_offset = 0;
-    for i in 0..component_count {
-        let component_size = component_sizes[i];
+    for component in components.iter_mut().take(component_count) {
+        let component_size = component.1;
         let component_slice = &node_buffer[current_offset..current_offset + component_size];
-        components[i] = (component_slice, component_size);
+        *component = (component_slice, component_size);
         current_offset += component_size;
     }
 
@@ -119,7 +123,7 @@ fn tarjan_dfs<G, S>(
     stack: &mut S,
     index_counter: &mut usize,
     node_buffer: &mut [usize],
-    component_sizes: &mut [usize],
+    components: &mut [(&[usize], usize)],
 ) -> Result<(usize, usize, usize), AlgorithmError<usize>>
 where
     G: GraphRef<usize>,
@@ -159,6 +163,8 @@ where
 
         if state[neighbor_idx].index == usize::MAX {
             // Neighbor not visited, recurse
+            // Set component offset for this neighbor's subtree
+            state[neighbor_idx].component_offset = state[node].component_offset + component_count;
             let (_new_index, new_components, new_buffer_offset) = tarjan_dfs(
                 graph,
                 neighbor_idx,
@@ -166,7 +172,7 @@ where
                 stack,
                 index_counter,
                 &mut node_buffer[buffer_offset..],
-                &mut component_sizes[component_count..],
+                components,
             )?;
 
             component_count += new_components;
@@ -203,8 +209,8 @@ where
             }
         }
 
-        // Store component size
-        component_sizes[component_count] = component_size;
+        // Store component size temporarily (slice will be filled in second pass)
+        components[state[node].component_offset + component_count] = (&[], component_size);
         component_count += 1;
         buffer_offset += component_size;
     }
