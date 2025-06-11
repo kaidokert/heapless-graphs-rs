@@ -133,7 +133,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Test GraphVal iter_nodes (returns owned values)
         let mut nodes = [0u32; 8];
@@ -185,7 +185,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Test GraphVal iter_edges (returns owned values)
         let mut edges = [(0u32, 0u32); 16];
@@ -240,7 +240,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Test outgoing edges from node 10 (GraphVal version)
         let mut targets = [0u32; 8];
@@ -305,7 +305,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Test GraphVal contains_node
         assert!(map_matrix.contains_node(42).unwrap());
@@ -334,7 +334,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Test outgoing edges for non-existent node should return empty iterator
         let outgoing_count = map_matrix.outgoing_edges(999).unwrap().count();
@@ -357,7 +357,7 @@ mod tests {
             [[Option<bool>; 2]; 2],
             [Option<bool>; 2],
         >;
-        let map_matrix = CharMatrix::new(matrix, index_map);
+        let map_matrix = CharMatrix::new(matrix, index_map).unwrap();
 
         // Test with char node types
         assert_eq!(map_matrix.iter_nodes().unwrap().count(), 2);
@@ -388,7 +388,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Should have 3 nodes but no edges
         assert_eq!(map_matrix.iter_nodes().unwrap().count(), 3);
@@ -416,7 +416,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Test iter_edge_values
         let mut edges_with_values = [(0u32, 0u32, 0i32); 16];
@@ -486,7 +486,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Test incoming edges to node 10 (should be from 10, 20, 30)
         let mut sources = [0u32; 8];
@@ -537,7 +537,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = ValMatrix::new(matrix, index_map);
+        let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
         // Test incoming edges for non-existent node should return empty iterator
         let incoming_count = map_matrix.incoming_edges(999).unwrap().count();

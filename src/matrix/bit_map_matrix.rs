@@ -24,7 +24,29 @@ where
     M: MapTrait<NI, usize>,
 {
     /// Creates a new BitMapMatrix with the given bitmap and index mapping
-    pub fn new(bitmap: super::bit_matrix::BitMatrix<N>, index_map: M) -> Self {
+    ///
+    /// Validates that all indices in the index_map are within valid bounds for the BitMatrix.
+    /// BitMatrix supports node indices in the range 0..8*N.
+    pub fn new(
+        bitmap: super::bit_matrix::BitMatrix<N>,
+        index_map: M,
+    ) -> Result<Self, GraphError<NI>> {
+        // BitMatrix supports indices in range 0..8*N
+        let max_valid_index = 8 * N;
+        for (_, idx) in index_map.iter() {
+            if *idx >= max_valid_index {
+                return Err(GraphError::IndexOutOfBounds(*idx));
+            }
+        }
+        Ok(Self::new_unchecked(bitmap, index_map))
+    }
+
+    /// Creates a new BitMapMatrix with the given bitmap and index mapping without bounds checking
+    ///
+    /// # Safety
+    /// The caller must ensure that all indices in the index_map are within valid bounds
+    /// for the BitMatrix (0..8*N).
+    pub fn new_unchecked(bitmap: super::bit_matrix::BitMatrix<N>, index_map: M) -> Self {
         Self {
             bitmap,
             index_map,
@@ -133,7 +155,7 @@ mod tests {
         index_map.insert('A', 0);
         index_map.insert('B', 1);
 
-        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map);
+        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
 
         // Test node iteration
         let mut nodes = ['\0'; 8];
@@ -180,7 +202,7 @@ mod tests {
 
         // Empty index map
         let index_map = Dictionary::<u32, usize, 8>::new();
-        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map);
+        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
 
         // Should have no nodes
         assert_eq!(bit_map_matrix.iter_nodes().unwrap().count(), 0);
@@ -209,7 +231,7 @@ mod tests {
         let mut index_map = Dictionary::<u32, usize, 8>::new();
         index_map.insert(100, 0);
 
-        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map);
+        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
 
         // Test outgoing edges for non-existent node should return empty iterator
         assert_eq!(bit_map_matrix.outgoing_edges(999).unwrap().count(), 0);
@@ -238,7 +260,7 @@ mod tests {
         index_map.insert('A', 0);
         index_map.insert('B', 1);
 
-        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map);
+        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
 
         // Test incoming edges to A (should be from A and B)
         let mut incoming_a = ['\0'; 8];

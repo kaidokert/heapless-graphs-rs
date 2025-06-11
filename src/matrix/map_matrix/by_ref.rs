@@ -118,7 +118,7 @@ mod tests {
         index_map.insert("b", 1);
         index_map.insert("c", 2);
 
-        let map_matrix = TestMatrix::new(matrix, index_map);
+        let map_matrix = TestMatrix::new(matrix, index_map).unwrap();
 
         // Basic construction should succeed
         assert_eq!(GraphRef::iter_nodes(&map_matrix).unwrap().count(), 3);
@@ -137,7 +137,7 @@ mod tests {
         index_map.insert("bob", 1);
         index_map.insert("charlie", 2);
 
-        let map_matrix = TestMatrix::new(matrix, index_map);
+        let map_matrix = TestMatrix::new(matrix, index_map).unwrap();
 
         // Collect nodes into array for testing (no-std compatible)
         let mut nodes = [""; 8];
@@ -180,7 +180,7 @@ mod tests {
         index_map.insert("bob", 1);
         index_map.insert("charlie", 2);
 
-        let map_matrix = TestMatrix::new(matrix, index_map);
+        let map_matrix = TestMatrix::new(matrix, index_map).unwrap();
 
         // Collect edges into array for testing (no-std compatible)
         let mut edges = [("", ""); 16];
@@ -229,7 +229,7 @@ mod tests {
         index_map.insert("bob", 1);
         index_map.insert("charlie", 2);
 
-        let map_matrix = TestMatrix::new(matrix, index_map);
+        let map_matrix = TestMatrix::new(matrix, index_map).unwrap();
 
         // Test outgoing edges from alice
         let mut alice_targets = [""; 8];
@@ -285,7 +285,7 @@ mod tests {
         index_map.insert("exists", 0);
         index_map.insert("also_exists", 1);
 
-        let map_matrix = TestMatrix::new(matrix, index_map);
+        let map_matrix = TestMatrix::new(matrix, index_map).unwrap();
 
         // Test through GraphRef trait method
         assert!(GraphRef::contains_node(&map_matrix, &"exists").unwrap());
@@ -302,7 +302,7 @@ mod tests {
         index_map.insert("y", 1);
         index_map.insert("z", 2);
 
-        let map_matrix = TestMatrix::new(matrix, index_map);
+        let map_matrix = TestMatrix::new(matrix, index_map).unwrap();
 
         // Should have 3 nodes but no edges
         assert_eq!(GraphRef::iter_nodes(&map_matrix).unwrap().count(), 3);
@@ -331,7 +331,7 @@ mod tests {
             [[Option<i32>; 3]; 3],
             [Option<i32>; 3],
         >;
-        let map_matrix = SparseMatrix::new(matrix, index_map);
+        let map_matrix = SparseMatrix::new(matrix, index_map).unwrap();
 
         // Verify nodes
         let mut nodes = [&0u32; 8];
@@ -378,7 +378,7 @@ mod tests {
         index_map.insert("bob", 1);
         index_map.insert("charlie", 2);
 
-        let map_matrix = TestMatrix::new(matrix, index_map);
+        let map_matrix = TestMatrix::new(matrix, index_map).unwrap();
 
         // Test incoming edges to alice (should be from alice, bob, charlie)
         let mut alice_sources = [&""; 8];
@@ -424,7 +424,7 @@ mod tests {
         let mut index_map = Dictionary::<&'static str, usize, 3>::new();
         index_map.insert("exists", 0);
 
-        let map_matrix = TestMatrix::new(matrix, index_map);
+        let map_matrix = TestMatrix::new(matrix, index_map).unwrap();
 
         // Test incoming edges for non-existent node should return empty iterator
         assert_eq!(

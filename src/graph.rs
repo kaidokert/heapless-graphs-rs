@@ -22,6 +22,8 @@ pub enum GraphError<NI: NodeIndexTrait> {
     EdgeHasInvalidNode,
     /// Given node wasn't found in the graph
     NodeNotFound(NI),
+    /// Index is out of bounds
+    IndexOutOfBounds(usize),
     /// Unexpected condition occurred
     Unexpected,
 }

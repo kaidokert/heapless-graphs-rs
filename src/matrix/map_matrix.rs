@@ -1,4 +1,7 @@
-use crate::{containers::maps::MapTrait, graph::NodeIndexTrait};
+use crate::{
+    containers::maps::MapTrait,
+    graph::{GraphError, NodeIndexTrait},
+};
 
 pub mod by_ref;
 pub mod by_val;
@@ -31,7 +34,20 @@ where
     ///
     /// The `matrix` parameter provides the adjacency matrix data, and `index_map`
     /// maps from the actual node indices to matrix indices (0..N).
-    pub fn new(matrix: COLUMNS, index_map: M) -> Self {
+    pub fn new(matrix: COLUMNS, index_map: M) -> Result<Self, GraphError<NI>> {
+        for (_, idx) in index_map.iter() {
+            if *idx >= N {
+                return Err(GraphError::IndexOutOfBounds(*idx));
+            }
+        }
+        Ok(Self::new_unchecked(matrix, index_map))
+    }
+
+    /// Creates a new MapMatrix with the given matrix data and index mapping
+    ///
+    /// The `matrix` parameter provides the adjacency matrix data, and `index_map`
+    /// maps from the actual node indices to matrix indices (0..N).
+    pub fn new_unchecked(matrix: COLUMNS, index_map: M) -> Self {
         Self {
             inner: super::simple_matrix::Matrix::new(matrix),
             index_map,
