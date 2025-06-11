@@ -7,7 +7,7 @@
 use super::AlgorithmError;
 
 use crate::containers::queues::Deque;
-use crate::graph::{GraphRef, GraphVal, NodeIndexTrait};
+use crate::graph::{GraphVal, NodeIndexTrait};
 use crate::visited::VisitedTracker;
 
 /// Unchecked depth first traversal
@@ -15,22 +15,22 @@ use crate::visited::VisitedTracker;
 /// Always yields the initial node, even if it is not present in graph
 pub fn dfs_recursive_unchecked<G, NI, VT, F>(
     graph: &G,
-    start_node: &NI,
+    start_node: NI,
     visited: &mut VT,
     operation: &mut F,
 ) -> Result<(), G::Error>
 where
-    G: GraphRef<NI>,
-    NI: NodeIndexTrait,
+    G: GraphVal<NI>,
+    NI: NodeIndexTrait + Copy,
     VT: VisitedTracker<NI> + ?Sized,
     for<'a> F: FnMut(&'a NI),
 {
-    if !visited.is_visited(start_node) {
-        visited.mark_visited(start_node);
-        operation(start_node);
+    if !visited.is_visited(&start_node) {
+        visited.mark_visited(&start_node);
+        operation(&start_node);
     }
     for next_node in graph.outgoing_edges(start_node)? {
-        if !visited.is_visited(next_node) {
+        if !visited.is_visited(&next_node) {
             dfs_recursive_unchecked(graph, next_node, visited, operation)?;
         }
     }
@@ -42,13 +42,13 @@ where
 /// Does not index initial node, if initial node is not present in the graph
 pub fn dfs_recursive<G, NI, VT, F>(
     graph: &G,
-    start_node: &NI,
+    start_node: NI,
     visited: &mut VT,
     operation: &mut F,
 ) -> Result<(), G::Error>
 where
-    G: GraphRef<NI>,
-    NI: NodeIndexTrait,
+    G: GraphVal<NI>,
+    NI: NodeIndexTrait + Copy,
     VT: VisitedTracker<NI> + ?Sized,
     for<'a> F: FnMut(&'a NI),
 {

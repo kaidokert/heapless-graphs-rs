@@ -3,7 +3,6 @@ use crate::{
     graph::{GraphError, NodeIndexTrait},
 };
 
-pub mod by_ref;
 pub mod by_val;
 
 /// A matrix-based graph representation that maps arbitrary node indices to matrix positions

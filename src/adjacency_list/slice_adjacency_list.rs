@@ -1,9 +1,8 @@
-use crate::graph::{integrity_check, GraphError, GraphRef, NodeIndexTrait};
+use crate::graph::{integrity_check, GraphError, GraphVal, NodeIndexTrait};
 use crate::nodes::NodesIterable;
 
 use super::outgoing_nodes::AsOutgoingNodes;
 
-mod by_ref;
 mod by_val;
 
 pub struct SliceAdjacencyList<NI, E, C, T>
@@ -30,7 +29,8 @@ where
     /// Returns an error if any edge references a non-existent node.
     pub fn new(nodes_container: T) -> Result<Self, GraphError<NI>>
     where
-        Self: GraphRef<NI, Error = GraphError<NI>>,
+        NI: Copy,
+        Self: GraphVal<NI, Error = GraphError<NI>>,
     {
         let result = Self::new_unchecked(nodes_container);
         integrity_check::<NI, _>(&result)?;
@@ -57,7 +57,7 @@ mod tests {
 
         let mut nodes = [0usize; 4];
         let nodes_slice = collect_ref(
-            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
         assert_eq!(nodes_slice, &[0, 1, 2]);
@@ -70,7 +70,7 @@ mod tests {
 
         let mut nodes = [0usize; 4];
         let nodes_slice = collect_ref(
-            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
         assert_eq!(nodes_slice, &[0, 1, 2]);
@@ -82,7 +82,7 @@ mod tests {
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
         assert_eq!(
-            crate::graph::GraphRef::iter_nodes(&graph).unwrap().count(),
+            crate::graph::GraphVal::iter_nodes(&graph).unwrap().count(),
             0
         );
     }
@@ -94,7 +94,7 @@ mod tests {
 
         let mut nodes = [0usize; 2];
         let nodes_slice = collect_ref(
-            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
         assert_eq!(nodes_slice, &[42]);

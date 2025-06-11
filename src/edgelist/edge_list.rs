@@ -2,7 +2,6 @@ use crate::edges::EdgeNodeError;
 
 use crate::graph::{GraphError, NodeIndexTrait};
 
-mod by_ref;
 mod by_val;
 
 #[derive(Debug)]
@@ -173,16 +172,6 @@ mod tests {
         let _edge_list_small = EdgeList::<3, usize, _>::new(edges);
         let _edge_list_medium = EdgeList::<100, usize, _>::new(edges);
         let _edge_list_large = EdgeList::<1000, usize, _>::new(edges);
-    }
-
-    #[test]
-    fn test_edge_list_graphref_functionality() {
-        let edges = [(0, 1), (1, 2), (2, 0)];
-        let edge_list = EdgeList::<10, usize, _>::new(edges);
-
-        // Test that GraphRef trait is implemented
-        let edges_iter = crate::graph::GraphRef::iter_edges(&edge_list).unwrap();
-        assert_eq!(edges_iter.count(), 3);
     }
 
     #[test]

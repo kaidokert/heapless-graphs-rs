@@ -1,10 +1,9 @@
 use crate::containers::maps::MapTrait;
-use crate::graph::{integrity_check, GraphError, GraphRef, NodeIndexTrait};
+use crate::graph::{integrity_check, GraphError, GraphVal, NodeIndexTrait};
 use crate::nodes::NodesIterable;
 
 use super::outgoing_nodes::AsOutgoingNodes;
 
-mod by_ref;
 mod by_val;
 
 pub struct MapAdjacencyList<NI, E, C, M>
@@ -31,7 +30,8 @@ where
     /// Returns an error if any edge references a non-existent node.
     pub fn new(nodes: M) -> Result<Self, GraphError<NI>>
     where
-        Self: GraphRef<NI, Error = GraphError<NI>>,
+        NI: Copy,
+        Self: GraphVal<NI, Error = GraphError<NI>>,
     {
         let result = Self::new_unchecked(nodes);
         integrity_check::<NI, _>(&result)?;
@@ -63,7 +63,7 @@ mod tests {
 
         let mut nodes = [0usize; 4];
         let nodes_slice = collect_ref(
-            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
         nodes_slice.sort_unstable();
@@ -81,7 +81,7 @@ mod tests {
 
         let mut nodes = [0usize; 4];
         let nodes_slice = collect_ref(
-            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
         nodes_slice.sort_unstable();
@@ -94,7 +94,7 @@ mod tests {
         let graph = MapAdjacencyList::new(dict).unwrap();
 
         assert_eq!(
-            crate::graph::GraphRef::iter_nodes(&graph).unwrap().count(),
+            crate::graph::GraphVal::iter_nodes(&graph).unwrap().count(),
             0
         );
     }
@@ -108,7 +108,7 @@ mod tests {
 
         let mut nodes = [0usize; 2];
         let nodes_slice = collect_ref(
-            crate::graph::GraphRef::iter_nodes(&graph).unwrap(),
+            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
             &mut nodes,
         );
         assert_eq!(nodes_slice, &[42]);

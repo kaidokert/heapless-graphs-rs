@@ -25,7 +25,6 @@ All traits are generic over a notion of "Node Index" or NI, that can be
 mostly any type that implements PartialEq + PartialOrd (NodeIndexTrait).
 
 For GraphVal traits, NI requires Copy since iterators return owned values.
-GraphRef traits work with borrowed references and don't require Copy.
 
 ## Node + Edge structs
 Nodes and Edges are arbitrary structures with different memory layouts.

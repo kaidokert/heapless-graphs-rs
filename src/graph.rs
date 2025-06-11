@@ -2,7 +2,7 @@
 
 //! Core graph traits
 //!
-//! Defines the [`GraphRef`] and [`GraphVal`] traits and related error values
+//! Defines the [`GraphVal`] trait and related error values
 //! and sub-traits.
 
 /// Trait for types that can be used as node indices in graphs
@@ -26,75 +26,6 @@ pub enum GraphError<NI: NodeIndexTrait> {
     IndexOutOfBounds(usize),
     /// Unexpected condition occurred
     Unexpected,
-}
-
-/// Reference-based graph trait for immutable graph access
-///
-/// This trait provides read-only access to graph structure through borrowed references.
-/// It's designed for cases where you need to examine graph structure without taking
-/// ownership of the data.
-///
-/// The underlying storage is defined by concrete implementations like
-/// [`EdgeList`](crate::edgelist::edge_list::EdgeList) or
-/// [`MapAdjacencyList`](crate::adjacency_list::map_adjacency_list::MapAdjacencyList).
-pub trait GraphRef<NodeIndex: NodeIndexTrait> {
-    type Error: From<GraphError<NodeIndex>>;
-
-    /// Return an iterator over all nodes in the graph
-    fn iter_nodes<'a>(&'a self) -> Result<impl Iterator<Item = &'a NodeIndex>, Self::Error>
-    where
-        NodeIndex: 'a;
-    /// Return an iterator over all edges in the graph
-    fn iter_edges<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a NodeIndex, &'a NodeIndex)>, Self::Error>
-    where
-        NodeIndex: 'a;
-
-    /// Get outgoing edges from a node
-    ///
-    /// Default implementation filters all edges, which is inefficient.
-    /// Implementers should override this method when they can provide
-    /// direct access to outgoing edges (e.g., adjacency lists, matrices).
-    fn outgoing_edges<'a>(
-        &'a self,
-        node: &'a NodeIndex,
-    ) -> Result<impl Iterator<Item = &'a NodeIndex>, Self::Error>
-    where
-        NodeIndex: 'a,
-    {
-        Ok(self
-            .iter_edges()?
-            .filter(move |(src, _dst)| *src == node)
-            .map(|(_src, dst)| dst))
-    }
-
-    /// Get incoming edges to a node
-    ///
-    /// Default implementation filters all edges, which is inefficient.
-    /// Implementers should override this method when they can provide
-    /// direct access to incoming edges (e.g., adjacency matrices).
-    fn incoming_edges<'a>(
-        &'a self,
-        node: &'a NodeIndex,
-    ) -> Result<impl Iterator<Item = &'a NodeIndex>, Self::Error>
-    where
-        NodeIndex: 'a,
-    {
-        Ok(self
-            .iter_edges()?
-            .filter(move |(_src, dst)| *dst == node)
-            .map(|(src, _dst)| src))
-    }
-
-    /// Check if a node is present in the graph
-    ///
-    /// Default implementation iterates all nodes, which is inefficient.
-    /// Implementers should override this method when they can provide
-    /// faster lookup (e.g., hash-based or tree-based storage).
-    fn contains_node(&self, node: &NodeIndex) -> Result<bool, Self::Error> {
-        Ok(self.iter_nodes()?.any(|x| x == node))
-    }
 }
 
 /// Value-based graph trait for immutable graph access
@@ -152,26 +83,6 @@ pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
     }
 }
 
-/// Extension of [`GraphRef`] that provides access to node values
-///
-/// This trait extends basic graph functionality with the ability to associate
-/// values of type `NV` with each node in the graph. Node values are optional,
-/// allowing for sparse assignment of data to nodes.
-pub trait GraphRefWithNodeValues<NI, NV>: GraphRef<NI>
-where
-    NI: NodeIndexTrait,
-{
-    /// Return an iterator over all node values in the graph
-    fn iter_node_values<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a NV>)>, Self::Error>
-    where
-        NV: 'a,
-        NI: 'a;
-    /// Get the value associated with a node
-    fn node_value(&self, node: &NI) -> Result<Option<&NV>, Self::Error>;
-}
-
 /// Extension of [`GraphVal`] that provides access to node values
 ///
 /// This trait extends basic graph functionality with the ability to associate
@@ -191,51 +102,6 @@ where
         NV: 'a;
 }
 
-/// Extension of [`GraphRef`] that provides access to edge values
-///
-/// This trait extends basic graph functionality with the ability to associate
-/// values of type `EV` with each edge in the graph. Edge values are optional,
-/// allowing for sparse assignment of data to edges.
-pub trait GraphRefWithEdgeValues<NI, EV>: GraphRef<NI>
-where
-    NI: NodeIndexTrait,
-{
-    /// Return an iterator over all edge values in the graph
-    fn iter_edge_values<'a>(
-        &'a self,
-    ) -> Result<impl Iterator<Item = (&'a NI, &'a NI, Option<&'a EV>)>, Self::Error>
-    where
-        EV: 'a,
-        NI: 'a;
-
-    fn outgoing_edge_values<'a>(
-        &'a self,
-        node: NI,
-    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a EV>)>, Self::Error>
-    where
-        EV: 'a,
-        NI: 'a,
-    {
-        Ok(self
-            .iter_edge_values()?
-            .filter(move |(src, _dst, _weight)| *src == &node)
-            .map(|(_src, dst, weight)| (dst, weight)))
-    }
-
-    fn incoming_edge_values<'a>(
-        &'a self,
-        node: NI,
-    ) -> Result<impl Iterator<Item = (&'a NI, Option<&'a EV>)>, Self::Error>
-    where
-        EV: 'a,
-        NI: 'a,
-    {
-        Ok(self
-            .iter_edge_values()?
-            .filter(move |(_src, dst, _weight)| *dst == &node)
-            .map(|(src, _dst, weight)| (src, weight)))
-    }
-}
 /// Extension of [`GraphVal`] that provides access to edge values
 ///
 /// This trait extends basic graph functionality with the ability to associate
@@ -285,8 +151,8 @@ where
 /// data integrity and prevent invalid graph states.
 pub(crate) fn integrity_check<NI, G>(graph: &G) -> Result<(), G::Error>
 where
-    NI: NodeIndexTrait,
-    G: GraphRef<NI>,
+    NI: NodeIndexTrait + Copy,
+    G: GraphVal<NI>,
 {
     for (src, dst) in graph.iter_edges()? {
         if !graph.contains_node(src)? {

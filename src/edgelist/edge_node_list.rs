@@ -1,7 +1,6 @@
-mod by_ref;
 mod by_val;
 
-use crate::graph::{integrity_check, GraphError, GraphRef, NodeIndexTrait};
+use crate::graph::{integrity_check, GraphError, GraphVal, NodeIndexTrait};
 
 /// Edge list graph that stores both edges and nodes.
 ///
@@ -31,7 +30,7 @@ pub struct EdgeNodeList<NI, E, N> {
 impl<NI, E, N> EdgeNodeList<NI, E, N> {
     pub fn new(edges: E, nodes: N) -> Result<Self, GraphError<NI>>
     where
-        Self: GraphRef<NI, Error = GraphError<NI>>,
+        Self: GraphVal<NI, Error = GraphError<NI>>,
         NI: NodeIndexTrait,
     {
         let result = Self::new_unchecked(edges, nodes);
