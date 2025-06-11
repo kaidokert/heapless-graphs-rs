@@ -4,7 +4,7 @@
 
 use super::AlgorithmError;
 use crate::containers::maps::MapTrait;
-use crate::graph::{GraphValWithEdgeValues, NodeIndexTrait};
+use crate::graph::{GraphWithEdgeValues, NodeIndex};
 
 /// Kruskal's algorithm for finding minimum spanning trees
 ///
@@ -13,7 +13,7 @@ use crate::graph::{GraphValWithEdgeValues, NodeIndexTrait};
 /// edges that don't create cycles, using union-find for efficient cycle detection.
 ///
 /// # Arguments
-/// * `graph` - Graph implementing GraphValWithEdgeValues with edge weights
+/// * `graph` - Graph implementing GraphWithEdgeValues with edge weights
 /// * `edge_storage` - Temporary buffer for storing and sorting edges by weight
 /// * `parent` - Map for union-find data structure (each node initially maps to itself)
 /// * `mst` - Output buffer for the minimum spanning tree edges
@@ -33,9 +33,9 @@ pub fn kruskals<'a, NI, G, V, M>(
     mst: &'a mut [(NI, NI, V)],
 ) -> Result<&'a [(NI, NI, V)], AlgorithmError<NI>>
 where
-    NI: NodeIndexTrait + Copy + Ord,
+    NI: NodeIndex + Ord,
     V: Copy + Ord,
-    G: GraphValWithEdgeValues<NI, V>,
+    G: GraphWithEdgeValues<NI, V>,
     M: MapTrait<NI, NI>,
     AlgorithmError<NI>: From<G::Error>,
 {

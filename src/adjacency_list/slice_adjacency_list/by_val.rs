@@ -1,11 +1,11 @@
-use crate::graph::{GraphError, GraphVal, NodeIndexTrait};
+use crate::graph::{Graph, GraphError, NodeIndex};
 use crate::nodes::NodesIterable;
 
 use super::{super::outgoing_nodes::AsOutgoingNodes, SliceAdjacencyList};
 
-impl<NI, E, C, T> GraphVal<NI> for SliceAdjacencyList<NI, E, C, T>
+impl<NI, E, C, T> Graph<NI> for SliceAdjacencyList<NI, E, C, T>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
     T: AsRef<[(NI, C)]>,
@@ -112,14 +112,14 @@ mod tests {
         // Test node 2 outgoing edges
         let mut edges = [0usize; 4];
         let edges_slice = collect(
-            crate::graph::GraphVal::outgoing_edges(&graph, 2).unwrap(),
+            crate::graph::Graph::outgoing_edges(&graph, 2).unwrap(),
             &mut edges,
         );
         assert_eq!(edges_slice, &[0, 0]);
 
         // Test non-existent node
         assert_eq!(
-            crate::graph::GraphVal::outgoing_edges(&graph, 99)
+            crate::graph::Graph::outgoing_edges(&graph, 99)
                 .unwrap()
                 .count(),
             0
@@ -132,20 +132,14 @@ mod tests {
         let graph = SliceAdjacencyList::new_unchecked(adj_list_data);
 
         // Test empty node iteration
-        assert_eq!(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap().count(),
-            0
-        );
+        assert_eq!(crate::graph::Graph::iter_nodes(&graph).unwrap().count(), 0);
 
         // Test empty edge iteration
-        assert_eq!(
-            crate::graph::GraphVal::iter_edges(&graph).unwrap().count(),
-            0
-        );
+        assert_eq!(crate::graph::Graph::iter_edges(&graph).unwrap().count(), 0);
 
         // Test contains_node on empty graph
-        assert!(!crate::graph::GraphVal::contains_node(&graph, 0).unwrap());
-        assert!(!crate::graph::GraphVal::contains_node(&graph, 42).unwrap());
+        assert!(!crate::graph::Graph::contains_node(&graph, 0).unwrap());
+        assert!(!crate::graph::Graph::contains_node(&graph, 42).unwrap());
     }
 
     #[test]
@@ -156,7 +150,7 @@ mod tests {
         // Test self-loop edges
         let mut edges = [(0usize, 0usize); 8];
         let mut len = 0;
-        for edge in crate::graph::GraphVal::iter_edges(&graph).unwrap() {
+        for edge in crate::graph::Graph::iter_edges(&graph).unwrap() {
             edges[len] = edge;
             len += 1;
         }
@@ -169,7 +163,7 @@ mod tests {
         // Test outgoing edges with self-loops
         let mut edges = [0usize; 4];
         let edges_slice = collect(
-            crate::graph::GraphVal::outgoing_edges(&graph, 0).unwrap(),
+            crate::graph::Graph::outgoing_edges(&graph, 0).unwrap(),
             &mut edges,
         );
         assert_eq!(edges_slice, &[0, 1]);
@@ -182,25 +176,19 @@ mod tests {
 
         // Test single node
         let mut nodes = [0usize; 2];
-        let nodes_slice = collect(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
-            &mut nodes,
-        );
+        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[42]);
 
         // Test contains_node
-        assert!(crate::graph::GraphVal::contains_node(&graph, 42).unwrap());
-        assert!(!crate::graph::GraphVal::contains_node(&graph, 0).unwrap());
+        assert!(crate::graph::Graph::contains_node(&graph, 42).unwrap());
+        assert!(!crate::graph::Graph::contains_node(&graph, 0).unwrap());
 
         // Test no edges
-        assert_eq!(
-            crate::graph::GraphVal::iter_edges(&graph).unwrap().count(),
-            0
-        );
+        assert_eq!(crate::graph::Graph::iter_edges(&graph).unwrap().count(), 0);
 
         // Test no outgoing edges
         assert_eq!(
-            crate::graph::GraphVal::outgoing_edges(&graph, 42)
+            crate::graph::Graph::outgoing_edges(&graph, 42)
                 .unwrap()
                 .count(),
             0
@@ -215,7 +203,7 @@ mod tests {
         // Test multiple edges pointing to same target
         let mut edges = [(0usize, 0usize); 8];
         let mut len = 0;
-        for edge in crate::graph::GraphVal::iter_edges(&graph).unwrap() {
+        for edge in crate::graph::Graph::iter_edges(&graph).unwrap() {
             edges[len] = edge;
             len += 1;
         }
@@ -228,8 +216,8 @@ mod tests {
         assert_eq!(edges[5], (1, 0));
 
         // Test contains_node for all nodes
-        assert!(crate::graph::GraphVal::contains_node(&graph, 0).unwrap());
-        assert!(crate::graph::GraphVal::contains_node(&graph, 1).unwrap());
-        assert!(crate::graph::GraphVal::contains_node(&graph, 2).unwrap());
+        assert!(crate::graph::Graph::contains_node(&graph, 0).unwrap());
+        assert!(crate::graph::Graph::contains_node(&graph, 1).unwrap());
+        assert!(crate::graph::Graph::contains_node(&graph, 2).unwrap());
     }
 }

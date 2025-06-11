@@ -3,18 +3,18 @@
 //! Bellman-Ford algorithm for finding shortest paths
 
 use crate::containers::maps::MapTrait;
-use crate::graph::{GraphValWithEdgeValues, NodeIndexTrait};
+use crate::graph::{GraphWithEdgeValues, NodeIndex};
 
 use super::AlgorithmError;
 
 /// Bellman-Ford algorithm for finding shortest paths from a source node
 ///
 /// This algorithm can handle graphs with negative edge weights and will detect
-/// negative cycles. It requires edge weights through GraphValWithEdgeValues.
+/// negative cycles. It requires edge weights through GraphWithEdgeValues.
 /// Uses the standard |V|-1 iterations automatically.
 ///
 /// # Arguments
-/// * `graph` - Graph implementing GraphValWithEdgeValues
+/// * `graph` - Graph implementing GraphWithEdgeValues
 /// * `source` - Source node to find shortest paths from
 /// * `distance_map` - Map to store distances (None = infinite/unreachable, Some(v) = distance v)
 ///
@@ -28,8 +28,8 @@ pub fn bellman_ford<G, NI, V, M>(
     distance_map: M,
 ) -> Result<M, AlgorithmError<NI>>
 where
-    G: GraphValWithEdgeValues<NI, V>,
-    NI: NodeIndexTrait + Copy,
+    G: GraphWithEdgeValues<NI, V>,
+    NI: NodeIndex,
     M: MapTrait<NI, Option<V>>,
     V: PartialOrd + Copy + core::ops::Add<Output = V> + Default,
     AlgorithmError<NI>: From<G::Error>,
@@ -43,11 +43,11 @@ where
 /// Bellman-Ford algorithm with custom iteration limit
 ///
 /// This algorithm can handle graphs with negative edge weights and will detect
-/// negative cycles. It requires edge weights through GraphValWithEdgeValues.
+/// negative cycles. It requires edge weights through GraphWithEdgeValues.
 /// Allows custom control over the maximum number of iterations.
 ///
 /// # Arguments
-/// * `graph` - Graph implementing GraphValWithEdgeValues
+/// * `graph` - Graph implementing GraphWithEdgeValues
 /// * `source` - Source node to find shortest paths from
 /// * `distance_map` - Map to store distances (None = infinite/unreachable, Some(v) = distance v)
 /// * `max_iterations` - Maximum number of iterations (typically |V|-1)
@@ -63,8 +63,8 @@ pub fn bellman_ford_bounded<G, NI, V, M>(
     max_iterations: usize,
 ) -> Result<M, AlgorithmError<NI>>
 where
-    G: GraphValWithEdgeValues<NI, V>,
-    NI: NodeIndexTrait + Copy,
+    G: GraphWithEdgeValues<NI, V>,
+    NI: NodeIndex,
     M: MapTrait<NI, Option<V>>,
     V: PartialOrd + Copy + core::ops::Add<Output = V> + Default,
     AlgorithmError<NI>: From<G::Error>,

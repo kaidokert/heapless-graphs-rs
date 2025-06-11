@@ -3,7 +3,7 @@
 //! Dijkstra algorithm for finding shortest paths
 
 use crate::containers::maps::MapTrait;
-use crate::graph::{GraphValWithEdgeValues, NodeIndexTrait};
+use crate::graph::{GraphWithEdgeValues, NodeIndex};
 
 use super::AlgorithmError;
 
@@ -13,7 +13,7 @@ use super::AlgorithmError;
 /// does not handle negative edge weights.
 ///
 /// # Arguments
-/// * `graph` - Graph implementing GraphValWithEdgeValues
+/// * `graph` - Graph implementing GraphWithEdgeValues
 /// * `source` - Source node to find shortest paths from
 /// * `visited` - Map to track which nodes have been processed
 /// * `distance_map` - Map to store distances (None = infinite/unreachable, Some(v) = distance v)
@@ -28,8 +28,8 @@ pub fn dijkstra<G, NI, V, VIS, M>(
     mut distance_map: M,
 ) -> Result<M, AlgorithmError<NI>>
 where
-    G: GraphValWithEdgeValues<NI, V>,
-    NI: NodeIndexTrait + Copy,
+    G: GraphWithEdgeValues<NI, V>,
+    NI: NodeIndex,
     VIS: MapTrait<NI, bool>,
     M: MapTrait<NI, Option<V>>,
     V: PartialOrd + Copy + core::ops::Add<Output = V> + Default,

@@ -1,4 +1,4 @@
-use crate::graph::{GraphError, GraphVal};
+use crate::graph::{Graph, GraphError};
 
 pub struct Matrix<const N: usize, EDGEVALUE, COLUMNS, ROW>
 where
@@ -26,7 +26,7 @@ where
     }
 }
 
-impl<const N: usize, EDGEVALUE, ROW, COLUMNS> GraphVal<usize> for Matrix<N, EDGEVALUE, COLUMNS, ROW>
+impl<const N: usize, EDGEVALUE, ROW, COLUMNS> Graph<usize> for Matrix<N, EDGEVALUE, COLUMNS, ROW>
 where
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,

@@ -29,14 +29,14 @@ pub use traversal::{bfs, bfs_unchecked, dfs_iterative, dfs_recursive, dfs_recurs
 
 use crate::edgelist::edge_list::EdgeListError;
 use crate::edges::EdgeNodeError;
-use crate::graph::{GraphError, NodeIndexTrait};
+use crate::graph::{GraphError, NodeIndex};
 
 /// Errors that can occur during graph algorithm execution
 ///
 /// This enum represents various error conditions that may arise when running
 /// graph algorithms, including capacity limitations and graph-related errors.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum AlgorithmError<NI: NodeIndexTrait> {
+pub enum AlgorithmError<NI: NodeIndex> {
     /// Queue capacity exceeded during breadth-first operations
     QueueCapacityExceeded,
     /// Stack capacity exceeded during depth-first operations
@@ -55,13 +55,13 @@ pub enum AlgorithmError<NI: NodeIndexTrait> {
     EdgeNodeError(EdgeNodeError),
 }
 
-impl<NI: NodeIndexTrait> From<GraphError<NI>> for AlgorithmError<NI> {
+impl<NI: NodeIndex> From<GraphError<NI>> for AlgorithmError<NI> {
     fn from(e: GraphError<NI>) -> Self {
         AlgorithmError::GraphError(e)
     }
 }
 
-impl<NI: NodeIndexTrait> From<EdgeListError<NI>> for AlgorithmError<NI> {
+impl<NI: NodeIndex> From<EdgeListError<NI>> for AlgorithmError<NI> {
     fn from(e: EdgeListError<NI>) -> Self {
         match e {
             EdgeListError::GraphError(ge) => AlgorithmError::GraphError(ge),

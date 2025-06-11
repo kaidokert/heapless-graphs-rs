@@ -1,6 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
-    graph::{GraphError, NodeIndexTrait},
+    graph::{GraphError, NodeIndex},
 };
 
 pub mod by_val;
@@ -12,7 +12,7 @@ pub mod by_val;
 /// non-contiguous or non-zero-based node indices.
 pub struct MapMatrix<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
     M: MapTrait<NI, usize>,
@@ -24,7 +24,7 @@ where
 
 impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
     M: MapTrait<NI, usize>,

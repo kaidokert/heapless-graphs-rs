@@ -11,7 +11,7 @@
 use super::AlgorithmError;
 
 use crate::containers::queues::Deque;
-use crate::graph::GraphRef;
+use crate::graph::Graph;
 
 /// Result of Tarjan's SCC algorithm
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -63,7 +63,7 @@ pub fn tarjan_scc<'a, G, S>(
     node_buffer: &'a mut [usize],
 ) -> Result<usize, AlgorithmError<usize>>
 where
-    G: GraphRef<usize>,
+    G: Graph<usize>,
     S: Deque<usize>,
     AlgorithmError<usize>: From<G::Error>,
 {
@@ -72,9 +72,7 @@ where
     let mut buffer_offset = 0;
 
     // First pass: Run DFS from each unvisited node and collect sizes
-    for node in graph.iter_nodes()? {
-        let node_idx = *node;
-
+    for node_idx in graph.iter_nodes()? {
         // Check bounds to prevent panic on invalid node indices
         if node_idx >= state.len() {
             return Err(AlgorithmError::GraphError(
@@ -126,7 +124,7 @@ fn tarjan_dfs<G, S>(
     components: &mut [(&[usize], usize)],
 ) -> Result<(usize, usize, usize), AlgorithmError<usize>>
 where
-    G: GraphRef<usize>,
+    G: Graph<usize>,
     S: Deque<usize>,
     AlgorithmError<usize>: From<G::Error>,
 {
@@ -151,9 +149,7 @@ where
     let mut buffer_offset = 0;
 
     // Explore neighbors
-    for neighbor in graph.outgoing_edges(&node)? {
-        let neighbor_idx = *neighbor;
-
+    for neighbor_idx in graph.outgoing_edges(node)? {
         // Check bounds to prevent panic on invalid node indices
         if neighbor_idx >= state.len() {
             return Err(AlgorithmError::GraphError(
@@ -231,7 +227,7 @@ pub fn count_tarjan_scc<G, S>(
     mut stack: S,
 ) -> Result<usize, AlgorithmError<usize>>
 where
-    G: GraphRef<usize>,
+    G: Graph<usize>,
     S: Deque<usize>,
     AlgorithmError<usize>: From<G::Error>,
 {
@@ -239,9 +235,7 @@ where
     let mut component_count = 0;
 
     // Run DFS from each unvisited node
-    for node in graph.iter_nodes()? {
-        let node_idx = *node;
-
+    for node_idx in graph.iter_nodes()? {
         // Check bounds to prevent panic on invalid node indices
         if node_idx >= state.len() {
             return Err(AlgorithmError::GraphError(
@@ -267,7 +261,7 @@ fn tarjan_count_dfs<G, S>(
     index_counter: &mut usize,
 ) -> Result<usize, AlgorithmError<usize>>
 where
-    G: GraphRef<usize>,
+    G: Graph<usize>,
     S: Deque<usize>,
     AlgorithmError<usize>: From<G::Error>,
 {
@@ -291,9 +285,7 @@ where
     let mut component_count = 0;
 
     // Explore neighbors
-    for neighbor in graph.outgoing_edges(&node)? {
-        let neighbor_idx = *neighbor;
-
+    for neighbor_idx in graph.outgoing_edges(node)? {
         // Check bounds to prevent panic on invalid node indices
         if neighbor_idx >= state.len() {
             return Err(AlgorithmError::GraphError(

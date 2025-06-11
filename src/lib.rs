@@ -16,7 +16,7 @@
 //!     [(1_usize, 5), (5, 3), (7, 7)],
 //!     [7, 4, 3, 1, 5]).unwrap();
 //!   let mut visited = [false; 10];
-//!   dfs_recursive(&graph, &5, visited.as_mut_slice(), &mut |x| {
+//!   dfs_recursive(&graph, 5, visited.as_mut_slice(), &mut |x| {
 //!     println!("node: {}",x)
 //!   });
 //! ```
@@ -27,10 +27,10 @@
 //! array elements as [`Option`], and/or using a backing store like
 //! [`heapless::Vec`]
 //!
-//! The core abstractions is the [`GraphVal`] trait, which are automatically
+//! The core abstractions is the [`Graph`] trait, which are automatically
 //! implemented for edge list and adjacency list representations.
 //!
-//! [`GraphVal`]: graph::GraphVal
+//! [`Graph`]: graph::Graph
 //!
 pub mod adjacency_list;
 pub mod algorithms;
@@ -51,18 +51,6 @@ mod tests {
         let slice_len = iter
             .zip(dest.iter_mut())
             .map(|(item, slot)| *slot = item)
-            .count();
-        &mut dest[..slice_len]
-    }
-
-    // Collects items from an iterator into a slice, returning a slice of the items
-    pub(crate) fn collect_ref<'a, T: Copy + 'a, I: Iterator<Item = &'a T>>(
-        iter: I,
-        dest: &'a mut [T],
-    ) -> &'a mut [T] {
-        let slice_len = iter
-            .zip(dest.iter_mut())
-            .map(|(item, slot)| *slot = *item)
             .count();
         &mut dest[..slice_len]
     }

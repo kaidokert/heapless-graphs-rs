@@ -1,21 +1,21 @@
 use crate::edges::EdgeNodeError;
 
-use crate::graph::{GraphError, NodeIndexTrait};
+use crate::graph::{GraphError, NodeIndex};
 
 mod by_val;
 
 #[derive(Debug)]
-pub enum EdgeListError<NI: NodeIndexTrait> {
+pub enum EdgeListError<NI: NodeIndex> {
     EdgeNodeError(EdgeNodeError),
     GraphError(GraphError<NI>),
 }
 
-impl<NI: NodeIndexTrait> From<EdgeNodeError> for EdgeListError<NI> {
+impl<NI: NodeIndex> From<EdgeNodeError> for EdgeListError<NI> {
     fn from(e: EdgeNodeError) -> Self {
         EdgeListError::EdgeNodeError(e)
     }
 }
-impl<NI: NodeIndexTrait> From<GraphError<NI>> for EdgeListError<NI> {
+impl<NI: NodeIndex> From<GraphError<NI>> for EdgeListError<NI> {
     fn from(e: GraphError<NI>) -> Self {
         EdgeListError::GraphError(e)
     }
@@ -179,12 +179,12 @@ mod tests {
         let edges = [(0, 1), (1, 2), (2, 0)];
         let edge_list = EdgeList::<10, usize, _>::new(edges);
 
-        // Test that GraphVal trait is implemented
-        let edges_iter = crate::graph::GraphVal::iter_edges(&edge_list).unwrap();
+        // Test that Graph trait is implemented
+        let edges_iter = crate::graph::Graph::iter_edges(&edge_list).unwrap();
         assert_eq!(edges_iter.count(), 3);
 
         // Test node iteration (this uses EdgesToNodesIterator internally)
-        let nodes_iter = crate::graph::GraphVal::iter_nodes(&edge_list).unwrap();
+        let nodes_iter = crate::graph::Graph::iter_nodes(&edge_list).unwrap();
         let mut nodes = [0usize; 10];
         let nodes_slice = collect(nodes_iter, &mut nodes);
         nodes_slice.sort_unstable();

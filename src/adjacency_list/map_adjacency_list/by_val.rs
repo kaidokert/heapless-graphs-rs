@@ -1,13 +1,13 @@
 use crate::containers::maps::MapTrait;
-use crate::graph::{GraphError, GraphVal, NodeIndexTrait};
+use crate::graph::{Graph, GraphError, NodeIndex};
 use crate::nodes::NodesIterable;
 
 use super::{super::outgoing_nodes::AsOutgoingNodes, MapAdjacencyList};
 
-impl<NI, E, C, M> GraphVal<NI> for MapAdjacencyList<NI, E, C, M>
+impl<NI, E, C, M> Graph<NI> for MapAdjacencyList<NI, E, C, M>
 where
     M: MapTrait<NI, C>,
-    NI: NodeIndexTrait + Eq + core::hash::Hash + Copy,
+    NI: NodeIndex + Eq + core::hash::Hash + Copy,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
 {

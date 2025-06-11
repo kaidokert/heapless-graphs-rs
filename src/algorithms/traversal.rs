@@ -7,7 +7,7 @@
 use super::AlgorithmError;
 
 use crate::containers::queues::Deque;
-use crate::graph::{GraphVal, NodeIndexTrait};
+use crate::graph::{Graph, NodeIndex};
 use crate::visited::VisitedTracker;
 
 /// Unchecked depth first traversal
@@ -20,8 +20,8 @@ pub fn dfs_recursive_unchecked<G, NI, VT, F>(
     operation: &mut F,
 ) -> Result<(), G::Error>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     for<'a> F: FnMut(&'a NI),
 {
@@ -47,8 +47,8 @@ pub fn dfs_recursive<G, NI, VT, F>(
     operation: &mut F,
 ) -> Result<(), G::Error>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     for<'a> F: FnMut(&'a NI),
 {
@@ -69,8 +69,8 @@ pub fn dfs_iterative_unchecked<G, NI, VT, S, F>(
     operation: &mut F,
 ) -> Result<(), AlgorithmError<NI>>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     S: Deque<NI>,
     F: FnMut(NI),
@@ -109,8 +109,8 @@ pub fn dfs_iterative<G, NI, VT, S, F>(
     operation: &mut F,
 ) -> Result<(), AlgorithmError<NI>>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     S: Deque<NI>,
     F: FnMut(NI),
@@ -133,8 +133,8 @@ pub fn bfs_unchecked<G, NI, VT, Q, F>(
     operation: &mut F,
 ) -> Result<(), AlgorithmError<NI>>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     F: FnMut(NI),
@@ -172,8 +172,8 @@ pub fn bfs<G, NI, VT, Q, F>(
     operation: &mut F,
 ) -> Result<(), AlgorithmError<NI>>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     Q: Deque<NI>,
     F: FnMut(NI),
@@ -217,7 +217,7 @@ mod tests {
             EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 2), (2, 0), (2, 3), (3, 3)]);
         let mut visited = [false; 16];
         let mut collector = Collector::<usize, 16>::new();
-        dfs_recursive_unchecked(&graph, &0, visited.as_mut_slice(), &mut |x| {
+        dfs_recursive_unchecked(&graph, 0, visited.as_mut_slice(), &mut |x| {
             collector.push(*x);
         })
         .unwrap();

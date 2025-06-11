@@ -1,14 +1,14 @@
 use crate::{
     edges::{EdgeValuesIterable, EdgesIterable, EdgesToNodesIterator},
-    graph::{GraphVal, GraphValWithEdgeValues, NodeIndexTrait},
+    graph::{Graph, GraphWithEdgeValues, NodeIndex},
 };
 
 use super::{EdgeList, EdgeListError};
 
-impl<const N: usize, NI, E> GraphVal<NI> for EdgeList<N, NI, E>
+impl<const N: usize, NI, E> Graph<NI> for EdgeList<N, NI, E>
 where
     E: EdgesIterable<Node = NI>,
-    NI: NodeIndexTrait + Ord + Copy,
+    NI: NodeIndex + Ord,
 {
     type Error = EdgeListError<NI>;
 
@@ -20,10 +20,10 @@ where
     }
 }
 
-impl<const N: usize, NI, E, V> GraphValWithEdgeValues<NI, V> for EdgeList<N, NI, E>
+impl<const N: usize, NI, E, V> GraphWithEdgeValues<NI, V> for EdgeList<N, NI, E>
 where
     E: EdgeValuesIterable<V, Node = NI>,
-    NI: NodeIndexTrait + Ord + Copy,
+    NI: NodeIndex + Ord,
 {
     fn iter_edge_values<'a>(
         &'a self,
@@ -54,7 +54,7 @@ mod test {
         let edge_data = EdgeValueStruct([(0usize, 1usize, 5i32), (1, 2, 3), (0, 2, 8)]);
         let graph = EdgeList::<8, _, _>::new(edge_data);
 
-        // Test that GraphValWithEdgeValues is implemented
+        // Test that GraphWithEdgeValues is implemented
         let edge_values = graph.iter_edge_values().unwrap();
         let mut edges_with_values = [(0usize, 0usize, 0i32); 8];
         let mut len = 0;
@@ -75,7 +75,7 @@ mod test {
 
     #[test]
     fn test_edge_list_nodes_with_values() {
-        // Test that basic GraphVal methods still work with weighted edges
+        // Test that basic Graph methods still work with weighted edges
         let edge_data = EdgeValueStruct([(0usize, 1usize, 10i32), (2, 3, 20)]);
         let graph = EdgeList::<8, _, _>::new(edge_data);
 

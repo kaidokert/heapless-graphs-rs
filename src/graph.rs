@@ -2,22 +2,22 @@
 
 //! Core graph traits
 //!
-//! Defines the [`GraphVal`] trait and related error values
+//! Defines the [`Graph`] trait and related error values
 //! and sub-traits.
 
 /// Trait for types that can be used as node indices in graphs
 ///
-/// Node indices must support equality and ordering comparisons.
+/// Node indices must support equality, ordering comparisons, and copying.
 /// This is typically implemented for numeric types like `usize`, `u32`, etc.
-pub trait NodeIndexTrait: PartialEq + PartialOrd {}
-impl<T> NodeIndexTrait for T where T: PartialEq + PartialOrd {}
+pub trait NodeIndex: PartialEq + PartialOrd + Copy {}
+impl<T> NodeIndex for T where T: PartialEq + PartialOrd + Copy {}
 
 /// Errors that can occur during graph operations
 ///
 /// This enum represents various error conditions that may arise when working
 /// with graph structures, such as accessing non-existent nodes or edges.
 #[derive(PartialEq, Debug, Clone, Copy)]
-pub enum GraphError<NI: NodeIndexTrait> {
+pub enum GraphError<NI: NodeIndex> {
     /// Edge is referring to a node not present in graph
     EdgeHasInvalidNode,
     /// Given node wasn't found in the graph
@@ -28,30 +28,23 @@ pub enum GraphError<NI: NodeIndexTrait> {
     Unexpected,
 }
 
-/// Value-based graph trait for immutable graph access
+/// Core graph trait for immutable graph access
 ///
 /// This trait provides read-only access to graph structure through owned values.
-/// It's designed for cases where you can efficiently copy node indices and prefer
-/// to work with owned data rather than borrowed references.
-///
-/// Requires `NodeIndex: Copy` since iterators return owned values rather than references.
-pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
-    type Error: From<GraphError<NodeIndex>>;
+pub trait Graph<NI: NodeIndex> {
+    type Error: From<GraphError<NI>>;
 
     /// Return an iterator over all nodes in the graph
-    fn iter_nodes(&self) -> Result<impl Iterator<Item = NodeIndex>, Self::Error>;
+    fn iter_nodes(&self) -> Result<impl Iterator<Item = NI>, Self::Error>;
     /// Return an iterator over all edges in the graph
-    fn iter_edges(&self) -> Result<impl Iterator<Item = (NodeIndex, NodeIndex)>, Self::Error>;
+    fn iter_edges(&self) -> Result<impl Iterator<Item = (NI, NI)>, Self::Error>;
 
     /// Return an iterator over all outgoing edges for a node
     ///
     /// Default implementation filters all edges, which is inefficient.
     /// Implementers should override this method when they can provide
     /// direct access to outgoing edges (e.g., adjacency lists, matrices).
-    fn outgoing_edges(
-        &self,
-        node: NodeIndex,
-    ) -> Result<impl Iterator<Item = NodeIndex>, Self::Error> {
+    fn outgoing_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
         Ok(self
             .iter_edges()?
             .filter(move |(src, _dst)| *src == node)
@@ -63,10 +56,7 @@ pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
     /// Default implementation filters all edges, which is inefficient.
     /// Implementers should override this method when they can provide
     /// direct access to incoming edges (e.g., adjacency matrices).
-    fn incoming_edges(
-        &self,
-        node: NodeIndex,
-    ) -> Result<impl Iterator<Item = NodeIndex>, Self::Error> {
+    fn incoming_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
         Ok(self
             .iter_edges()?
             .filter(move |(_src, dst)| *dst == node)
@@ -78,19 +68,19 @@ pub trait GraphVal<NodeIndex: NodeIndexTrait + Copy> {
     /// Default implementation iterates all nodes, which is inefficient.
     /// Implementers should override this method when they can provide
     /// faster lookup (e.g., hash-based or tree-based storage).
-    fn contains_node(&self, node: NodeIndex) -> Result<bool, Self::Error> {
+    fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
         Ok(self.iter_nodes()?.any(|x| x == node))
     }
 }
 
-/// Extension of [`GraphVal`] that provides access to node values
+/// Extension of [`Graph`] that provides access to node values
 ///
 /// This trait extends basic graph functionality with the ability to associate
 /// values of type `NV` with each node in the graph. Node values are optional,
 /// allowing for sparse assignment of data to nodes.
-pub trait GraphValWithNodeValues<NI, NV>: GraphVal<NI>
+pub trait GraphWithNodeValues<NI, NV>: Graph<NI>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
 {
     /// Get the value associated with a node
     fn node_value(&self, node: NI) -> Result<Option<&NV>, Self::Error>;
@@ -102,14 +92,14 @@ where
         NV: 'a;
 }
 
-/// Extension of [`GraphVal`] that provides access to edge values
+/// Extension of [`Graph`] that provides access to edge values
 ///
 /// This trait extends basic graph functionality with the ability to associate
 /// values of type `EV` with each edge in the graph. Edge values are optional,
 /// allowing for sparse assignment of data to edges.
-pub trait GraphValWithEdgeValues<NI, EV>: GraphVal<NI>
+pub trait GraphWithEdgeValues<NI, EV>: Graph<NI>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
 {
     fn iter_edge_values<'a>(
         &'a self,
@@ -151,8 +141,8 @@ where
 /// data integrity and prevent invalid graph states.
 pub(crate) fn integrity_check<NI, G>(graph: &G) -> Result<(), G::Error>
 where
-    NI: NodeIndexTrait + Copy,
-    G: GraphVal<NI>,
+    NI: NodeIndex,
+    G: Graph<NI>,
 {
     for (src, dst) in graph.iter_edges()? {
         if !graph.contains_node(src)? {

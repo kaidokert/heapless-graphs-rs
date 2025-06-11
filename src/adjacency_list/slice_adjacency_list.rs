@@ -1,4 +1,4 @@
-use crate::graph::{integrity_check, GraphError, GraphVal, NodeIndexTrait};
+use crate::graph::{integrity_check, Graph, GraphError, NodeIndex};
 use crate::nodes::NodesIterable;
 
 use super::outgoing_nodes::AsOutgoingNodes;
@@ -7,7 +7,7 @@ mod by_val;
 
 pub struct SliceAdjacencyList<NI, E, C, T>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
     T: AsRef<[(NI, C)]>,
@@ -18,7 +18,7 @@ where
 
 impl<NI, E, C, T> SliceAdjacencyList<NI, E, C, T>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
     T: AsRef<[(NI, C)]>,
@@ -30,7 +30,7 @@ where
     pub fn new(nodes_container: T) -> Result<Self, GraphError<NI>>
     where
         NI: Copy,
-        Self: GraphVal<NI, Error = GraphError<NI>>,
+        Self: Graph<NI, Error = GraphError<NI>>,
     {
         let result = Self::new_unchecked(nodes_container);
         integrity_check::<NI, _>(&result)?;
@@ -48,7 +48,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::collect_ref;
+    use crate::tests::collect;
 
     #[test]
     fn test_slice_adjacency_list_new() {
@@ -56,10 +56,7 @@ mod tests {
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect_ref(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
-            &mut nodes,
-        );
+        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
@@ -69,10 +66,7 @@ mod tests {
         let graph = SliceAdjacencyList::new_unchecked(adj_list_data);
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect_ref(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
-            &mut nodes,
-        );
+        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
@@ -81,10 +75,7 @@ mod tests {
         let adj_list_data: [(usize, [usize; 0]); 0] = [];
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
-        assert_eq!(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap().count(),
-            0
-        );
+        assert_eq!(crate::graph::Graph::iter_nodes(&graph).unwrap().count(), 0);
     }
 
     #[test]
@@ -93,10 +84,7 @@ mod tests {
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
         let mut nodes = [0usize; 2];
-        let nodes_slice = collect_ref(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
-            &mut nodes,
-        );
+        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[42]);
     }
 }

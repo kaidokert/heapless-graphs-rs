@@ -1,6 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
-    graph::{GraphError, GraphVal, NodeIndexTrait},
+    graph::{Graph, GraphError, NodeIndex},
 };
 
 /// A bit-packed adjacency matrix with arbitrary node indices
@@ -10,7 +10,7 @@ use crate::{
 /// BitMatrix while supporting non-contiguous node identifiers.
 pub struct BitMapMatrix<const N: usize, NI, M>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     M: MapTrait<NI, usize>,
 {
     bitmap: super::bit_matrix::BitMatrix<N>,
@@ -20,7 +20,7 @@ where
 
 impl<const N: usize, NI, M> BitMapMatrix<N, NI, M>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     M: MapTrait<NI, usize>,
 {
     /// Creates a new BitMapMatrix with the given bitmap and index mapping
@@ -55,9 +55,9 @@ where
     }
 }
 
-impl<const N: usize, NI, M> GraphVal<NI> for BitMapMatrix<N, NI, M>
+impl<const N: usize, NI, M> Graph<NI> for BitMapMatrix<N, NI, M>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
     M: MapTrait<NI, usize>,
 {
     type Error = GraphError<NI>;

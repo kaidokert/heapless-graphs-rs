@@ -8,7 +8,7 @@
 
 use super::AlgorithmError;
 
-use crate::graph::{GraphRef, NodeIndexTrait};
+use crate::graph::{Graph, NodeIndex};
 use crate::visited::VisitedTracker;
 
 /// Find all connected components in an undirected graph
@@ -46,8 +46,8 @@ pub fn connected_components<'a, G, NI, VT>(
     node_buffer: &'a mut [NI],
 ) -> Result<usize, AlgorithmError<NI>>
 where
-    G: GraphRef<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
@@ -56,14 +56,14 @@ where
 
     // First pass: collect all components and store sizes
     for node in graph.iter_nodes()? {
-        if !visited.is_visited(node) {
+        if !visited.is_visited(&node) {
             if component_count >= components.len() {
                 return Err(AlgorithmError::ResultCapacityExceeded);
             }
 
             // Collect all nodes in this connected component
             let remaining_buffer = &mut node_buffer[buffer_offset..];
-            let component_size = dfs_component_collection(graph, node, visited, remaining_buffer)?;
+            let component_size = dfs_component_collection(graph, &node, visited, remaining_buffer)?;
 
             if buffer_offset + component_size > node_buffer.len() {
                 return Err(AlgorithmError::ResultCapacityExceeded);
@@ -99,8 +99,8 @@ fn dfs_component_collection<G, NI, VT>(
     buffer: &mut [NI],
 ) -> Result<usize, AlgorithmError<NI>>
 where
-    G: GraphRef<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
@@ -121,8 +121,8 @@ fn dfs_collect_recursive<G, NI, VT>(
     count: &mut usize,
 ) -> Result<(), AlgorithmError<NI>>
 where
-    G: GraphRef<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
@@ -141,9 +141,9 @@ where
     *count += 1;
 
     // Recursively visit all unvisited neighbors
-    for neighbor in graph.outgoing_edges(node)? {
-        if !visited.is_visited(neighbor) {
-            dfs_collect_recursive(graph, neighbor, visited, buffer, count)?;
+    for neighbor in graph.outgoing_edges(*node)? {
+        if !visited.is_visited(&neighbor) {
+            dfs_collect_recursive(graph, &neighbor, visited, buffer, count)?
         }
     }
 
@@ -159,17 +159,17 @@ pub fn count_connected_components<G, NI, VT>(
     visited: &mut VT,
 ) -> Result<usize, AlgorithmError<NI>>
 where
-    G: GraphRef<NI>,
-    NI: NodeIndexTrait,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
     let mut component_count = 0;
 
     for node in graph.iter_nodes()? {
-        if !visited.is_visited(node) {
+        if !visited.is_visited(&node) {
             // Start DFS from this unvisited node
-            dfs_mark_component(graph, node, visited)?;
+            dfs_mark_component(graph, &node, visited)?;
             component_count += 1;
         }
     }
@@ -184,8 +184,8 @@ fn dfs_mark_component<G, NI, VT>(
     visited: &mut VT,
 ) -> Result<(), AlgorithmError<NI>>
 where
-    G: GraphRef<NI>,
-    NI: NodeIndexTrait,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
@@ -195,9 +195,9 @@ where
 
     visited.mark_visited(start_node);
 
-    for neighbor in graph.outgoing_edges(start_node)? {
-        if !visited.is_visited(neighbor) {
-            dfs_mark_component(graph, neighbor, visited)?;
+    for neighbor in graph.outgoing_edges(*start_node)? {
+        if !visited.is_visited(&neighbor) {
+            dfs_mark_component(graph, &neighbor, visited)?;
         }
     }
 

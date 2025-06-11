@@ -4,7 +4,7 @@
 
 use super::AlgorithmError;
 use crate::containers::{maps::MapTrait, queues::Deque};
-use crate::graph::{GraphVal, NodeIndexTrait};
+use crate::graph::{Graph, NodeIndex};
 
 /// Kahn's algorithm for topological sorting
 ///
@@ -13,7 +13,7 @@ use crate::graph::{GraphVal, NodeIndexTrait};
 /// It detects cycles and returns an error if the graph is not a DAG.
 ///
 /// # Arguments
-/// * `graph` - The graph to sort topologically (must implement GraphVal)
+/// * `graph` - The graph to sort topologically (must implement Graph)
 /// * `queue` - Queue for BFS processing (nodes with zero in-degree)
 /// * `in_degree_map` - Map to track in-degree count for each node
 /// * `sorted_nodes` - Buffer to store the topologically sorted nodes
@@ -35,8 +35,8 @@ pub fn kahns<'a, G, NI, D, M>(
     sorted_nodes: &'a mut [NI],
 ) -> Result<&'a [NI], AlgorithmError<NI>>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     D: Deque<NI>,
     M: MapTrait<NI, isize>,
     AlgorithmError<NI>: From<G::Error>,

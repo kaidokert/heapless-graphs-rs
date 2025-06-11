@@ -4,7 +4,7 @@
 
 use super::AlgorithmError;
 use crate::containers::{maps::MapTrait, sets::SetTrait};
-use crate::graph::{GraphVal, NodeIndexTrait};
+use crate::graph::{Graph, NodeIndex};
 
 /// Greedy graph coloring algorithm
 ///
@@ -16,7 +16,7 @@ use crate::graph::{GraphVal, NodeIndexTrait};
 /// All nodes start uncolored and are colored by the algorithm.
 ///
 /// # Arguments
-/// * `graph` - Graph implementing GraphVal
+/// * `graph` - Graph implementing Graph
 /// * `color_assignment` - Map to store node-to-color assignments (None = uncolored)
 /// * `neighbor_colors` - Set for tracking neighbor colors during execution
 /// * `default` - Starting color value (typically 1)
@@ -37,8 +37,8 @@ pub fn greedy_color<NI, G, V, M, S>(
     increment: V,
 ) -> Result<M, AlgorithmError<NI>>
 where
-    NI: NodeIndexTrait + Copy,
-    G: GraphVal<NI>,
+    NI: NodeIndex,
+    G: Graph<NI>,
     M: MapTrait<NI, Option<V>>,
     S: SetTrait<Option<V>>,
     V: Copy + Ord + core::ops::Add<Output = V>,

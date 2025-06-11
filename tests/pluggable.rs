@@ -22,7 +22,7 @@ fn test_hybrid_array_nodes() {
     let nodes = NodeStructArray(Array::<_, U4>([1_usize, 2, 3, 4]));
     let graph = EdgeNodeList::new(edges, nodes).unwrap();
     let mut visited = [false; 8];
-    dfs_recursive(&graph, &4, visited.as_mut_slice(), &mut |node| {
+    dfs_recursive(&graph, 4, visited.as_mut_slice(), &mut |node| {
         println!("Visited node: {}", node);
     })
     .expect("DFS failed");

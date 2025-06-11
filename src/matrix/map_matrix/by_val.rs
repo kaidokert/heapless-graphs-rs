@@ -1,14 +1,14 @@
 use crate::{
     containers::maps::MapTrait,
-    graph::{GraphError, GraphVal, GraphValWithEdgeValues, NodeIndexTrait},
+    graph::{Graph, GraphError, GraphWithEdgeValues, NodeIndex},
 };
 
 use super::MapMatrix;
 
-impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> GraphVal<NI>
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> Graph<NI>
     for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
     M: MapTrait<NI, usize>,
@@ -75,10 +75,10 @@ where
     }
 }
 
-impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> GraphValWithEdgeValues<NI, EDGEVALUE>
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> GraphWithEdgeValues<NI, EDGEVALUE>
     for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
     ROW: AsRef<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]>,
     M: MapTrait<NI, usize>,
@@ -135,7 +135,7 @@ mod tests {
         >;
         let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
-        // Test GraphVal iter_nodes (returns owned values)
+        // Test Graph iter_nodes (returns owned values)
         let mut nodes = [0u32; 8];
         let mut count = 0;
         for node in map_matrix.iter_nodes().unwrap() {
@@ -187,7 +187,7 @@ mod tests {
         >;
         let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
-        // Test GraphVal iter_edges (returns owned values)
+        // Test Graph iter_edges (returns owned values)
         let mut edges = [(0u32, 0u32); 16];
         let mut count = 0;
         for (src, dst) in map_matrix.iter_edges().unwrap() {
@@ -242,7 +242,7 @@ mod tests {
         >;
         let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
-        // Test outgoing edges from node 10 (GraphVal version)
+        // Test outgoing edges from node 10 (Graph version)
         let mut targets = [0u32; 8];
         let mut count = 0;
         for target in map_matrix.outgoing_edges(10).unwrap() {
@@ -307,7 +307,7 @@ mod tests {
         >;
         let map_matrix = ValMatrix::new(matrix, index_map).unwrap();
 
-        // Test GraphVal contains_node
+        // Test Graph contains_node
         assert!(map_matrix.contains_node(42).unwrap());
         assert!(map_matrix.contains_node(84).unwrap());
         assert!(!map_matrix.contains_node(999).unwrap());

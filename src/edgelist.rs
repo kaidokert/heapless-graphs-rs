@@ -3,9 +3,9 @@
 //! Edge list graphs
 //!
 //! This module provides edge list graph structures that implement the
-//! and [`GraphVal`] trait.
+//! and [`Graph`] trait.
 //!
-//! [`GraphVal`]: crate::graph::GraphVal
+//! [`Graph`]: crate::graph::Graph
 
 pub mod edge_list;
 pub mod edge_node_list;

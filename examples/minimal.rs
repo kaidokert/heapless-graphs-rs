@@ -8,7 +8,7 @@ fn main() {
     // Visited array tracker
     let mut visited = [false; 10];
     // Do a depth-first traversal, starting from node 5
-    dfs_recursive(&graph, &5, visited.as_mut_slice(), &mut |x| {
+    dfs_recursive(&graph, 5, visited.as_mut_slice(), &mut |x| {
         println!("node: {}", x)
     })
     .unwrap();

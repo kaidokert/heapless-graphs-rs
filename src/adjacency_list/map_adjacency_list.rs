@@ -1,5 +1,5 @@
 use crate::containers::maps::MapTrait;
-use crate::graph::{integrity_check, GraphError, GraphVal, NodeIndexTrait};
+use crate::graph::{integrity_check, Graph, GraphError, NodeIndex};
 use crate::nodes::NodesIterable;
 
 use super::outgoing_nodes::AsOutgoingNodes;
@@ -8,7 +8,7 @@ mod by_val;
 
 pub struct MapAdjacencyList<NI, E, C, M>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
     M: MapTrait<NI, C>,
@@ -19,7 +19,7 @@ where
 
 impl<NI, E, C, M> MapAdjacencyList<NI, E, C, M>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     E: NodesIterable<Node = NI>,
     C: AsOutgoingNodes<NI, E>,
     M: MapTrait<NI, C>,
@@ -31,7 +31,7 @@ where
     pub fn new(nodes: M) -> Result<Self, GraphError<NI>>
     where
         NI: Copy,
-        Self: GraphVal<NI, Error = GraphError<NI>>,
+        Self: Graph<NI, Error = GraphError<NI>>,
     {
         let result = Self::new_unchecked(nodes);
         integrity_check::<NI, _>(&result)?;
@@ -50,7 +50,7 @@ where
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
-    use crate::tests::collect_ref;
+    use crate::tests::collect;
 
     #[test]
     fn test_map_adjacency_list_new() {
@@ -62,10 +62,7 @@ mod tests {
         let graph = MapAdjacencyList::new(dict).unwrap();
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect_ref(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
-            &mut nodes,
-        );
+        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
         nodes_slice.sort_unstable();
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
@@ -80,10 +77,7 @@ mod tests {
         let graph = MapAdjacencyList::new_unchecked(dict);
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect_ref(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
-            &mut nodes,
-        );
+        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
         nodes_slice.sort_unstable();
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
@@ -93,10 +87,7 @@ mod tests {
         let dict = Dictionary::<usize, [usize; 0], 5>::new();
         let graph = MapAdjacencyList::new(dict).unwrap();
 
-        assert_eq!(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap().count(),
-            0
-        );
+        assert_eq!(crate::graph::Graph::iter_nodes(&graph).unwrap().count(), 0);
     }
 
     #[test]
@@ -107,10 +98,7 @@ mod tests {
         let graph = MapAdjacencyList::new(dict).unwrap();
 
         let mut nodes = [0usize; 2];
-        let nodes_slice = collect_ref(
-            crate::graph::GraphVal::iter_nodes(&graph).unwrap(),
-            &mut nodes,
-        );
+        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[42]);
     }
 }

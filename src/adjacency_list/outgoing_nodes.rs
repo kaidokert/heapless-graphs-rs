@@ -1,10 +1,10 @@
-use crate::graph::NodeIndexTrait;
+use crate::graph::NodeIndex;
 use crate::nodes::NodesIterable;
 
 /// A list of outgoing nodes from a node, in an adjacency list.
 pub trait AsOutgoingNodes<NI, E>
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     E: NodesIterable<Node = NI>,
 {
     type Iter<'a>: DoubleEndedIterator<Item = &'a NI>
@@ -18,7 +18,7 @@ where
 
 impl<E, NI> AsOutgoingNodes<NI, E> for E
 where
-    NI: NodeIndexTrait,
+    NI: NodeIndex,
     E: NodesIterable<Node = NI>,
 {
     type Iter<'a>

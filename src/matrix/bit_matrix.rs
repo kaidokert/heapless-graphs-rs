@@ -1,4 +1,4 @@
-use crate::graph::{GraphError, GraphVal};
+use crate::graph::{Graph, GraphError};
 
 // Store edges in bits
 pub struct BitMatrix<const N: usize> {
@@ -20,7 +20,7 @@ impl<const N: usize> BitMatrix<N> {
     }
 }
 
-impl<const N: usize> GraphVal<usize> for BitMatrix<N> {
+impl<const N: usize> Graph<usize> for BitMatrix<N> {
     type Error = GraphError<usize>;
 
     fn iter_nodes(&self) -> Result<impl Iterator<Item = usize>, Self::Error> {

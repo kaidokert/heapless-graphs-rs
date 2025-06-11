@@ -3,7 +3,7 @@
 //! Topological sorting algorithms for directed acyclic graphs (DAGs)
 
 use super::AlgorithmError;
-use crate::graph::{GraphVal, NodeIndexTrait};
+use crate::graph::{Graph, NodeIndex};
 use crate::visited::TriStateVisitedTracker;
 
 fn topological_sort_dfs_visit<G, NI, VT>(
@@ -14,8 +14,8 @@ fn topological_sort_dfs_visit<G, NI, VT>(
     sort_index: &mut usize,
 ) -> Result<(), AlgorithmError<NI>>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: TriStateVisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
@@ -50,7 +50,7 @@ where
 /// The algorithm detects cycles and returns an error if the graph is not a DAG.
 ///
 /// # Arguments
-/// * `graph` - The graph to sort topologically (must implement GraphVal)
+/// * `graph` - The graph to sort topologically (must implement Graph)
 /// * `visited` - Tri-state visited tracker (unvisited/visiting/visited)
 /// * `sorted_nodes` - Buffer to store the topologically sorted nodes
 ///
@@ -67,8 +67,8 @@ pub fn topological_sort_dfs<'a, G, NI, VT>(
     sorted_nodes: &'a mut [NI],
 ) -> Result<&'a [NI], AlgorithmError<NI>>
 where
-    G: GraphVal<NI>,
-    NI: NodeIndexTrait + Copy,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: TriStateVisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {

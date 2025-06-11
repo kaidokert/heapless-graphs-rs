@@ -1,14 +1,14 @@
 use crate::{
     edges::EdgesIterable,
-    graph::{GraphError, GraphVal, GraphValWithEdgeValues, GraphValWithNodeValues, NodeIndexTrait},
+    graph::{Graph, GraphError, GraphWithEdgeValues, GraphWithNodeValues, NodeIndex},
     nodes::{NodesIterable, NodesValuesIterable},
 };
 
 use super::EdgeNodeList;
 
-impl<NI, E, N> GraphVal<NI> for EdgeNodeList<NI, E, N>
+impl<NI, E, N> Graph<NI> for EdgeNodeList<NI, E, N>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
     N: NodesIterable<Node = NI>,
     E: EdgesIterable<Node = NI>,
 {
@@ -23,9 +23,9 @@ where
     }
 }
 
-impl<NI, E, N, V> GraphValWithNodeValues<NI, V> for EdgeNodeList<NI, E, N>
+impl<NI, E, N, V> GraphWithNodeValues<NI, V> for EdgeNodeList<NI, E, N>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
     N: NodesValuesIterable<V, Node = NI>,
     E: EdgesIterable<Node = NI>,
 {
@@ -47,9 +47,9 @@ where
     }
 }
 
-impl<NI, E, N, V> GraphValWithEdgeValues<NI, V> for EdgeNodeList<NI, E, N>
+impl<NI, E, N, V> GraphWithEdgeValues<NI, V> for EdgeNodeList<NI, E, N>
 where
-    NI: NodeIndexTrait + Copy,
+    NI: NodeIndex,
     N: NodesIterable<Node = NI>,
     E: EdgesIterable<Node = NI> + crate::edges::EdgeValuesIterable<V, Node = NI>,
 {
@@ -84,7 +84,7 @@ mod test {
         let edge_data = EdgeValueStruct([(0usize, 1usize, 5i32), (1, 2, 3), (0, 2, 8)]);
         let graph = EdgeNodeList::new(edge_data, [0, 1, 2]).unwrap();
 
-        // Test that GraphValWithEdgeValues is implemented
+        // Test that GraphWithEdgeValues is implemented
         let mut edges_with_values = [(0usize, 0usize, 0i32); 8];
         let mut len = 0;
 

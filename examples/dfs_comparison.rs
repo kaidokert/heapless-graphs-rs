@@ -12,7 +12,7 @@ fn main() {
 
     println!("DFS Recursive traversal starting from node 0:");
     let mut visited = [false; 10];
-    dfs_recursive(&graph, &0, visited.as_mut_slice(), &mut |x| {
+    dfs_recursive(&graph, 0, visited.as_mut_slice(), &mut |x| {
         println!("visited: {}", x)
     })
     .unwrap();
