@@ -1,8 +1,6 @@
 use crate::edges::EdgeNodeError;
 
-use crate::graph::{GraphError, NodeIndex};
-
-mod by_val;
+use crate::graph::{Graph, GraphError, NodeIndex};
 
 #[derive(Debug)]
 pub enum EdgeListError<NI: NodeIndex> {
@@ -54,11 +52,41 @@ impl<const N: usize, NI, E> EdgeList<N, NI, E> {
     }
 }
 
+impl<const N: usize, NI, E> Graph<NI> for EdgeList<N, NI, E>
+where
+    E: crate::edges::EdgesIterable<Node = NI>,
+    NI: NodeIndex + Ord,
+{
+    type Error = EdgeListError<NI>;
+
+    fn iter_edges(&self) -> Result<impl Iterator<Item = (NI, NI)>, Self::Error> {
+        Ok(self.edges.iter_edges().map(|(a, b)| (*a, *b)))
+    }
+    fn iter_nodes(&self) -> Result<impl Iterator<Item = NI>, Self::Error> {
+        Ok(crate::edges::EdgesToNodesIterator::<N, NI>::new(&self.edges)?.copied())
+    }
+}
+
+impl<const N: usize, NI, E, V> crate::graph::GraphWithEdgeValues<NI, V> for EdgeList<N, NI, E>
+where
+    E: crate::edges::EdgeValuesIterable<V, Node = NI>,
+    NI: NodeIndex + Ord,
+{
+    fn iter_edge_values<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = (NI, NI, Option<&'a V>)>, Self::Error>
+    where
+        V: 'a,
+    {
+        Ok(self.edges.iter_edges_values().map(|(a, b, v)| (*a, *b, v)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::edges::EdgeNodeError;
-    use crate::graph::GraphError;
+    use crate::graph::{GraphError, GraphWithEdgeValues};
     use crate::tests::collect;
 
     #[test]
@@ -189,5 +217,98 @@ mod tests {
         let nodes_slice = collect(nodes_iter, &mut nodes);
         nodes_slice.sort_unstable();
         assert_eq!(nodes_slice, &[0, 1, 2]);
+    }
+
+    #[test]
+    fn test_edge_list() {
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 2)]);
+        // Test iteration without println for no_std compatibility
+        let _: () = graph.iter_nodes().unwrap().for_each(|_x| {});
+    }
+
+    #[test]
+    fn test_edge_list_with_values() {
+        // Create a graph with edge weights using EdgeValueStruct
+        let edge_data =
+            crate::edges::EdgeValueStruct([(0usize, 1usize, 5i32), (1, 2, 3), (0, 2, 8)]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
+
+        // Test that GraphWithEdgeValues is implemented
+        let edge_values = graph.iter_edge_values().unwrap();
+        let mut edges_with_values = [(0usize, 0usize, 0i32); 8];
+        let mut len = 0;
+
+        for (src, dst, weight_opt) in edge_values {
+            if let Some(weight) = weight_opt {
+                edges_with_values[len] = (src, dst, *weight);
+                len += 1;
+            }
+        }
+
+        assert_eq!(len, 3);
+        assert_eq!(
+            &edges_with_values[..len],
+            &[(0, 1, 5), (1, 2, 3), (0, 2, 8)]
+        );
+    }
+
+    #[test]
+    fn test_edge_list_nodes_with_values() {
+        // Test that basic Graph methods still work with weighted edges
+        let edge_data = crate::edges::EdgeValueStruct([(0usize, 1usize, 10i32), (2, 3, 20)]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
+
+        let nodes = graph.iter_nodes().unwrap();
+        let mut node_list = [0usize; 8];
+        let node_slice = collect(nodes, &mut node_list);
+        assert_eq!(node_slice, &[0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_edge_list_incoming_edge_values() {
+        // Create a graph with edge weights using EdgeValueStruct
+        let edge_data = crate::edges::EdgeValueStruct([
+            (0usize, 1usize, 5i32), // 0 -> 1 with weight 5
+            (1, 2, 3),              // 1 -> 2 with weight 3
+            (0, 2, 8),              // 0 -> 2 with weight 8
+            (3, 1, 7),              // 3 -> 1 with weight 7
+        ]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
+
+        // Test incoming edge values for node 1
+        let mut incoming = [(0usize, 0i32); 8];
+        let incoming_slice = collect(
+            graph
+                .incoming_edge_values(1)
+                .unwrap()
+                .filter_map(|(src, weight)| weight.map(|w| (src, *w))),
+            &mut incoming,
+        );
+        assert_eq!(incoming_slice, &[(0, 5), (3, 7)]);
+
+        // Test incoming edge values for node 2
+        let mut incoming = [(0usize, 0i32); 8];
+        let incoming_slice = collect(
+            graph
+                .incoming_edge_values(2)
+                .unwrap()
+                .filter_map(|(src, weight)| weight.map(|w| (src, *w))),
+            &mut incoming,
+        );
+        assert_eq!(incoming_slice, &[(1, 3), (0, 8)]);
+
+        // Test incoming edge values for node 0 (no incoming edges)
+        let mut incoming = [(0usize, 0i32); 8];
+        let incoming_slice = collect(
+            graph
+                .incoming_edge_values(0)
+                .unwrap()
+                .filter_map(|(src, weight)| weight.map(|w| (src, *w))),
+            &mut incoming,
+        );
+        assert_eq!(incoming_slice, &[]);
+
+        // Test incoming edge values for non-existent node
+        assert_eq!(graph.incoming_edge_values(99).unwrap().count(), 0);
     }
 }
