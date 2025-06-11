@@ -93,7 +93,7 @@ mod tests {
         let graph = MapAdjacencyList::new(dict).unwrap();
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
         nodes_slice.sort_unstable();
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
@@ -108,7 +108,7 @@ mod tests {
         let graph = MapAdjacencyList::new_unchecked(dict);
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
         nodes_slice.sort_unstable();
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
@@ -118,7 +118,7 @@ mod tests {
         let dict = Dictionary::<usize, [usize; 0], 5>::new();
         let graph = MapAdjacencyList::new(dict).unwrap();
 
-        assert_eq!(crate::graph::Graph::iter_nodes(&graph).unwrap().count(), 0);
+        assert_eq!(graph.iter_nodes().unwrap().count(), 0);
     }
 
     #[test]
@@ -129,7 +129,7 @@ mod tests {
         let graph = MapAdjacencyList::new(dict).unwrap();
 
         let mut nodes = [0usize; 2];
-        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[42]);
     }
 

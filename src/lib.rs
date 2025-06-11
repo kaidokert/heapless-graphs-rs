@@ -27,8 +27,8 @@
 //! array elements as [`Option`], and/or using a backing store like
 //! [`heapless::Vec`]
 //!
-//! The core abstractions is the [`Graph`] trait, which are automatically
-//! implemented for edge list and adjacency list representations.
+//! The core abstraction is the [`Graph`] trait, which is automatically
+//! implemented for edge-list and adjacency-list representations.
 //!
 //! [`Graph`]: graph::Graph
 //!

@@ -97,7 +97,7 @@ mod tests {
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
@@ -107,7 +107,7 @@ mod tests {
         let graph = SliceAdjacencyList::new_unchecked(adj_list_data);
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
@@ -116,7 +116,7 @@ mod tests {
         let adj_list_data: [(usize, [usize; 0]); 0] = [];
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
-        assert_eq!(crate::graph::Graph::iter_nodes(&graph).unwrap().count(), 0);
+        assert_eq!(graph.iter_nodes().unwrap().count(), 0);
     }
 
     #[test]
@@ -125,7 +125,7 @@ mod tests {
         let graph = SliceAdjacencyList::new(adj_list_data).unwrap();
 
         let mut nodes = [0usize; 2];
-        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[42]);
     }
 
@@ -188,19 +188,11 @@ mod tests {
 
         // Test node 2 outgoing edges
         let mut edges = [0usize; 4];
-        let edges_slice = collect(
-            crate::graph::Graph::outgoing_edges(&graph, 2).unwrap(),
-            &mut edges,
-        );
+        let edges_slice = collect(graph.outgoing_edges(2).unwrap(), &mut edges);
         assert_eq!(edges_slice, &[0, 0]);
 
         // Test non-existent node
-        assert_eq!(
-            crate::graph::Graph::outgoing_edges(&graph, 99)
-                .unwrap()
-                .count(),
-            0
-        );
+        assert_eq!(graph.outgoing_edges(99).unwrap().count(), 0);
     }
 
     #[test]
@@ -209,14 +201,14 @@ mod tests {
         let graph = SliceAdjacencyList::new_unchecked(adj_list_data);
 
         // Test empty node iteration
-        assert_eq!(crate::graph::Graph::iter_nodes(&graph).unwrap().count(), 0);
+        assert_eq!(graph.iter_nodes().unwrap().count(), 0);
 
         // Test empty edge iteration
-        assert_eq!(crate::graph::Graph::iter_edges(&graph).unwrap().count(), 0);
+        assert_eq!(graph.iter_edges().unwrap().count(), 0);
 
         // Test contains_node on empty graph
-        assert!(!crate::graph::Graph::contains_node(&graph, 0).unwrap());
-        assert!(!crate::graph::Graph::contains_node(&graph, 42).unwrap());
+        assert!(!graph.contains_node(0).unwrap());
+        assert!(!graph.contains_node(42).unwrap());
     }
 
     #[test]
@@ -227,7 +219,7 @@ mod tests {
         // Test self-loop edges
         let mut edges = [(0usize, 0usize); 8];
         let mut len = 0;
-        for edge in crate::graph::Graph::iter_edges(&graph).unwrap() {
+        for edge in graph.iter_edges().unwrap() {
             edges[len] = edge;
             len += 1;
         }
@@ -239,10 +231,7 @@ mod tests {
 
         // Test outgoing edges with self-loops
         let mut edges = [0usize; 4];
-        let edges_slice = collect(
-            crate::graph::Graph::outgoing_edges(&graph, 0).unwrap(),
-            &mut edges,
-        );
+        let edges_slice = collect(graph.outgoing_edges(0).unwrap(), &mut edges);
         assert_eq!(edges_slice, &[0, 1]);
     }
 
@@ -253,23 +242,18 @@ mod tests {
 
         // Test single node
         let mut nodes = [0usize; 2];
-        let nodes_slice = collect(crate::graph::Graph::iter_nodes(&graph).unwrap(), &mut nodes);
+        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[42]);
 
         // Test contains_node
-        assert!(crate::graph::Graph::contains_node(&graph, 42).unwrap());
-        assert!(!crate::graph::Graph::contains_node(&graph, 0).unwrap());
+        assert!(graph.contains_node(42).unwrap());
+        assert!(!graph.contains_node(0).unwrap());
 
         // Test no edges
-        assert_eq!(crate::graph::Graph::iter_edges(&graph).unwrap().count(), 0);
+        assert_eq!(graph.iter_edges().unwrap().count(), 0);
 
         // Test no outgoing edges
-        assert_eq!(
-            crate::graph::Graph::outgoing_edges(&graph, 42)
-                .unwrap()
-                .count(),
-            0
-        );
+        assert_eq!(graph.outgoing_edges(42).unwrap().count(), 0);
     }
 
     #[test]
@@ -280,7 +264,7 @@ mod tests {
         // Test multiple edges pointing to same target
         let mut edges = [(0usize, 0usize); 8];
         let mut len = 0;
-        for edge in crate::graph::Graph::iter_edges(&graph).unwrap() {
+        for edge in graph.iter_edges().unwrap() {
             edges[len] = edge;
             len += 1;
         }
@@ -293,8 +277,8 @@ mod tests {
         assert_eq!(edges[5], (1, 0));
 
         // Test contains_node for all nodes
-        assert!(crate::graph::Graph::contains_node(&graph, 0).unwrap());
-        assert!(crate::graph::Graph::contains_node(&graph, 1).unwrap());
-        assert!(crate::graph::Graph::contains_node(&graph, 2).unwrap());
+        assert!(graph.contains_node(0).unwrap());
+        assert!(graph.contains_node(1).unwrap());
+        assert!(graph.contains_node(2).unwrap());
     }
 }

@@ -7,6 +7,9 @@ where
     NI: NodeIndex,
     E: NodesIterable<Node = NI>,
 {
+    // NOTE: `E` is intentionally retained so the `NodesIterable`
+    //       bound propagates to call-sites without explicit
+    //       iterator type annotation. Removing it breaks inference.
     type Iter<'a>: DoubleEndedIterator<Item = &'a NI>
     where
         NI: 'a,

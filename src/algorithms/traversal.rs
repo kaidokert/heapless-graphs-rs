@@ -23,11 +23,11 @@ where
     G: Graph<NI>,
     NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
-    for<'a> F: FnMut(&'a NI),
+    F: FnMut(NI),
 {
     if !visited.is_visited(&start_node) {
         visited.mark_visited(&start_node);
-        operation(&start_node);
+        operation(start_node);
     }
     for next_node in graph.outgoing_edges(start_node)? {
         if !visited.is_visited(&next_node) {
@@ -50,7 +50,7 @@ where
     G: Graph<NI>,
     NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
-    for<'a> F: FnMut(&'a NI),
+    F: FnMut(NI),
 {
     if !graph.contains_node(start_node)? {
         return Ok(());
@@ -218,7 +218,7 @@ mod tests {
         let mut visited = [false; 16];
         let mut collector = Collector::<usize, 16>::new();
         dfs_recursive_unchecked(&graph, 0, visited.as_mut_slice(), &mut |x| {
-            collector.push(*x);
+            collector.push(x);
         })
         .unwrap();
         assert_eq!(collector.result(), &[0, 1, 2, 3]);

@@ -208,11 +208,11 @@ mod tests {
         let edge_list = EdgeList::<10, usize, _>::new(edges);
 
         // Test that Graph trait is implemented
-        let edges_iter = crate::graph::Graph::iter_edges(&edge_list).unwrap();
+        let edges_iter = edge_list.iter_edges().unwrap();
         assert_eq!(edges_iter.count(), 3);
 
         // Test node iteration (this uses EdgesToNodesIterator internally)
-        let nodes_iter = crate::graph::Graph::iter_nodes(&edge_list).unwrap();
+        let nodes_iter = edge_list.iter_nodes().unwrap();
         let mut nodes = [0usize; 10];
         let nodes_slice = collect(nodes_iter, &mut nodes);
         nodes_slice.sort_unstable();

@@ -22,9 +22,9 @@ Graphs are composed of Edges ( always ) and Nodes ( sometimes ).
 ## Node Index or NI
 
 All traits are generic over a notion of "Node Index" or NI, that can be
-mostly any type that implements PartialEq + PartialOrd (NodeIndexTrait).
+mostly any type that implements PartialEq + PartialOrd (NodeIndex).
 
-For GraphVal traits, NI requires Copy since iterators return owned values.
+NI also requires Copy, since iterators return owned values.
 
 ## Node + Edge structs
 Nodes and Edges are arbitrary structures with different memory layouts.

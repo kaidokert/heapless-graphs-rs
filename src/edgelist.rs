@@ -2,10 +2,11 @@
 
 //! Edge list graphs
 //!
-//! This module provides edge list graph structures that implement the
-//! and [`Graph`] trait.
+//! This module provides edge list graph structures implementing the
+//! [`Graph`] and [`GraphWithEdgeValues`] traits.
 //!
 //! [`Graph`]: crate::graph::Graph
+//! [`GraphWithEdgeValues`]: crate::graph::GraphWithEdgeValues
 
 pub mod edge_list;
 pub mod edge_node_list;

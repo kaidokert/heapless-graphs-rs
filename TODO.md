@@ -43,11 +43,11 @@ Path Finding Algorithms:
 Graph Traversal:
 - [x] Topological Sort: Orders nodes in a Directed Acyclic Graph (DAG) such that for every directed edge u -> v, u appears before v.
 - [x] Kahn's for topological sort - order a graph without considering a starting node
-- [ ] Connected Components: Identifies and returns all connected components in an undirected graph.
+- [x] Connected Components: Identifies and returns all connected components in an undirected graph.
 
 Graph Properties:
 - [x] Cycle Detection: Detects cycles in a graph, useful for ensuring acyclic properties in DAGs and dependency graphs.
-- [ ] Strongly Connected Components (SCC): Finds SCCs in a directed graph using Kosaraju's or Tarjan's algorithm.
+- [x] Strongly Connected Components (SCC): Finds SCCs in a directed graph using Kosaraju's or Tarjan's algorithm.
 - [x] Minimum Spanning Tree (MST): Finds the minimum spanning tree in a graph using algorithms like Kruskal's or Prim's.
 - [x] Graph Coloring: Greedy coloring algorithm to assign colors to vertices such that no adjacent vertices share the same color.
 
