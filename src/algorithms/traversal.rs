@@ -188,7 +188,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edgelist::edge_list::EdgeList;
+    use crate::{containers::queues::CircularQueue, edgelist::edge_list::EdgeList};
     use test_log::test;
 
     struct Collector<T, const N: usize> {
@@ -363,5 +363,34 @@ mod tests {
         assert!(collector.result().contains(&1));
         assert!(collector.result().contains(&2));
         assert!(collector.result().contains(&3));
+    }
+
+    // playground
+    fn the_test<G, NI, Q, VT>(
+        graph: &G,
+        mut q: Q, 
+        start_node: NI,
+        visited: &mut VT,
+    ) where 
+    G: GraphRef<NI>,
+    NI: NodeIndexTrait + core::fmt::Debug,
+    Q: Deque<NI> ,
+    VT: VisitedTracker<NI> + ?Sized,
+    {
+        q.push_back(start_node).unwrap();
+        while let Some(node) = q.pop_back() {
+
+        }
+    }
+
+
+    #[test]
+    fn test_dict_with_refs() {
+        let mut q = CircularQueue::<&usize, 16>::new();
+        let test_value = 3;
+        let graph = EdgeList::<8, _, _>::new(
+            [(&0usize, &1usize), (&0, &2), (&1, &3)]);
+        let mut visited = [false; 16];
+        the_test(&graph, q, &test_value, visited.as_mut_slice());
     }
 }
