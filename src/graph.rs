@@ -9,6 +9,10 @@
 ///
 /// Node indices must support equality, ordering comparisons, and copying.
 /// This is typically implemented for numeric types like `usize`, `u32`, etc.
+///
+/// The trait is automatically implemented for any type that satisfies the bounds,
+/// making it easy to use custom index types while ensuring they have the required
+/// operations for graph algorithms.
 pub trait NodeIndex: PartialEq + PartialOrd + Copy {}
 impl<T> NodeIndex for T where T: PartialEq + PartialOrd + Copy {}
 
@@ -31,6 +35,12 @@ pub enum GraphError<NI: NodeIndex> {
 /// Core graph trait for immutable graph access
 ///
 /// This trait provides read-only access to graph structure through owned values.
+/// It forms the foundation for all graph representations in this library, with
+/// concrete implementations like [`EdgeNodeList`](crate::edgelist::edge_node_list::EdgeNodeList)
+/// and adjacency list representations.
+///
+/// All methods return owned values rather than references for better ergonomics,
+/// though this may require cloning for some implementations.
 pub trait Graph<NI: NodeIndex> {
     type Error: From<GraphError<NI>>;
 
@@ -65,9 +75,9 @@ pub trait Graph<NI: NodeIndex> {
 
     /// Check if a node is present in the graph
     ///
-    /// Default implementation iterates all nodes, which is inefficient.
+    /// **Performance Warning**: Default implementation iterates all nodes, which is O(n).
     /// Implementers should override this method when they can provide
-    /// faster lookup (e.g., hash-based or tree-based storage).
+    /// faster lookup (e.g., hash-based storage for O(1) or tree-based storage for O(log n)).
     fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
         Ok(self.iter_nodes()?.any(|x| x == node))
     }
@@ -78,6 +88,10 @@ pub trait Graph<NI: NodeIndex> {
 /// This trait extends basic graph functionality with the ability to associate
 /// values of type `NV` with each node in the graph. Node values are optional,
 /// allowing for sparse assignment of data to nodes.
+///
+/// Useful for algorithms that need to store additional data with nodes,
+/// such as distances in shortest path algorithms, colors in graph coloring,
+/// or any domain-specific node attributes.
 pub trait GraphWithNodeValues<NI, NV>: Graph<NI>
 where
     NI: NodeIndex,
@@ -97,6 +111,10 @@ where
 /// This trait extends basic graph functionality with the ability to associate
 /// values of type `EV` with each edge in the graph. Edge values are optional,
 /// allowing for sparse assignment of data to edges.
+///
+/// Commonly used for weighted graphs where edges have costs, capacities,
+/// distances, or other numeric values. Also useful for storing metadata
+/// about relationships between nodes.
 pub trait GraphWithEdgeValues<NI, EV>: Graph<NI>
 where
     NI: NodeIndex,
@@ -107,6 +125,11 @@ where
     where
         EV: 'a;
 
+    /// Return outgoing edges with values for a specific node
+    ///
+    /// **Performance Warning**: Default implementation filters all edges, which is O(E).
+    /// Implementers should override this method when they can provide
+    /// direct access to outgoing edges (e.g., adjacency lists).
     fn outgoing_edge_values<'a>(
         &'a self,
         node: NI,
@@ -120,6 +143,11 @@ where
             .map(|(_src, dst, weight)| (dst, weight)))
     }
 
+    /// Return incoming edges with values for a specific node
+    ///
+    /// **Performance Warning**: Default implementation filters all edges, which is O(E).
+    /// Implementers should override this method when they can provide
+    /// direct access to incoming edges (e.g., adjacency matrices).
     fn incoming_edge_values<'a>(
         &'a self,
         node: NI,
