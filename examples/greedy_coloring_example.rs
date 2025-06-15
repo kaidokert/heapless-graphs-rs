@@ -133,7 +133,7 @@ fn main() {
                 let mut colors_used = Set::<i32, 16>::new();
                 for activity_id in 0..6 {
                     if let Some(Some(color)) = result.get(&activity_id) {
-                        colors_used.insert(*color);
+                        let _ = colors_used.insert(*color);
                     }
                 }
                 println!("Total time slots needed: {}", colors_used.len());
@@ -181,7 +181,7 @@ fn main() {
             let mut unique_colors = Set::<i32, 16>::new();
             for node in 0..4 {
                 if let Some(Some(color)) = result.get(&node) {
-                    unique_colors.insert(*color);
+                    let _ = unique_colors.insert(*color);
                 }
             }
             println!(
@@ -224,7 +224,7 @@ fn main() {
             let mut unique_colors = Set::<i32, 16>::new();
             for node in 0..4 {
                 if let Some(Some(color)) = result.get(&node) {
-                    unique_colors.insert(*color);
+                    let _ = unique_colors.insert(*color);
                 }
             }
             println!(

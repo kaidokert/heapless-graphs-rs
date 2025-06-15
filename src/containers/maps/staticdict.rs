@@ -118,15 +118,24 @@ where
         self.iter()
     }
 
-    fn insert(&mut self, key: K, value: V) -> Option<V> {
+    fn insert(&mut self, key: K, value: V) -> Result<Option<V>, (K, V)> {
         let (exists, index) = self.find_key_with_hash(&key);
         if !exists {
-            self.slots[index] = Slot::Occupied(key, value);
-            None
+            // Check if the target slot is available for insertion
+            match &self.slots[index] {
+                Slot::Empty | Slot::Tombstone => {
+                    self.slots[index] = Slot::Occupied(key, value);
+                    Ok(None)
+                }
+                Slot::Occupied(_, _) => {
+                    // Capacity exceeded - can't insert without overwriting
+                    Err((key, value))
+                }
+            }
         } else {
             // Key exists, replace value
             if let Slot::Occupied(_, old_value) = &mut self.slots[index] {
-                Some(core::mem::replace(old_value, value))
+                Ok(Some(core::mem::replace(old_value, value)))
             } else {
                 unreachable!("find_key_with_hash returned true but slot is not occupied")
             }
@@ -205,9 +214,9 @@ mod test {
     #[test]
     fn test_iter_with_gaps() {
         let mut dict = Dictionary::<usize, char, 5>::new();
-        dict.insert(1, 'a');
-        dict.insert(2, 'b');
-        dict.insert(3, 'c');
+        dict.insert(1, 'a').unwrap();
+        dict.insert(2, 'b').unwrap();
+        dict.insert(3, 'c').unwrap();
 
         let mut values = ['\0'; 5];
         let values_slice = collect(dict.iter().map(|(_, v)| *v), &mut values);
@@ -218,9 +227,9 @@ mod test {
     #[test]
     fn test_iter() {
         let mut dict = Dictionary::<_, _, 37>::new();
-        dict.insert("hello", "world");
-        dict.insert("foo", "bar");
-        dict.insert("baz", "qux");
+        dict.insert("hello", "world").unwrap();
+        dict.insert("foo", "bar").unwrap();
+        dict.insert("baz", "qux").unwrap();
         let mut iter = dict.iter();
         let mut expect = [
             (false, "hello", "world"),
@@ -252,9 +261,9 @@ mod collision_behavior_tests {
         let mut dict: Dictionary<i32, &'static str, 10> = Dictionary::new();
 
         // Insert values that may collide
-        assert_eq!(dict.insert(1, "one"), None);
-        assert_eq!(dict.insert(2, "two"), None);
-        assert_eq!(dict.insert(3, "three"), None);
+        assert_eq!(dict.insert(1, "one"), Ok(None));
+        assert_eq!(dict.insert(2, "two"), Ok(None));
+        assert_eq!(dict.insert(3, "three"), Ok(None));
 
         assert_eq!(dict.len(), 3);
 
@@ -269,13 +278,13 @@ mod collision_behavior_tests {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
         // With only 2 slots, we're guaranteed collisions eventually
-        assert_eq!(dict.insert(1, "one"), None);
-        assert_eq!(dict.insert(2, "two"), None);
+        assert_eq!(dict.insert(1, "one"), Ok(None));
+        assert_eq!(dict.insert(2, "two"), Ok(None));
 
         // Now dict is full, remove one to make space
         assert_eq!(dict.remove(&1), Some("one"));
 
-        assert_eq!(dict.insert(3, "three"), None);
+        assert_eq!(dict.insert(3, "three"), Ok(None));
 
         assert_eq!(dict.len(), 2);
         assert_eq!(dict.get(&1), None); // Removed
@@ -288,8 +297,8 @@ mod collision_behavior_tests {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
         // Fill dict completely to force collisions
-        dict.insert(1, "one");
-        dict.insert(2, "two");
+        dict.insert(1, "one").unwrap();
+        dict.insert(2, "two").unwrap();
 
         // Multiple lookups should work correctly despite collisions
         assert_eq!(dict.get(&1), Some(&"one"));
@@ -302,15 +311,15 @@ mod collision_behavior_tests {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
         // Fill dict
-        dict.insert(1, "one");
-        dict.insert(2, "two");
+        dict.insert(1, "one").unwrap();
+        dict.insert(2, "two").unwrap();
 
         // Remove first element (creates tombstone)
         assert_eq!(dict.remove(&1), Some("one"));
         assert_eq!(dict.len(), 1);
 
         // Insert another value - should properly handle tombstone
-        assert_eq!(dict.insert(3, "three"), None);
+        assert_eq!(dict.insert(3, "three"), Ok(None));
 
         assert_eq!(dict.len(), 2);
         assert_eq!(dict.get(&1), None); // Removed
@@ -322,11 +331,11 @@ mod collision_behavior_tests {
     fn test_value_replacement() {
         let mut dict: Dictionary<i32, &'static str, 3> = Dictionary::new();
 
-        dict.insert(1, "one");
-        dict.insert(2, "two");
+        dict.insert(1, "one").unwrap();
+        dict.insert(2, "two").unwrap();
 
         // Replace value for existing key
-        assert_eq!(dict.insert(2, "TWO"), Some("two"));
+        assert_eq!(dict.insert(2, "TWO"), Ok(Some("two")));
 
         assert_eq!(dict.len(), 2); // Length unchanged
         assert_eq!(dict.get(&1), Some(&"one"));
@@ -338,9 +347,9 @@ mod collision_behavior_tests {
         let mut dict: Dictionary<i32, &'static str, 3> = Dictionary::new();
 
         // Create some entries that may collide
-        dict.insert(1, "one");
-        dict.insert(2, "two");
-        dict.insert(3, "three");
+        dict.insert(1, "one").unwrap();
+        dict.insert(2, "two").unwrap();
+        dict.insert(3, "three").unwrap();
 
         assert_eq!(dict.len(), 3);
 
@@ -351,7 +360,7 @@ mod collision_behavior_tests {
         assert!(dict.is_empty());
 
         // Should work normally after clear
-        assert_eq!(dict.insert(1, "new_one"), None);
+        assert_eq!(dict.insert(1, "new_one"), Ok(None));
         assert_eq!(dict.len(), 1);
         assert_eq!(dict.get(&1), Some(&"new_one"));
     }
@@ -364,7 +373,7 @@ mod collision_behavior_tests {
         let values = ["value_0", "value_5", "value_10", "value_15", "value_20"];
         for (i, &value_str) in values.iter().enumerate() {
             let value = (i * 5) as i32; // Values: 0, 5, 10, 15, 20
-            dict.insert(value, value_str);
+            dict.insert(value, value_str).unwrap();
         }
 
         assert_eq!(dict.len(), 5);
@@ -395,7 +404,7 @@ mod collision_behavior_tests {
         let keys = ["a", "b", "c", "d"];
 
         for (i, &key) in keys.iter().enumerate() {
-            dict.insert(key, i as i32);
+            dict.insert(key, i as i32).ok(); // hide the capacity error
         }
 
         assert_eq!(dict.len(), 3); // Can only fit 3 in a size-3 table
@@ -415,12 +424,12 @@ mod collision_behavior_tests {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
         // Fill table completely
-        assert_eq!(dict.insert(1, "one"), None);
-        assert_eq!(dict.insert(2, "two"), None);
+        assert_eq!(dict.insert(1, "one"), Ok(None));
+        assert_eq!(dict.insert(2, "two"), Ok(None));
 
         // Table is now full, create tombstone and reuse
         assert_eq!(dict.remove(&1), Some("one")); // Creates tombstone
-        assert_eq!(dict.insert(3, "three"), None); // Reuses space
+        assert_eq!(dict.insert(3, "three"), Ok(None)); // Reuses space
 
         assert_eq!(dict.len(), 2);
         assert_eq!(dict.get(&1), None);
@@ -439,8 +448,8 @@ mod collision_behavior_tests {
     fn test_get_mut_functionality() {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
-        dict.insert(1, "one");
-        dict.insert(2, "two");
+        dict.insert(1, "one").unwrap();
+        dict.insert(2, "two").unwrap();
 
         // get_mut operations should work correctly with collisions
         if let Some(value) = dict.get_mut(&2) {
@@ -455,8 +464,8 @@ mod collision_behavior_tests {
     fn test_contains_key_functionality() {
         let mut dict: Dictionary<i32, &'static str, 2> = Dictionary::new();
 
-        dict.insert(1, "one");
-        dict.insert(2, "two");
+        dict.insert(1, "one").unwrap();
+        dict.insert(2, "two").unwrap();
 
         // contains_key operations should work correctly with collisions
         assert!(dict.contains_key(&1));

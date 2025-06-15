@@ -61,6 +61,17 @@ impl<NI: NodeIndex> From<GraphError<NI>> for AlgorithmError<NI> {
     }
 }
 
+// Helper to easily cast container capacity errors to algorithm errors
+pub trait ContainerResultExt<T, NI: NodeIndex> {
+    fn capacity_error(self) -> Result<T, AlgorithmError<NI>>;
+}
+
+impl<T, V, NI: NodeIndex> ContainerResultExt<T, NI> for Result<T, V> {
+    fn capacity_error(self) -> Result<T, AlgorithmError<NI>> {
+        self.map_err(|_| AlgorithmError::ResultCapacityExceeded)
+    }
+}
+
 impl<NI: NodeIndex> From<EdgeListError<NI>> for AlgorithmError<NI> {
     fn from(e: EdgeListError<NI>) -> Self {
         match e {

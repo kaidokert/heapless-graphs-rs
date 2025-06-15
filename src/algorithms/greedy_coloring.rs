@@ -2,7 +2,7 @@
 
 //! Greedy graph coloring algorithm
 
-use super::AlgorithmError;
+use super::{AlgorithmError, ContainerResultExt};
 use crate::containers::{maps::MapTrait, sets::SetTrait};
 use crate::graph::{Graph, NodeIndex};
 
@@ -46,7 +46,7 @@ where
 {
     // Initialize all nodes as uncolored
     for node in graph.iter_nodes()? {
-        color_assignment.insert(node, None);
+        color_assignment.insert(node, None).capacity_error()?;
     }
 
     // Color each node
@@ -58,14 +58,14 @@ where
         // both outgoing and incoming edges to find all neighbors
         for neighbor in graph.outgoing_edges(node)? {
             if let Some(neighbor_color) = color_assignment.get(&neighbor) {
-                neighbor_colors.insert(*neighbor_color);
+                neighbor_colors.insert(*neighbor_color).capacity_error()?;
             }
         }
         for neighbor in graph.incoming_edges(node)? {
             // Skip if we've already processed this neighbor's color
             if let Some(neighbor_color) = color_assignment.get(&neighbor) {
                 if !neighbor_colors.contains(neighbor_color) {
-                    neighbor_colors.insert(*neighbor_color);
+                    neighbor_colors.insert(*neighbor_color).capacity_error()?;
                 }
             }
         }
@@ -77,7 +77,9 @@ where
         }
 
         // Assign the color to this node
-        color_assignment.insert(node, Some(candidate_color));
+        color_assignment
+            .insert(node, Some(candidate_color))
+            .capacity_error()?;
     }
 
     Ok(color_assignment)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-
 //! Kahn's algorithm for topological sorting of directed acyclic graphs (DAGs)
+
+use super::ContainerResultExt;
 
 use super::AlgorithmError;
 use crate::containers::{maps::MapTrait, queues::Deque};
@@ -56,7 +57,7 @@ where
     // Calculate in-degrees by directly counting incoming edges for each node
     for node in graph.iter_nodes()? {
         let in_degree = graph.incoming_edges(node)?.count() as isize;
-        in_degree_map.insert(node, in_degree);
+        in_degree_map.insert(node, in_degree).capacity_error()?;
     }
 
     // Find all nodes with zero in-degree and add to queue

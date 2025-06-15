@@ -86,9 +86,9 @@ mod tests {
     #[test]
     fn test_map_adjacency_list_new() {
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 2]);
-        dict.insert(1, [2, 0]);
-        dict.insert(2, [0, 0]);
+        dict.insert(0, [1, 2]).unwrap();
+        dict.insert(1, [2, 0]).unwrap();
+        dict.insert(2, [0, 0]).unwrap();
 
         let graph = MapAdjacencyList::new(dict).unwrap();
 
@@ -101,9 +101,9 @@ mod tests {
     #[test]
     fn test_map_adjacency_list_new_unchecked() {
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 2]);
-        dict.insert(1, [2, 0]);
-        dict.insert(2, [0, 0]);
+        dict.insert(0, [1, 2]).unwrap();
+        dict.insert(1, [2, 0]).unwrap();
+        dict.insert(2, [0, 0]).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn test_map_adjacency_list_single_node() {
         let mut dict = Dictionary::<usize, [usize; 0], 5>::new();
-        dict.insert(42, []);
+        dict.insert(42, []).unwrap();
 
         let graph = MapAdjacencyList::new(dict).unwrap();
 
@@ -136,9 +136,9 @@ mod tests {
     #[test]
     fn test_graph_iter_nodes() {
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 2]);
-        dict.insert(1, [2, 0]);
-        dict.insert(2, [0, 0]);
+        dict.insert(0, [1, 2]).unwrap();
+        dict.insert(1, [2, 0]).unwrap();
+        dict.insert(2, [0, 0]).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -150,9 +150,9 @@ mod tests {
     #[test]
     fn test_graph_iter_edges() {
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 2]);
-        dict.insert(1, [2, 0]);
-        dict.insert(2, [0, 0]);
+        dict.insert(0, [1, 2]).unwrap();
+        dict.insert(1, [2, 0]).unwrap();
+        dict.insert(2, [0, 0]).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -168,9 +168,9 @@ mod tests {
     #[test]
     fn test_graph_contains_node() {
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 2]);
-        dict.insert(1, [2, 0]);
-        dict.insert(2, [0, 0]);
+        dict.insert(0, [1, 2]).unwrap();
+        dict.insert(1, [2, 0]).unwrap();
+        dict.insert(2, [0, 0]).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -184,9 +184,9 @@ mod tests {
     #[test]
     fn test_graph_outgoing_edges() {
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 2]);
-        dict.insert(1, [2, 0]);
-        dict.insert(2, [0, 0]);
+        dict.insert(0, [1, 2]).unwrap();
+        dict.insert(1, [2, 0]).unwrap();
+        dict.insert(2, [0, 0]).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn test_graph_single_node_no_edges() {
         let mut dict = Dictionary::<usize, [usize; 0], 5>::new();
-        dict.insert(42, []);
+        dict.insert(42, []).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -251,8 +251,8 @@ mod tests {
     #[test]
     fn test_graph_self_loops() {
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [0, 1]);
-        dict.insert(1, [1, 1]);
+        dict.insert(0, [0, 1]).unwrap();
+        dict.insert(1, [1, 1]).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -271,9 +271,9 @@ mod tests {
     #[test]
     fn test_graph_multiple_nodes_same_target() {
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 1]);
-        dict.insert(2, [1, 0]);
-        dict.insert(1, [0, 0]);
+        dict.insert(0, [1, 1]).unwrap();
+        dict.insert(2, [1, 0]).unwrap();
+        dict.insert(1, [0, 0]).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 

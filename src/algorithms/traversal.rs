@@ -383,14 +383,14 @@ mod tests {
             [0b10000000u8], // node 7 -> bit 7 (node 7)
         ]);
         let mut index_map = Dictionary::<usize, usize, 8>::new();
-        index_map.insert(0, 0);
-        index_map.insert(1, 1);
-        index_map.insert(2, 2);
-        index_map.insert(3, 3);
-        index_map.insert(4, 4);
-        index_map.insert(5, 5);
-        index_map.insert(6, 6);
-        index_map.insert(7, 7);
+        index_map.insert(0, 0).unwrap();
+        index_map.insert(1, 1).unwrap();
+        index_map.insert(2, 2).unwrap();
+        index_map.insert(3, 3).unwrap();
+        index_map.insert(4, 4).unwrap();
+        index_map.insert(5, 5).unwrap();
+        index_map.insert(6, 6).unwrap();
+        index_map.insert(7, 7).unwrap();
         let bit_map_matrix = BitMapMatrix::new(bit_matrix, index_map).unwrap();
 
         let test = |start: usize,
@@ -558,10 +558,10 @@ mod tests {
 
         // Test with MapAdjacencyList
         let mut map = Dictionary::<usize, NodeStruct<2, usize>, 8>::new();
-        map.insert(0, NodeStruct([1, 2]));
-        map.insert(1, NodeStruct([3, 1])); // 1 as sentinel
-        map.insert(2, NodeStruct([3, 2])); // 2 as sentinel
-        map.insert(3, NodeStruct([3, 3])); // 3 as sentinel (no outgoing)
+        map.insert(0, NodeStruct([1, 2])).unwrap();
+        map.insert(1, NodeStruct([3, 1])).unwrap(); // 1 as sentinel
+        map.insert(2, NodeStruct([3, 2])).unwrap(); // 2 as sentinel
+        map.insert(3, NodeStruct([3, 3])).unwrap(); // 3 as sentinel (no outgoing)
         let map_graph = MapAdjacencyList::new_unchecked(map);
 
         let mut visited3 = [false; 16];
@@ -749,10 +749,10 @@ mod tests {
 
         // Create a map adjacency list - this will benefit from O(1) contains_node
         let mut map = Dictionary::<usize, NodeStruct<3, usize>, 8>::new();
-        map.insert(0, NodeStruct([1, 2, 0])); // 0 as sentinel (self-loop)
-        map.insert(1, NodeStruct([3, 1, 1])); // self-loops as sentinels
-        map.insert(2, NodeStruct([3, 2, 2]));
-        map.insert(3, NodeStruct([3, 3, 3]));
+        map.insert(0, NodeStruct([1, 2, 0])).unwrap(); // 0 as sentinel (self-loop)
+        map.insert(1, NodeStruct([3, 1, 1])).unwrap(); // self-loops as sentinels
+        map.insert(2, NodeStruct([3, 2, 2])).unwrap();
+        map.insert(3, NodeStruct([3, 3, 3])).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(map);
 

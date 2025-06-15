@@ -153,8 +153,8 @@ mod tests {
 
         // Map custom node IDs 'A','B' to matrix indices 0,1
         let mut index_map = Dictionary::<char, usize, 8>::new();
-        index_map.insert('A', 0);
-        index_map.insert('B', 1);
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
 
         let bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
 
@@ -217,7 +217,7 @@ mod tests {
         let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
 
         let mut index_map = Dictionary::<u32, usize, 8>::new();
-        index_map.insert(100, 0);
+        index_map.insert(100, 0).unwrap();
 
         let bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
 
@@ -245,8 +245,8 @@ mod tests {
 
         // Map custom node IDs 'A','B' to matrix indices 0,1
         let mut index_map = Dictionary::<char, usize, 8>::new();
-        index_map.insert('A', 0);
-        index_map.insert('B', 1);
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
 
         let bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
 

@@ -172,9 +172,9 @@ mod tests {
         ];
 
         let mut index_map = Dictionary::<u32, usize, 3>::new();
-        index_map.insert(100, 0);
-        index_map.insert(200, 1);
-        index_map.insert(300, 2);
+        index_map.insert(100, 0).unwrap();
+        index_map.insert(200, 1).unwrap();
+        index_map.insert(300, 2).unwrap();
 
         type ValMatrix = MapMatrix<
             3,
@@ -219,9 +219,9 @@ mod tests {
         ];
 
         let mut index_map = Dictionary::<u32, usize, 3>::new();
-        index_map.insert(10, 0);
-        index_map.insert(20, 1);
-        index_map.insert(30, 2);
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+        index_map.insert(30, 2).unwrap();
 
         type ValMatrix = MapMatrix<
             3,
@@ -266,9 +266,9 @@ mod tests {
         ];
 
         let mut index_map = Dictionary::<u32, usize, 3>::new();
-        index_map.insert(10, 0);
-        index_map.insert(20, 1);
-        index_map.insert(30, 2);
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+        index_map.insert(30, 2).unwrap();
 
         type ValMatrix = MapMatrix<
             3,
@@ -318,8 +318,8 @@ mod tests {
         ];
 
         let mut index_map = Dictionary::<i32, usize, 3>::new();
-        index_map.insert(42, 0);
-        index_map.insert(84, 1);
+        index_map.insert(42, 0).unwrap();
+        index_map.insert(84, 1).unwrap();
 
         type ValMatrix = MapMatrix<
             3,
@@ -346,9 +346,9 @@ mod tests {
         ];
 
         let mut index_map = Dictionary::<i32, usize, 3>::new();
-        index_map.insert(100, 0);
-        index_map.insert(200, 1);
-        index_map.insert(300, 2);
+        index_map.insert(100, 0).unwrap();
+        index_map.insert(200, 1).unwrap();
+        index_map.insert(300, 2).unwrap();
 
         type ValMatrix = MapMatrix<
             3,
@@ -370,8 +370,8 @@ mod tests {
         let matrix = [[Some(true), Some(false)], [None, Some(true)]];
 
         let mut index_map = Dictionary::<char, usize, 2>::new();
-        index_map.insert('X', 0);
-        index_map.insert('Y', 1);
+        index_map.insert('X', 0).unwrap();
+        index_map.insert('Y', 1).unwrap();
 
         type CharMatrix = MapMatrix<
             2,
@@ -400,9 +400,9 @@ mod tests {
         let matrix = [[None, None, None], [None, None, None], [None, None, None]];
 
         let mut index_map = Dictionary::<u32, usize, 3>::new();
-        index_map.insert(10, 0);
-        index_map.insert(20, 1);
-        index_map.insert(30, 2);
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+        index_map.insert(30, 2).unwrap();
 
         type ValMatrix = MapMatrix<
             3,
@@ -428,9 +428,9 @@ mod tests {
         ];
 
         let mut index_map = Dictionary::<u32, usize, 3>::new();
-        index_map.insert(10, 0);
-        index_map.insert(20, 1);
-        index_map.insert(30, 2);
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+        index_map.insert(30, 2).unwrap();
 
         type ValMatrix = MapMatrix<
             3,
@@ -494,9 +494,9 @@ mod tests {
         ];
 
         let mut index_map = Dictionary::<u32, usize, 3>::new();
-        index_map.insert(10, 0);
-        index_map.insert(20, 1);
-        index_map.insert(30, 2);
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+        index_map.insert(30, 2).unwrap();
 
         type ValMatrix = MapMatrix<
             3,
@@ -537,9 +537,9 @@ mod tests {
         ];
 
         let mut index_map = Dictionary::<u32, usize, 3>::new();
-        index_map.insert(10, 0);
-        index_map.insert(20, 1);
-        index_map.insert(30, 2);
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+        index_map.insert(30, 2).unwrap();
 
         type ValMatrix = MapMatrix<
             3,

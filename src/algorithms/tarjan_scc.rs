@@ -398,12 +398,12 @@ mod tests {
         // SCC 2: {3} - single node
         // SCC 3: {4, 5} - cycle
         let mut dict = Dictionary::<usize, [usize; 3], 10>::new();
-        dict.insert(0, [1, 3, 0]); // 0 -> 1, 3 (self-loop as padding)
-        dict.insert(1, [2, 1, 1]); // 1 -> 2 (padding)
-        dict.insert(2, [0, 2, 2]); // 2 -> 0 (padding)
-        dict.insert(3, [4, 3, 3]); // 3 -> 4 (padding)
-        dict.insert(4, [5, 4, 4]); // 4 -> 5 (padding)
-        dict.insert(5, [4, 5, 5]); // 5 -> 4 (padding)
+        dict.insert(0, [1, 3, 0]).unwrap(); // 0 -> 1, 3 (self-loop as padding)
+        dict.insert(1, [2, 1, 1]).unwrap(); // 1 -> 2 (padding)
+        dict.insert(2, [0, 2, 2]).unwrap(); // 2 -> 0 (padding)
+        dict.insert(3, [4, 3, 3]).unwrap(); // 3 -> 4 (padding)
+        dict.insert(4, [5, 4, 4]).unwrap(); // 4 -> 5 (padding)
+        dict.insert(5, [4, 5, 5]).unwrap(); // 5 -> 4 (padding)
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -445,7 +445,7 @@ mod tests {
     fn test_tarjan_scc_single_node() {
         // Single node with no edges
         let mut dict = Dictionary::<usize, [usize; 0], 5>::new();
-        dict.insert(42, []);
+        dict.insert(42, []).unwrap(); // hide the capacity error
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -461,7 +461,7 @@ mod tests {
     fn test_tarjan_scc_bounds_checking() {
         // Test that invalid node indices are handled gracefully
         let mut dict = Dictionary::<usize, [usize; 1], 5>::new();
-        dict.insert(0, [10]); // Node 0 points to node 10, which is out of bounds for our state array
+        dict.insert(0, [10]).unwrap(); // Node 0 points to node 10, which is out of bounds for our state array
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 

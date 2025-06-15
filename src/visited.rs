@@ -7,6 +7,9 @@
 
 use core::slice::SliceIndex;
 
+// TODO: These traits need to propagate errors from the underlying containers.
+// .insert() can return a capacity error, which should be propagated to the caller.
+
 use crate::containers::{maps::MapTrait, sets::SetTrait};
 
 /// Represents the visitation state of a node during graph traversal
@@ -124,7 +127,7 @@ where
 {
     fn reset(&mut self) {}
     fn mark_visited(&mut self, node: &K) {
-        self.0.insert(*node);
+        let _ = self.0.insert(*node);
     }
 
     fn is_visited(&self, node: &K) -> bool {
@@ -148,7 +151,7 @@ where
         if let Some(k) = self.0.get_mut(node) {
             *k = NodeState::Visited;
         } else {
-            self.0.insert(*node, NodeState::Visited);
+            let _ = self.0.insert(*node, NodeState::Visited);
         }
     }
 
@@ -171,7 +174,7 @@ where
         if let Some(k) = self.0.get_mut(node) {
             *k = NodeState::Visiting;
         } else {
-            self.0.insert(*node, NodeState::Visiting);
+            let _ = self.0.insert(*node, NodeState::Visiting);
         }
     }
 

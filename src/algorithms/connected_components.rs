@@ -27,17 +27,24 @@ use crate::visited::VisitedTracker;
 /// The number of connected components found, or an error if buffers are too small
 ///
 /// # Example
-/// ```ignore
-/// let mut visited = [false; 10];
-/// let mut components = [(&[0usize][..], 0usize); 5]; // Up to 5 components with sizes
-/// let mut node_buffer = [0usize; 10];
+/// ```rust
+/// # use heapless_graphs::edgelist::edge_node_list::EdgeNodeList;
+/// # use heapless_graphs::algorithms::connected_components;
+/// let edges = [(0, 1)];
+/// let nodes = [0, 1, 2]; // Explicitly include the isolated node
+/// let graph = EdgeNodeList::new(edges, nodes).unwrap();
+///
+/// let mut visited = [false; 3];
+/// let mut components = [(&[0usize][..], 0usize); 3];
+/// let mut node_buffer = [0usize; 3];
 ///
 /// let component_count = connected_components(
 ///     &graph,
 ///     visited.as_mut_slice(),
 ///     &mut components,
 ///     &mut node_buffer
-/// )?;
+/// ).unwrap();
+/// assert_eq!(component_count, 2);
 /// ```
 pub fn connected_components<'a, G, NI, VT>(
     graph: &G,
@@ -278,12 +285,11 @@ mod tests {
 
     #[test]
     fn test_connected_components_map_adjacency_list() {
-        // Test with different graph type
         let mut dict = Dictionary::<usize, [usize; 2], 5>::new();
-        dict.insert(0, [1, 2]); // 0 connects to 1, 2
-        dict.insert(1, [0, 2]); // 1 connects to 0, 2
-        dict.insert(2, [0, 1]); // 2 connects to 0, 1
-        dict.insert(3, [3, 3]); // 3 is isolated (self-loop)
+        dict.insert(0, [1, 2]).unwrap(); // 0 connects to 1, 2
+        dict.insert(1, [0, 2]).unwrap(); // 1 connects to 0, 2
+        dict.insert(2, [0, 1]).unwrap(); // 2 connects to 0, 1
+        dict.insert(3, [3, 3]).unwrap(); // 3 is isolated (self-loop)
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -355,11 +361,10 @@ mod tests {
 
     #[test]
     fn test_connected_components_all_isolated() {
-        // Graph with nodes but no edges - each node is its own component
         let mut dict = Dictionary::<usize, [usize; 0], 5>::new();
-        dict.insert(0, []);
-        dict.insert(1, []);
-        dict.insert(2, []);
+        dict.insert(0, []).unwrap();
+        dict.insert(1, []).unwrap();
+        dict.insert(2, []).unwrap();
 
         let graph = MapAdjacencyList::new_unchecked(dict);
 
@@ -367,5 +372,52 @@ mod tests {
         let count = count_connected_components(&graph, visited.as_mut_slice()).unwrap();
 
         assert_eq!(count, 3); // Three isolated nodes = three components
+    }
+
+    #[test]
+    fn test_connected_components_edge_node_list_with_isolated_explicit() {
+        // EdgeNodeList allows us to define isolated nodes explicitly
+        // Create a graph with 3 connected components:
+        // Component 1: 0-1-2
+        // Component 2: 3-4
+        // Component 3: 5 (isolated)
+        let edges = [(0, 1), (1, 2), (3, 4)];
+        let nodes = [0, 1, 2, 3, 4, 5]; // Node 5 is isolated
+        let graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        let mut visited = [false; 10];
+        let mut components: [(&[usize], usize); 5] = [(&[], 0); 5];
+        let mut node_buffer = [0usize; 10];
+
+        let component_count = connected_components(
+            &graph,
+            visited.as_mut_slice(),
+            &mut components,
+            &mut node_buffer,
+        )
+        .unwrap();
+
+        // Should find 3 components including the isolated node
+        assert_eq!(component_count, 3);
+
+        // Check component sizes
+        let mut sizes = [0; 3];
+        for i in 0..component_count {
+            sizes[i] = components[i].0.len();
+        }
+        sizes.sort(); // Sort to make assertion order-independent
+        assert_eq!(sizes, [1, 2, 3]); // One isolated (1), one pair (2), one triple (3)
+
+        // Verify all nodes are accounted for
+        let mut all_nodes = [0usize; 10];
+        let mut total_nodes = 0;
+        for i in 0..component_count {
+            for &node in components[i].0 {
+                all_nodes[total_nodes] = node;
+                total_nodes += 1;
+            }
+        }
+        all_nodes[..total_nodes].sort();
+        assert_eq!(&all_nodes[..total_nodes], &[0, 1, 2, 3, 4, 5]);
     }
 }

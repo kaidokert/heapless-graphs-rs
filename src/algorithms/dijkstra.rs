@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-
 //! Dijkstra algorithm for finding shortest paths
+
+use super::ContainerResultExt;
 
 use crate::containers::maps::MapTrait;
 use crate::graph::{GraphWithEdgeValues, NodeIndex};
@@ -36,18 +37,20 @@ where
     AlgorithmError<NI>: From<G::Error>,
 {
     // Initialize distances: source is 0, others are None (infinite/unreachable)
-    distance_map.insert(source, Some(V::default()));
+    distance_map
+        .insert(source, Some(V::default()))
+        .capacity_error()?;
 
     // Initialize all other nodes as unreachable
     for node in graph.iter_nodes()? {
         if node != source {
-            distance_map.insert(node, None);
+            distance_map.insert(node, None).capacity_error()?;
         }
     }
 
     // Initialize visited tracking
     for node in graph.iter_nodes()? {
-        visited.insert(node, false);
+        visited.insert(node, false).capacity_error()?;
     }
 
     let node_count = graph.iter_nodes()?.count();
@@ -85,7 +88,7 @@ where
         };
 
         // Mark current node as visited
-        visited.insert(u, true);
+        visited.insert(u, true).capacity_error()?;
 
         // Update distances to neighbors
         // iterate only outgoing edges from `u`
@@ -96,7 +99,9 @@ where
                         let new_distance = *u_dist + *weight;
                         if let Some(dst_dist_opt) = distance_map.get(&dst) {
                             if dst_dist_opt.is_none_or(|old| new_distance < old) {
-                                distance_map.insert(dst, Some(new_distance));
+                                distance_map
+                                    .insert(dst, Some(new_distance))
+                                    .capacity_error()?;
                             }
                         }
                     }

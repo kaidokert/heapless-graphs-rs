@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-
 //! Bellman-Ford algorithm for finding shortest paths
+
+use super::ContainerResultExt;
 
 use crate::containers::maps::MapTrait;
 use crate::graph::{GraphWithEdgeValues, NodeIndex};
@@ -70,11 +71,13 @@ where
     AlgorithmError<NI>: From<G::Error>,
 {
     // Initialize: source has distance 0, others are None (infinite/unreachable)
-    distance_map.insert(source, Some(V::default()));
+    distance_map
+        .insert(source, Some(V::default()))
+        .capacity_error()?;
 
     for node in graph.iter_nodes()? {
         if node != source {
-            distance_map.insert(node, None);
+            distance_map.insert(node, None).capacity_error()?;
         }
     }
 
@@ -89,7 +92,9 @@ where
 
                     if let Some(dst_dist_opt) = distance_map.get(&dst) {
                         if dst_dist_opt.is_none() || new_distance < dst_dist_opt.unwrap() {
-                            distance_map.insert(dst, Some(new_distance));
+                            distance_map
+                                .insert(dst, Some(new_distance))
+                                .capacity_error()?;
                             changed = true;
                         }
                     }

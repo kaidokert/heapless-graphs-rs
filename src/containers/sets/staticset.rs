@@ -66,12 +66,23 @@ impl<K: Eq + Hash, const N: usize> SetTrait<K> for Set<K, N> {
         }
     }
 
-    fn insert(&mut self, key: K) -> bool {
+    fn insert(&mut self, key: K) -> Result<bool, K> {
         let (exists, index) = self.find_key_with_hash(&key);
         if !exists {
-            self.slots[index] = Slot::Occupied(key);
+            // Check if the target slot is available for insertion
+            match &self.slots[index] {
+                Slot::Empty | Slot::Tombstone => {
+                    self.slots[index] = Slot::Occupied(key);
+                    Ok(true)
+                }
+                Slot::Occupied(_) => {
+                    // Capacity exceeded - can't insert without overwriting
+                    Err(key)
+                }
+            }
+        } else {
+            Ok(false) // Key already exists
         }
-        !exists
     }
 
     fn remove(&mut self, key: &K) -> bool {
@@ -111,9 +122,9 @@ mod collision_behavior_tests {
         let mut set: Set<i32, 10> = Set::new();
 
         // Insert values that may collide
-        assert!(set.insert(0));
-        assert!(set.insert(10));
-        assert!(set.insert(20));
+        assert!(set.insert(0).unwrap());
+        assert!(set.insert(10).unwrap());
+        assert!(set.insert(20).unwrap());
         assert_eq!(set.len(), 3);
 
         // Verify all values are findable
@@ -127,13 +138,13 @@ mod collision_behavior_tests {
         let mut set: Set<i32, 2> = Set::new();
 
         // With only 2 slots, we're guaranteed collisions eventually
-        assert!(set.insert(1));
-        assert!(set.insert(2));
+        assert!(set.insert(1).unwrap());
+        assert!(set.insert(2).unwrap());
 
         // Now table is full, remove one to make space
         assert!(set.remove(&1));
 
-        assert!(set.insert(3)); // This insertion will handle collisions
+        assert!(set.insert(3).unwrap()); // This insertion will handle collisions
 
         assert_eq!(set.len(), 2);
         assert!(!set.contains(&1)); // Removed
@@ -146,8 +157,8 @@ mod collision_behavior_tests {
         let mut set: Set<i32, 2> = Set::new();
 
         // Fill table completely to force collisions
-        set.insert(1);
-        set.insert(2);
+        set.insert(1).unwrap();
+        set.insert(2).unwrap();
 
         // Multiple lookups should work correctly despite collisions
         assert!(set.contains(&1));
@@ -160,15 +171,15 @@ mod collision_behavior_tests {
         let mut set: Set<i32, 2> = Set::new();
 
         // Fill table
-        set.insert(1);
-        set.insert(2);
+        set.insert(1).unwrap();
+        set.insert(2).unwrap();
 
         // Remove first element (creates tombstone)
         assert!(set.remove(&1));
         assert_eq!(set.len(), 1);
 
         // Insert another value - should properly handle tombstone
-        assert!(set.insert(3));
+        assert!(set.insert(3).unwrap());
 
         assert_eq!(set.len(), 2);
         assert!(!set.contains(&1)); // Removed
@@ -180,11 +191,11 @@ mod collision_behavior_tests {
     fn test_duplicate_insertion_behavior() {
         let mut set: Set<i32, 3> = Set::new();
 
-        set.insert(1);
-        set.insert(2);
+        set.insert(1).unwrap();
+        set.insert(2).unwrap();
 
         // Try to insert 2 again (duplicate)
-        assert!(!set.insert(2)); // Should return false (not inserted)
+        assert!(!set.insert(2).unwrap()); // Should return false (not inserted)
 
         assert_eq!(set.len(), 2); // Length unchanged
         assert!(set.contains(&1));
@@ -196,9 +207,9 @@ mod collision_behavior_tests {
         let mut set: Set<i32, 3> = Set::new();
 
         // Create some entries that may collide
-        set.insert(0);
-        set.insert(3);
-        set.insert(6);
+        set.insert(0).unwrap();
+        set.insert(3).unwrap();
+        set.insert(6).unwrap();
 
         assert_eq!(set.len(), 3);
 
@@ -209,7 +220,7 @@ mod collision_behavior_tests {
         assert!(set.is_empty());
 
         // Should work normally after clear
-        assert!(set.insert(1));
+        assert!(set.insert(1).unwrap());
         assert_eq!(set.len(), 1);
         assert!(set.contains(&1));
     }
@@ -221,7 +232,7 @@ mod collision_behavior_tests {
         // Insert values that will likely collide
         for i in 0..5 {
             let value = i * 5; // Values: 0, 5, 10, 15, 20
-            set.insert(value);
+            set.insert(value).unwrap();
         }
 
         assert_eq!(set.len(), 5);
@@ -251,9 +262,13 @@ mod collision_behavior_tests {
         // Use strings that are likely to collide in a small table
         let keys = ["a", "b", "c", "d"];
 
+        let mut successful_inserts = 0;
         for &key in &keys {
-            set.insert(key);
+            if set.insert(key).is_ok() {
+                successful_inserts += 1;
+            }
         }
+        assert_eq!(successful_inserts, 3); // Should successfully insert 3 keys
 
         assert_eq!(set.len(), 3); // Can only fit 3 in a size-3 table
 
@@ -272,12 +287,12 @@ mod collision_behavior_tests {
         let mut set: Set<i32, 2> = Set::new();
 
         // Fill table completely
-        assert!(set.insert(1));
-        assert!(set.insert(2));
+        assert!(set.insert(1).unwrap());
+        assert!(set.insert(2).unwrap());
 
         // Table is now full, create tombstone and reuse
         assert!(set.remove(&1)); // Creates tombstone
-        assert!(set.insert(3)); // Reuses space
+        assert!(set.insert(3).unwrap()); // Reuses space
 
         assert_eq!(set.len(), 2);
         assert!(!set.contains(&1));
@@ -297,15 +312,15 @@ mod collision_behavior_tests {
         let mut set: Set<i32, 4> = Set::new();
 
         // Insert a sequence that creates collisions
-        set.insert(0); // slot 0
-        set.insert(4); // likely collision
-        set.insert(8); // likely collision
+        set.insert(0).unwrap(); // slot 0
+        set.insert(4).unwrap(); // likely collision
+        set.insert(8).unwrap(); // likely collision
 
         // Remove middle element
         assert!(set.remove(&4));
 
         // Insert new element that maps to same initial slot
-        assert!(set.insert(12));
+        assert!(set.insert(12).unwrap());
 
         assert_eq!(set.len(), 3);
         assert!(set.contains(&0));

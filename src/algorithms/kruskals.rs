@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-
 //! Kruskal's algorithm for finding minimum spanning trees
+
+use super::ContainerResultExt;
 
 use super::AlgorithmError;
 use crate::containers::maps::MapTrait;
@@ -41,7 +42,7 @@ where
 {
     // Initialize union-find: each node is its own parent
     for node in graph.iter_nodes()? {
-        parent.insert(node, node);
+        parent.insert(node, node).capacity_error()?;
     }
 
     // Collect all edges with weights into edge_storage
@@ -66,34 +67,42 @@ where
     edges.sort_unstable_by_key(|(_, _, weight)| *weight);
 
     // Union-find helper functions with path compression
-    fn find<NI: Copy + Eq, M: MapTrait<NI, NI>>(parent: &mut M, node: NI) -> NI {
+    fn find<NI: Copy + Eq + PartialOrd, M: MapTrait<NI, NI>>(
+        parent: &mut M,
+        node: NI,
+    ) -> Result<NI, AlgorithmError<NI>> {
         if let Some(&p) = parent.get(&node) {
             if p != node {
-                let root = find(parent, p);
-                parent.insert(node, root); // Path compression
-                root
+                let root = find(parent, p)?;
+                parent.insert(node, root).capacity_error()?; // Path compression
+                Ok(root)
             } else {
-                node
+                Ok(node)
             }
         } else {
-            node
+            Ok(node)
         }
     }
 
-    fn union<NI: Copy + Eq, M: MapTrait<NI, NI>>(parent: &mut M, u: NI, v: NI) {
-        let root_u = find(parent, u);
-        let root_v = find(parent, v);
+    fn union<NI: Copy + Eq + PartialOrd, M: MapTrait<NI, NI>>(
+        parent: &mut M,
+        u: NI,
+        v: NI,
+    ) -> Result<(), AlgorithmError<NI>> {
+        let root_u = find(parent, u)?;
+        let root_v = find(parent, v)?;
         if root_u != root_v {
-            parent.insert(root_u, root_v);
+            parent.insert(root_u, root_v).capacity_error()?;
         }
+        Ok(())
     }
 
     // Build MST by processing edges in weight order
     let mut mst_count = 0;
     for (u, v, weight) in edges.iter() {
         // Check if adding this edge creates a cycle
-        let root_u = find(&mut parent, *u);
-        let root_v = find(&mut parent, *v);
+        let root_u = find(&mut parent, *u)?;
+        let root_v = find(&mut parent, *v)?;
 
         if root_u != root_v {
             // No cycle - add edge to MST
@@ -104,7 +113,7 @@ where
             mst_count += 1;
 
             // Union the components
-            union(&mut parent, *u, *v);
+            union(&mut parent, *u, *v)?;
         }
     }
 
