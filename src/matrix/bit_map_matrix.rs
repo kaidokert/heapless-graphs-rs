@@ -66,6 +66,13 @@ where
         Ok(self.index_map.iter().map(|(&k, _)| k))
     }
 
+    fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
+        Ok(self.index_map.contains_key(&node))
+    }
+
+    /// Note: Uses linear search for backindexing matrix indices to NI, this is slow.
+    ///
+    /// TODO: Store back-index ?
     fn iter_edges(&self) -> Result<impl Iterator<Item = (NI, NI)>, Self::Error> {
         Ok(self
             .index_map
@@ -83,6 +90,9 @@ where
             }))
     }
 
+    /// Note: Uses linear search for backindexing matrix indices to NI, this is slow.
+    ///
+    /// TODO: Store back-index ?
     fn outgoing_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
         // Fast direct lookup of matrix index for this node
         let matrix_idx = self.index_map.get(&node).copied();
@@ -104,6 +114,9 @@ where
             }))
     }
 
+    /// Note: Uses linear search for backindexing matrix indices to NI, this is slow.
+    ///
+    /// TODO: Store back-index ?
     fn incoming_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
         // Fast direct lookup of matrix index for this node
         let matrix_idx = self.index_map.get(&node).copied();
@@ -123,10 +136,6 @@ where
                     .find(|(_, &idx)| idx == source_idx)
                     .map(|(&node, _)| node)
             }))
-    }
-
-    fn contains_node(&self, node: NI) -> Result<bool, Self::Error> {
-        Ok(self.index_map.contains_key(&node))
     }
 }
 
