@@ -146,12 +146,12 @@ where
     F: FnMut(NI),
     AlgorithmError<NI>: From<G::Error>,
 {
-    queue
-        .push_back(start_node)
-        .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
     visited
         .mark_visited(&start_node)
         .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
+    queue
+        .push_back(start_node)
+        .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
 
     while let Some(node) = queue.pop_front() {
         operation(node);
