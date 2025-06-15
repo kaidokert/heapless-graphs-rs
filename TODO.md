@@ -18,7 +18,7 @@ Readonly graph class
 - [ ] Add / remove Nodes tests - some done
 - [ ] Implement edgelist with add/remove nodes ( ? ) and edges
 - [x] Make GraphError generic over NI
-- [ ] Maybe make GraphError take a lifetime for node refs ?
+- [x] Maybe make GraphError take a lifetime for node refs ? (Not needed - NodeIndex is Copy)
 - [ ] Check duplicate nodes in integrity_check ?
 - [ ] Adjacency list AsRef[NI,C] doesn't work with heapless::Vec, figure that out
 - [x] Sort out inconsistent parameter type ordering, it's all over the place. NI first ? or const usize: ?
@@ -30,8 +30,8 @@ Readonly graph class
 - [x] Implement an adjacency matrix
 - [ ] EdgesOnly is a bit useless abstraction for Adjacency List, this should work directly on the container
 - [ ] Can we turn DFS / BFS into iterators ? That'd be awkward as they need extra storage
-- [ ] All struct formats in nodes/ and edges/ are just wrappers for arrays, simplify and implement
-      the traits directly on arrays and slices ?
+- [x] All struct formats in nodes/ and edges/ are just wrappers for arrays, simplify and implement
+      the traits directly on arrays and slices ? (Done - traits implemented on both arrays/slices and wrappers for clarity)
 - [ ] Make sure Debug/Default is derived or implemented for everything where applicable
 - [ ] Make a mutable iterator for &'a mut T - not feasible without `unsafe` or huge deps
 

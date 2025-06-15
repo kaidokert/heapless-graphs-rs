@@ -117,7 +117,6 @@ mod tests {
     use crate::containers::maps::staticdict::Dictionary;
     use crate::edgelist::edge_list::EdgeList;
     use crate::edges::EdgeValueStruct;
-    use test_log::test;
 
     #[test]
     fn test_kruskals_simple() {

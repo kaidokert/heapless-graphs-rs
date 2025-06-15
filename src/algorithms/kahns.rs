@@ -100,7 +100,6 @@ mod tests {
     use super::*;
     use crate::containers::{maps::staticdict::Dictionary, queues::CircularQueue};
     use crate::edgelist::edge_list::EdgeList;
-    use test_log::test;
 
     #[test]
     fn test_kahns_simple() {

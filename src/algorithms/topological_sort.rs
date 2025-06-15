@@ -94,7 +94,6 @@ mod tests {
     use super::*;
     use crate::edgelist::edge_list::EdgeList;
     use crate::visited::NodeState;
-    use test_log::test;
 
     #[test]
     fn test_topological_sort_simple() {

@@ -204,7 +204,6 @@ mod tests {
     use core::slice::SliceIndex;
     #[cfg(feature = "heapless")]
     use heapless::FnvIndexMap;
-    use test_log::test;
 
     fn test_dfs_recursive<'a, const C: usize, E, NI>(elg: &'a E, start: NI, check: &[NI])
     where

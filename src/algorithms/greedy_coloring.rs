@@ -91,7 +91,6 @@ mod tests {
         sets::{staticset::Set, SetTrait},
     };
     use crate::edgelist::edge_list::EdgeList;
-    use test_log::test;
 
     #[test]
     fn test_greedy_coloring_simple() {
