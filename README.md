@@ -1,5 +1,7 @@
 ### Heapless graphs in Rust
 
+[![crate](https://img.shields.io/crates/v/heapless_graphs.svg)](https://crates.io/crates/heapless_graphs)
+[![documentation](https://docs.rs/heapless_graphs/badge.svg)](https://docs.rs/heapless_graphs/)
 [![Build and test](https://github.com/kaidokert/heapless-graphs-rs/actions/workflows/build.yaml/badge.svg)](https://github.com/kaidokert/heapless-graphs-rs/actions/workflows/build.yaml)
 [![Coverage Status](https://coveralls.io/repos/github/kaidokert/heapless-graphs-rs/badge.svg?branch=main)](https://coveralls.io/github/kaidokert/heapless-graphs-rs?branch=main)
 
@@ -38,6 +40,7 @@ A code golf version, with only edges:
         [false; 10].as_mut_slice(),
         &mut |x| println!("node: {}", x),
     );
+   # Prints: node: 5, 3
 ```
 
 This is still quite a raw draft, with APIs subject to change, see
