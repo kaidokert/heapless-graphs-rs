@@ -8,12 +8,14 @@ edition = "2021"
 description = """
 Implementation of composable graphs for no_alloc environments
 """
-
 keywords = ["graph", "static", "no-heap"]
 categories = [ "data-structures", "no-std" ]
 readme = "README.md"
 license = "Apache-2.0"
 exclude = ["/.github/*"]
+repository = "https://github.com/kaidokert/heapless-graphs-rs"
+homepage = "https://github.com/kaidokert/heapless-graphs-rs"
+documentation = "https://docs.rs/heapless_graphs"
 
 [dependencies]
 heapless = { version ="0.8.0" , optional = true }
