@@ -34,6 +34,7 @@ Readonly graph class
       the traits directly on arrays and slices ? (Done - traits implemented on both arrays/slices and wrappers for clarity)
 - [ ] Make sure Debug/Default is derived or implemented for everything where applicable
 - [ ] Make a mutable iterator for &'a mut T - not feasible without `unsafe` or huge deps
+- [ ] Map Matrices use linear search for mapping indices to NI - slow. Possibly could store a back-index
 
 Path Finding Algorithms:
 - [x] Dijkstra's Algorithm: Finds the shortest path from a source node to all other nodes in a graph with non-negative edge weights.

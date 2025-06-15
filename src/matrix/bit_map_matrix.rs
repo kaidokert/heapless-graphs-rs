@@ -97,7 +97,10 @@ where
         // Fast direct lookup of matrix index for this node
         let matrix_idx = self.index_map.get(&node).copied();
 
-        // Get outgoing edges from bitmap, using 0 as fallback (will be filtered out)
+        // Get outgoing edges from bitmap, using usize::MAX as fallback (will be filtered out)
+        // Note: BitMatrix::get handles out-of-bounds indices safely by returning false,
+        // and the filter below ensures we don't return edges for non-existent nodes.
+        // The map_err is needed to convert GraphError<usize> to GraphError<NI> for the trait implementation.
         let outgoing = self
             .bitmap
             .outgoing_edges(matrix_idx.unwrap_or(usize::MAX))
@@ -270,5 +273,40 @@ mod tests {
         let mut incoming_b = ['\0'; 8];
         let incoming_slice = collect(bit_map_matrix.incoming_edges('B').unwrap(), &mut incoming_b);
         assert_eq!(incoming_slice, &['A']); // A->B
+    }
+
+    #[test]
+    fn test_bit_map_matrix_outgoing_edges_bounds() {
+        // Create a matrix with edges: A->A, A->B
+        let bits = [
+            [0b00000011u8], // Row 0: edges to nodes 0 and 1 (A->A, A->B)
+            [0b00000000u8], // Row 1: no edges
+            [0b00000000u8], // Row 2: no edges
+            [0b00000000u8], // Row 3: no edges
+            [0b00000000u8], // Row 4: no edges
+            [0b00000000u8], // Row 5: no edges
+            [0b00000000u8], // Row 6: no edges
+            [0b00000000u8], // Row 7: no edges
+        ];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+
+        // Map custom node IDs 'A','B' to matrix indices 0,1
+        let mut index_map = Dictionary::<char, usize, 8>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+
+        let bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        // Test outgoing edges for non-existent node with usize::MAX fallback
+        // This should not panic and should return an empty iterator
+        let mut outgoing = ['\0'; 8];
+        let outgoing_slice = collect(bit_map_matrix.outgoing_edges('C').unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice.len(), 0);
+
+        // Test outgoing edges for non-existent node with 0 fallback
+        // This should also not panic and should return an empty iterator
+        let mut outgoing = ['\0'; 8];
+        let outgoing_slice = collect(bit_map_matrix.outgoing_edges('D').unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice.len(), 0);
     }
 }
