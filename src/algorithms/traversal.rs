@@ -145,16 +145,14 @@ where
         .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
     visited.mark_visited(&start_node);
 
-    while !queue.is_empty() {
-        if let Some(node) = queue.pop_front() {
-            operation(node);
-            for next_node in graph.outgoing_edges(node)? {
-                if !visited.is_visited(&next_node) {
-                    visited.mark_visited(&next_node);
-                    queue
-                        .push_back(next_node)
-                        .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
-                }
+    while let Some(node) = queue.pop_front() {
+        operation(node);
+        for next_node in graph.outgoing_edges(node)? {
+            if !visited.is_visited(&next_node) {
+                visited.mark_visited(&next_node);
+                queue
+                    .push_back(next_node)
+                    .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
             }
         }
     }
