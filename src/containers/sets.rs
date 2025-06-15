@@ -116,6 +116,9 @@ where
     fn clear(&mut self) {
         self.clear();
     }
+    fn is_full(&self) -> bool {
+        self.len() == N
+    }
 }
 
 #[cfg(test)]

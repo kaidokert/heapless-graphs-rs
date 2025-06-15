@@ -95,7 +95,7 @@ where
             component_count += new_components;
             buffer_offset += new_buffer_offset;
 
-            if component_count >= components.len() {
+            if component_count > components.len() {
                 return Err(AlgorithmError::ResultCapacityExceeded);
             }
         }
