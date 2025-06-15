@@ -125,33 +125,23 @@ mod test {
 
         // Test that GraphWithEdgeValues is implemented
         let mut edges_with_values = [(0usize, 0usize, 0i32); 8];
-        let mut len = 0;
-
-        for (src, dst, weight_opt) in graph.iter_edge_values().unwrap() {
-            if let Some(weight) = weight_opt {
-                edges_with_values[len] = (src, dst, *weight);
-                len += 1;
-            }
-        }
-
-        assert_eq!(len, 3);
-        assert_eq!(
-            &edges_with_values[..len],
-            &[(0, 1, 5), (1, 2, 3), (0, 2, 8)]
+        let edges_slice = collect(
+            graph.iter_edge_values().unwrap().filter_map(|(src, dst, weight_opt)| 
+                weight_opt.map(|w| (src, dst, *w))),
+            &mut edges_with_values
         );
+        assert_eq!(edges_slice, &[(0, 1, 5), (1, 2, 3), (0, 2, 8)]);
 
         // Test outgoing edge values from node 0
         let mut outgoing = [(0usize, 0i32); 8];
-        let mut len = 0;
-        for (dst, weight_opt) in graph.outgoing_edge_values(0).unwrap() {
-            if let Some(weight) = weight_opt {
-                outgoing[len] = (dst, *weight);
-                len += 1;
-            }
-        }
-        assert_eq!(len, 2);
-        assert!(outgoing[..len].contains(&(1, 5)));
-        assert!(outgoing[..len].contains(&(2, 8)));
+        let outgoing_slice = collect(
+            graph.outgoing_edge_values(0).unwrap().filter_map(|(dst, weight_opt)| 
+                weight_opt.map(|w| (dst, *w))),
+            &mut outgoing
+        );
+        assert_eq!(outgoing_slice.len(), 2);
+        assert!(outgoing_slice.contains(&(1, 5)));
+        assert!(outgoing_slice.contains(&(2, 8)));
     }
 
     #[test]

@@ -145,18 +145,9 @@ mod tests {
         let graph = SliceAdjacencyList::new_unchecked(adj_list_data);
 
         let mut edges = [(0usize, 0usize); 8];
-        let mut len = 0;
-        for edge in graph.iter_edges().unwrap() {
-            edges[len] = edge;
-            len += 1;
-        }
-        assert_eq!(len, 6);
-        assert_eq!(edges[0], (0, 1));
-        assert_eq!(edges[1], (0, 2));
-        assert_eq!(edges[2], (1, 2));
-        assert_eq!(edges[3], (1, 0));
-        assert_eq!(edges[4], (2, 0));
-        assert_eq!(edges[5], (2, 0));
+        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice.len(), 6);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 0)]);
     }
 
     #[test]
@@ -218,16 +209,8 @@ mod tests {
 
         // Test self-loop edges
         let mut edges = [(0usize, 0usize); 8];
-        let mut len = 0;
-        for edge in graph.iter_edges().unwrap() {
-            edges[len] = edge;
-            len += 1;
-        }
-        assert_eq!(len, 4);
-        assert_eq!(edges[0], (0, 0));
-        assert_eq!(edges[1], (0, 1));
-        assert_eq!(edges[2], (1, 1));
-        assert_eq!(edges[3], (1, 1));
+        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 0), (0, 1), (1, 1), (1, 1)]);
 
         // Test outgoing edges with self-loops
         let mut edges = [0usize; 4];
@@ -263,18 +246,8 @@ mod tests {
 
         // Test multiple edges pointing to same target
         let mut edges = [(0usize, 0usize); 8];
-        let mut len = 0;
-        for edge in graph.iter_edges().unwrap() {
-            edges[len] = edge;
-            len += 1;
-        }
-        assert_eq!(len, 6);
-        assert_eq!(edges[0], (0, 1));
-        assert_eq!(edges[1], (0, 0));
-        assert_eq!(edges[2], (2, 1));
-        assert_eq!(edges[3], (2, 0));
-        assert_eq!(edges[4], (1, 0));
-        assert_eq!(edges[5], (1, 0));
+        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 0), (2, 1), (2, 0), (1, 0), (1, 0)]);
 
         // Test contains_node for all nodes
         assert!(graph.contains_node(0).unwrap());

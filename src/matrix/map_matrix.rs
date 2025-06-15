@@ -32,9 +32,9 @@ where
     /// The `matrix` parameter provides the adjacency matrix data, and `index_map`
     /// maps from the actual node indices to matrix indices (0..N).
     pub fn new(matrix: COLUMNS, index_map: M) -> Result<Self, GraphError<NI>> {
-        for (_, idx) in index_map.iter() {
+        for (node, idx) in index_map.iter() {
             if *idx >= N {
-                return Err(GraphError::IndexOutOfBounds(*idx));
+                return Err(GraphError::IndexOutOfBounds(*idx, *node));
             }
         }
         Ok(Self::new_unchecked(matrix, index_map))
@@ -161,6 +161,7 @@ mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
     use crate::graph::GraphWithEdgeValues;
+    use crate::tests::collect;
 
     #[test]
     fn test_graphval_iter_nodes() {
@@ -187,25 +188,20 @@ mod tests {
 
         // Test Graph iter_nodes (returns owned values)
         let mut nodes = [0u32; 8];
-        let mut count = 0;
-        for node in map_matrix.iter_nodes().unwrap() {
-            nodes[count] = node;
-            count += 1;
-        }
-
-        assert_eq!(count, 3);
+        let nodes_slice = collect(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice.len(), 3);
 
         // Check all expected nodes are present
         let mut found_100 = false;
         let mut found_200 = false;
         let mut found_300 = false;
 
-        for i in 0..count {
-            match nodes[i] {
+        for &node in nodes_slice.iter() {
+            match node {
                 100 => found_100 = true,
                 200 => found_200 = true,
                 300 => found_300 = true,
-                _ => panic!("Unexpected node: {}", nodes[i]),
+                _ => panic!("Unexpected node: {}", node),
             }
         }
 
@@ -239,13 +235,8 @@ mod tests {
 
         // Test Graph iter_edges (returns owned values)
         let mut edges = [(0u32, 0u32); 16];
-        let mut count = 0;
-        for (src, dst) in map_matrix.iter_edges().unwrap() {
-            edges[count] = (src, dst);
-            count += 1;
-        }
-
-        assert_eq!(count, 6); // 6 Some values in matrix, all mapped
+        let edges_slice = collect(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice.len(), 6); // 6 Some values in matrix, all mapped
 
         // Verify expected edges exist
         let expected_edges = [
@@ -258,14 +249,7 @@ mod tests {
         ];
 
         for &expected_edge in &expected_edges {
-            let mut found = false;
-            for i in 0..count {
-                if edges[i] == expected_edge {
-                    found = true;
-                    break;
-                }
-            }
-            assert!(found, "Expected edge {:?} not found", expected_edge);
+            assert!(edges_slice.contains(&expected_edge), "Expected edge {:?} not found", expected_edge);
         }
     }
 
@@ -294,21 +278,17 @@ mod tests {
 
         // Test outgoing edges from node 10 (Graph version)
         let mut targets = [0u32; 8];
-        let mut count = 0;
-        for target in map_matrix.outgoing_edges(10).unwrap() {
-            targets[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        let targets_slice = collect(map_matrix.outgoing_edges(10).unwrap(), &mut targets);
+        assert_eq!(targets_slice.len(), 2);
 
         // Check both targets found
         let mut found_10 = false;
         let mut found_20 = false;
-        for i in 0..count {
-            match targets[i] {
+        for &target in targets_slice.iter() {
+            match target {
                 10 => found_10 = true,
                 20 => found_20 = true,
-                _ => panic!("Unexpected target: {}", targets[i]),
+                _ => panic!("Unexpected target: {}", target),
             }
         }
         assert!(found_10);
@@ -316,23 +296,13 @@ mod tests {
 
         // Test outgoing edges from node 20
         let mut targets = [0u32; 8];
-        count = 0;
-        for target in map_matrix.outgoing_edges(20).unwrap() {
-            targets[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 1);
-        assert_eq!(targets[0], 30);
+        let targets_slice = collect(map_matrix.outgoing_edges(20).unwrap(), &mut targets);
+        assert_eq!(targets_slice, &[30]);
 
         // Test outgoing edges from node 30
         let mut targets = [0u32; 8];
-        count = 0;
-        for target in map_matrix.outgoing_edges(30).unwrap() {
-            targets[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 1);
-        assert_eq!(targets[0], 10);
+        let targets_slice = collect(map_matrix.outgoing_edges(30).unwrap(), &mut targets);
+        assert_eq!(targets_slice, &[10]);
     }
 
     #[test]
@@ -470,15 +440,12 @@ mod tests {
 
         // Test iter_edge_values
         let mut edges_with_values = [(0u32, 0u32, 0i32); 16];
-        let mut count = 0;
-        for (src, dst, value_opt) in map_matrix.iter_edge_values().unwrap() {
-            if let Some(value) = value_opt {
-                edges_with_values[count] = (src, dst, *value);
-                count += 1;
-            }
-        }
-
-        assert_eq!(count, 6); // 6 Some values in matrix
+        let edges_slice = collect(
+            map_matrix.iter_edge_values().unwrap().filter_map(|(src, dst, value_opt)| 
+                value_opt.map(|v| (src, dst, *v))),
+            &mut edges_with_values
+        );
+        assert_eq!(edges_slice.len(), 6); // 6 Some values in matrix
 
         // Verify expected edges with values exist
         let expected_edges = [
@@ -491,28 +458,19 @@ mod tests {
         ];
 
         for &expected_edge in &expected_edges {
-            let mut found = false;
-            for i in 0..count {
-                if edges_with_values[i] == expected_edge {
-                    found = true;
-                    break;
-                }
-            }
-            assert!(found, "Expected edge {:?} not found", expected_edge);
+            assert!(edges_slice.contains(&expected_edge), "Expected edge {:?} not found", expected_edge);
         }
 
         // Test outgoing_edge_values from node 10
         let mut outgoing = [(0u32, 0i32); 8];
-        let mut count = 0;
-        for (dst, value_opt) in map_matrix.outgoing_edge_values(10).unwrap() {
-            if let Some(value) = value_opt {
-                outgoing[count] = (dst, *value);
-                count += 1;
-            }
-        }
-        assert_eq!(count, 2);
-        assert!(outgoing[..count].contains(&(10, 1)));
-        assert!(outgoing[..count].contains(&(20, 2)));
+        let outgoing_slice = collect(
+            map_matrix.outgoing_edge_values(10).unwrap().filter_map(|(dst, value_opt)| 
+                value_opt.map(|v| (dst, *v))),
+            &mut outgoing
+        );
+        assert_eq!(outgoing_slice.len(), 2);
+        assert!(outgoing_slice.contains(&(10, 1)));
+        assert!(outgoing_slice.contains(&(20, 2)));
     }
 
     #[test]
@@ -540,26 +498,18 @@ mod tests {
 
         // Test incoming edges to node 10 (should be from 10, 20, 30)
         let mut sources = [0u32; 8];
-        let mut count = 0;
-        for source in map_matrix.incoming_edges(10).unwrap() {
-            sources[count] = source;
-            count += 1;
-        }
-        assert_eq!(count, 3);
-        assert!(sources[..count].contains(&10));
-        assert!(sources[..count].contains(&20));
-        assert!(sources[..count].contains(&30));
+        let sources_slice = collect(map_matrix.incoming_edges(10).unwrap(), &mut sources);
+        assert_eq!(sources_slice.len(), 3);
+        assert!(sources_slice.contains(&10));
+        assert!(sources_slice.contains(&20));
+        assert!(sources_slice.contains(&30));
 
         // Test incoming edges to node 20 (should be from 10, 30)
         let mut sources = [0u32; 8];
-        count = 0;
-        for source in map_matrix.incoming_edges(20).unwrap() {
-            sources[count] = source;
-            count += 1;
-        }
-        assert_eq!(count, 2);
-        assert!(sources[..count].contains(&10));
-        assert!(sources[..count].contains(&30));
+        let sources_slice = collect(map_matrix.incoming_edges(20).unwrap(), &mut sources);
+        assert_eq!(sources_slice.len(), 2);
+        assert!(sources_slice.contains(&10));
+        assert!(sources_slice.contains(&30));
 
         // Test incoming edges to node 30 (should be empty)
         let incoming_count = map_matrix.incoming_edges(30).unwrap().count();

@@ -66,61 +66,32 @@ mod tests {
 
         // Test nodes iteration
         let mut nodes = [0usize; 16];
-        let mut count = 0;
-        for node in matrix.iter_nodes().unwrap() {
-            nodes[count] = node;
-            count += 1;
-        }
-        assert_eq!(count, 8);
-        assert_eq!(&nodes[..count], &[0, 1, 2, 3, 4, 5, 6, 7]);
+        let nodes_slice = collect(matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[0, 1, 2, 3, 4, 5, 6, 7]);
 
         // Test edges iteration
         let mut edges = [(0usize, 0usize); 16];
-        count = 0;
-        for (src, dst) in matrix.iter_edges().unwrap() {
-            edges[count] = (src, dst);
-            count += 1;
-        }
-        assert_eq!(count, 6);
+        let edges_slice = collect(matrix.iter_edges().unwrap(), &mut edges);
         let expected_edges = [(0, 0), (0, 1), (0, 3), (2, 1), (3, 2), (5, 0)];
-        assert_eq!(&edges[..count], &expected_edges);
+        assert_eq!(edges_slice, &expected_edges);
 
         // Test outgoing edges for node 0
         let mut outgoing_0 = [0usize; 8];
-        count = 0;
-        for target in matrix.outgoing_edges(0).unwrap() {
-            outgoing_0[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 3);
-        assert_eq!(&outgoing_0[..count], &[0, 1, 3]);
+        let outgoing_slice = collect(matrix.outgoing_edges(0).unwrap(), &mut outgoing_0);
+        assert_eq!(outgoing_slice, &[0, 1, 3]);
 
         // Test outgoing edges for node 1 (should be empty)
-        count = 0;
-        for _target in matrix.outgoing_edges(1).unwrap() {
-            count += 1;
-        }
-        assert_eq!(count, 0);
+        assert_eq!(matrix.outgoing_edges(1).unwrap().count(), 0);
 
         // Test outgoing edges for node 2
         let mut outgoing_2 = [0usize; 8];
-        count = 0;
-        for target in matrix.outgoing_edges(2).unwrap() {
-            outgoing_2[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 1);
-        assert_eq!(&outgoing_2[..count], &[1]);
+        let outgoing_slice = collect(matrix.outgoing_edges(2).unwrap(), &mut outgoing_2);
+        assert_eq!(outgoing_slice, &[1]);
 
         // Test outgoing edges for node 5
         let mut outgoing_5 = [0usize; 8];
-        count = 0;
-        for target in matrix.outgoing_edges(5).unwrap() {
-            outgoing_5[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 1);
-        assert_eq!(&outgoing_5[..count], &[0]);
+        let outgoing_slice = collect(matrix.outgoing_edges(5).unwrap(), &mut outgoing_5);
+        assert_eq!(outgoing_slice, &[0]);
     }
 
     #[test]
@@ -204,13 +175,8 @@ mod tests {
 
         // Test outgoing edges for valid nodes
         let mut outgoing_0 = [0usize; 8];
-        let mut count = 0;
-        for target in matrix.outgoing_edges(0).unwrap() {
-            outgoing_0[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 2);
-        assert_eq!(&outgoing_0[..count], &[0, 1]);
+        let outgoing_slice = collect(matrix.outgoing_edges(0).unwrap(), &mut outgoing_0);
+        assert_eq!(outgoing_slice, &[0, 1]);
 
         // Test outgoing edges for out-of-bounds nodes should return empty
         assert_eq!(matrix.outgoing_edges(8).unwrap().count(), 0); // Node 8 is out of bounds
@@ -261,13 +227,8 @@ mod tests {
 
         // Test that empty matrix has nodes but no edges
         let mut nodes = [0usize; 16];
-        let mut count = 0;
-        for node in matrix.iter_nodes().unwrap() {
-            nodes[count] = node;
-            count += 1;
-        }
-        assert_eq!(count, 8);
-        assert_eq!(&nodes[..count], &[0, 1, 2, 3, 4, 5, 6, 7]);
+        let nodes_slice = collect(matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[0, 1, 2, 3, 4, 5, 6, 7]);
 
         // Test that there are no edges
         assert_eq!(matrix.iter_edges().unwrap().count(), 0);

@@ -20,6 +20,7 @@ heapless = { version ="0.8.0" , optional = true }
 
 [dev-dependencies]
 hybrid-array = {  version = "0.1.0" }
+log = "0.4.27"
 test-log = "0.2.17"
 
 [features]

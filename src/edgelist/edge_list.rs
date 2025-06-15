@@ -236,20 +236,12 @@ mod tests {
         // Test that GraphWithEdgeValues is implemented
         let edge_values = graph.iter_edge_values().unwrap();
         let mut edges_with_values = [(0usize, 0usize, 0i32); 8];
-        let mut len = 0;
-
-        for (src, dst, weight_opt) in edge_values {
-            if let Some(weight) = weight_opt {
-                edges_with_values[len] = (src, dst, *weight);
-                len += 1;
-            }
-        }
-
-        assert_eq!(len, 3);
-        assert_eq!(
-            &edges_with_values[..len],
-            &[(0, 1, 5), (1, 2, 3), (0, 2, 8)]
+        let edges_slice = collect(
+            edge_values.filter_map(|(src, dst, weight_opt)| 
+                weight_opt.map(|w| (src, dst, *w))),
+            &mut edges_with_values
         );
+        assert_eq!(edges_slice, &[(0, 1, 5), (1, 2, 3), (0, 2, 8)]);
     }
 
     #[test]

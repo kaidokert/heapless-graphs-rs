@@ -33,9 +33,9 @@ where
     ) -> Result<Self, GraphError<NI>> {
         // BitMatrix supports indices in range 0..8*N
         let max_valid_index = 8 * N;
-        for (_, idx) in index_map.iter() {
+        for (node, idx) in index_map.iter() {
             if *idx >= max_valid_index {
-                return Err(GraphError::IndexOutOfBounds(*idx));
+                return Err(GraphError::IndexOutOfBounds(*idx, *node));
             }
         }
         Ok(Self::new_unchecked(bitmap, index_map))
@@ -134,6 +134,7 @@ where
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
+    use crate::tests::collect;
 
     #[test]
     fn test_bit_map_matrix_basic() {
@@ -159,16 +160,12 @@ mod tests {
 
         // Test node iteration
         let mut nodes = ['\0'; 8];
-        let mut count = 0;
-        for node in bit_map_matrix.iter_nodes().unwrap() {
-            nodes[count] = node;
-            count += 1;
-        }
-        assert_eq!(count, 2);
+        let nodes_slice = collect(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice.len(), 2);
 
         // Check both nodes are present (order may vary)
-        assert!(nodes[..count].contains(&'A'));
-        assert!(nodes[..count].contains(&'B'));
+        assert!(nodes_slice.contains(&'A'));
+        assert!(nodes_slice.contains(&'B'));
 
         // Test contains_node
         assert!(bit_map_matrix.contains_node('A').unwrap());
@@ -177,21 +174,12 @@ mod tests {
 
         // Test outgoing edges
         let mut outgoing_a = ['\0'; 8];
-        count = 0;
-        for target in bit_map_matrix.outgoing_edges('A').unwrap() {
-            outgoing_a[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 2); // A->A, A->B
+        let outgoing_slice = collect(bit_map_matrix.outgoing_edges('A').unwrap(), &mut outgoing_a);
+        assert_eq!(outgoing_slice.len(), 2); // A->A, A->B
 
         let mut outgoing_b = ['\0'; 8];
-        count = 0;
-        for target in bit_map_matrix.outgoing_edges('B').unwrap() {
-            outgoing_b[count] = target;
-            count += 1;
-        }
-        assert_eq!(count, 1); // B->A
-        assert_eq!(outgoing_b[0], 'A');
+        let outgoing_slice = collect(bit_map_matrix.outgoing_edges('B').unwrap(), &mut outgoing_b);
+        assert_eq!(outgoing_slice, &['A']); // B->A
     }
 
     #[test]
@@ -264,23 +252,14 @@ mod tests {
 
         // Test incoming edges to A (should be from A and B)
         let mut incoming_a = ['\0'; 8];
-        let mut count = 0;
-        for source in bit_map_matrix.incoming_edges('A').unwrap() {
-            incoming_a[count] = source;
-            count += 1;
-        }
-        assert_eq!(count, 2); // A->A, B->A
-        assert!(incoming_a[..count].contains(&'A'));
-        assert!(incoming_a[..count].contains(&'B'));
+        let incoming_slice = collect(bit_map_matrix.incoming_edges('A').unwrap(), &mut incoming_a);
+        assert_eq!(incoming_slice.len(), 2); // A->A, B->A
+        assert!(incoming_slice.contains(&'A'));
+        assert!(incoming_slice.contains(&'B'));
 
         // Test incoming edges to B (should be from A only)
         let mut incoming_b = ['\0'; 8];
-        count = 0;
-        for source in bit_map_matrix.incoming_edges('B').unwrap() {
-            incoming_b[count] = source;
-            count += 1;
-        }
-        assert_eq!(count, 1); // A->B
-        assert_eq!(incoming_b[0], 'A');
+        let incoming_slice = collect(bit_map_matrix.incoming_edges('B').unwrap(), &mut incoming_b);
+        assert_eq!(incoming_slice, &['A']); // A->B
     }
 }

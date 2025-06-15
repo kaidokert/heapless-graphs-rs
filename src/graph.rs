@@ -23,11 +23,11 @@ impl<T> NodeIndex for T where T: PartialEq + PartialOrd + Copy {}
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum GraphError<NI: NodeIndex> {
     /// Edge is referring to a node not present in graph
-    EdgeHasInvalidNode,
+    EdgeHasInvalidNode(NI),
     /// Given node wasn't found in the graph
     NodeNotFound(NI),
     /// Index is out of bounds
-    IndexOutOfBounds(usize),
+    IndexOutOfBounds(usize, NI),
     /// Unexpected condition occurred
     Unexpected,
 }
@@ -174,10 +174,10 @@ where
 {
     for (src, dst) in graph.iter_edges()? {
         if !graph.contains_node(src)? {
-            return Err(GraphError::EdgeHasInvalidNode.into());
+            return Err(GraphError::EdgeHasInvalidNode(src).into());
         }
         if !graph.contains_node(dst)? {
-            return Err(GraphError::EdgeHasInvalidNode.into());
+            return Err(GraphError::EdgeHasInvalidNode(dst).into());
         }
     }
 

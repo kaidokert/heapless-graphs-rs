@@ -111,13 +111,8 @@ mod tests {
         ]);
 
         let mut nodes = [0usize; 8];
-        let mut len = 0;
-        for node in matrix.iter_nodes().unwrap() {
-            nodes[len] = node;
-            len += 1;
-        }
-        assert_eq!(len, 3);
-        assert_eq!(&nodes[..len], &[0, 1, 2]);
+        let nodes_slice = collect(matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[0, 1, 2]);
 
         // Test with different size
         let matrix = Matrix::<5, i32, _, _>::new([
@@ -129,13 +124,8 @@ mod tests {
         ]);
 
         let mut nodes = [0usize; 8];
-        let mut len = 0;
-        for node in matrix.iter_nodes().unwrap() {
-            nodes[len] = node;
-            len += 1;
-        }
-        assert_eq!(len, 5);
-        assert_eq!(&nodes[..len], &[0, 1, 2, 3, 4]);
+        let nodes_slice = collect(matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[0, 1, 2, 3, 4]);
     }
 
     #[test]
