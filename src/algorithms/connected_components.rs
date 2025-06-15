@@ -138,7 +138,9 @@ where
     }
 
     // Mark as visited and add to buffer
-    visited.mark_visited(node);
+    visited
+        .mark_visited(node)
+        .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
 
     if *count >= buffer.len() {
         return Err(AlgorithmError::ResultCapacityExceeded);
@@ -200,7 +202,9 @@ where
         return Ok(());
     }
 
-    visited.mark_visited(start_node);
+    visited
+        .mark_visited(start_node)
+        .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
 
     for neighbor in graph.outgoing_edges(*start_node)? {
         if !visited.is_visited(&neighbor) {

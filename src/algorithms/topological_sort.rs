@@ -26,13 +26,17 @@ where
         return Ok(());
     }
 
-    visited.mark_visiting(&node);
+    visited
+        .mark_visiting(&node)
+        .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
 
     for next_node in graph.outgoing_edges(node)? {
         topological_sort_dfs_visit(graph, next_node, visited, sorted_nodes, sort_index)?;
     }
 
-    visited.mark_visited(&node);
+    visited
+        .mark_visited(&node)
+        .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
 
     // Add to front of result (DFS post-order gives reverse topological order)
     if *sort_index >= sorted_nodes.len() {

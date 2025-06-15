@@ -43,6 +43,8 @@ pub enum AlgorithmError<NI: NodeIndex> {
     StackCapacityExceeded,
     /// Buffer for edges too small
     EdgeCapacityExceeded,
+    /// Visited tracker capacity exceeded
+    VisitedTrackerCapacityExceeded,
     /// Cycle detected in algorithm that requires acyclic graph
     CycleDetected,
     /// Output buffer too small

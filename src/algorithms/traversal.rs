@@ -27,7 +27,9 @@ where
     AlgorithmError<NI>: From<G::Error>,
 {
     if !visited.is_visited(&start_node) {
-        visited.mark_visited(&start_node);
+        visited
+            .mark_visited(&start_node)
+            .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
         operation(start_node);
     }
     for next_node in graph.outgoing_edges(start_node)? {
@@ -81,14 +83,18 @@ where
     stack
         .push_back(start_node)
         .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
-    visited.mark_visited(&start_node);
+    visited
+        .mark_visited(&start_node)
+        .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
 
     while let Some(node) = stack.pop_back() {
         operation(node);
 
         for next_node in graph.outgoing_edges(node)? {
             if !visited.is_visited(&next_node) {
-                visited.mark_visited(&next_node);
+                visited
+                    .mark_visited(&next_node)
+                    .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
                 stack
                     .push_back(next_node)
                     .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
@@ -143,13 +149,17 @@ where
     queue
         .push_back(start_node)
         .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
-    visited.mark_visited(&start_node);
+    visited
+        .mark_visited(&start_node)
+        .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
 
     while let Some(node) = queue.pop_front() {
         operation(node);
         for next_node in graph.outgoing_edges(node)? {
             if !visited.is_visited(&next_node) {
-                visited.mark_visited(&next_node);
+                visited
+                    .mark_visited(&next_node)
+                    .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
                 queue
                     .push_back(next_node)
                     .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
