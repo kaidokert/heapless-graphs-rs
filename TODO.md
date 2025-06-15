@@ -52,9 +52,9 @@ Graph Properties:
 - [x] Graph Coloring: Greedy coloring algorithm to assign colors to vertices such that no adjacent vertices share the same color.
 
 Graph Manipulation:
-- [ ] Node Removal: Removes a specific node and its associated edges from the graph.
-- [ ] Node Addition: Adds a new node to the graph.
-- [ ] Edge Addition: Adds a new edge to the graph.
+- [x] Node Removal: Removes a specific node and its associated edges from the graph. (implemented but lightly tested)
+- [x] Node Addition: Adds a new node to the graph. (implemented but lightly tested)
+- [x] Edge Addition: Adds a new edge to the graph. (implemented but lightly tested)
 - [ ] Edge Removal: Removes a specific edge from the graph - how to refer to it when we have duplicates ?
 
 Graph Measurements:

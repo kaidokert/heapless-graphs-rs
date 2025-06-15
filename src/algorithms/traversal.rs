@@ -18,12 +18,13 @@ pub fn dfs_recursive_unchecked<G, NI, VT, F>(
     start_node: NI,
     visited: &mut VT,
     operation: &mut F,
-) -> Result<(), G::Error>
+) -> Result<(), AlgorithmError<NI>>
 where
     G: Graph<NI>,
     NI: NodeIndex,
     VT: VisitedTracker<NI> + ?Sized,
     F: FnMut(NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
     if !visited.is_visited(&start_node) {
         visited.mark_visited(&start_node);
@@ -45,12 +46,13 @@ pub fn dfs_recursive<G, NI, VT, F>(
     start_node: NI,
     visited: &mut VT,
     operation: &mut F,
-) -> Result<(), G::Error>
+) -> Result<(), AlgorithmError<NI>>
 where
     G: Graph<NI>,
     NI: NodeIndex + core::fmt::Debug,
     VT: VisitedTracker<NI> + ?Sized,
     F: FnMut(NI),
+    AlgorithmError<NI>: From<G::Error>,
 {
     if !graph.contains_node(start_node)? {
         return Ok(());

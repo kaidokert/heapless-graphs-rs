@@ -12,8 +12,8 @@ The main aim is to provide very flexible and optionally compact memory storage
 of graphs, suitable for using in `no_std` environments, specifically
 microcontrollers.
 
-Two types of graphs are implemented: adjacency lists and edge lists, both
-implement the same shared trait for a graph.
+Three types of graphs are implemented: adjacency lists, edge lists, and adjacency matrices, all
+implementing the same shared trait for a graph.
 
 Code example with a simple graph:
 ```Rust
@@ -40,7 +40,7 @@ A code golf version, with only edges:
     );
 ```
 
-This is still quite a raw draft, with none of the APIs stable for use, see
+This is still quite a raw draft, with APIs subject to change, see
 [TODO](TODO.md) for a long list of things that may change.
 
 _Note:_ This is mostly a Rust learning exercise. If you are looking for
