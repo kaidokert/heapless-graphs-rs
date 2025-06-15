@@ -8,17 +8,17 @@ use crate::{
 /// This struct combines a [`crate::matrix::bit_matrix::BitMatrix`] for efficient edge storage with an index map
 /// that allows arbitrary node indices. It provides the same memory efficiency as
 /// BitMatrix while supporting non-contiguous node identifiers.
-pub struct BitMapMatrix<const N: usize, NI, M>
+pub struct BitMapMatrix<const N: usize, const R: usize, NI, M>
 where
     NI: NodeIndex,
     M: MapTrait<NI, usize>,
 {
-    bitmap: super::bit_matrix::BitMatrix<N>,
+    bitmap: super::bit_matrix::BitMatrix<N, R>,
     index_map: M,
     phantom: core::marker::PhantomData<NI>,
 }
 
-impl<const N: usize, NI, M> BitMapMatrix<N, NI, M>
+impl<const N: usize, const R: usize, NI, M> BitMapMatrix<N, R, NI, M>
 where
     NI: NodeIndex,
     M: MapTrait<NI, usize>,
@@ -28,7 +28,7 @@ where
     /// Validates that all indices in the index_map are within valid bounds for the BitMatrix.
     /// BitMatrix supports node indices in the range 0..8*N.
     pub fn new(
-        bitmap: super::bit_matrix::BitMatrix<N>,
+        bitmap: super::bit_matrix::BitMatrix<N, R>,
         index_map: M,
     ) -> Result<Self, GraphError<NI>> {
         // BitMatrix supports indices in range 0..8*N
@@ -46,7 +46,7 @@ where
     /// # Safety
     /// The caller must ensure that all indices in the index_map are within valid bounds
     /// for the BitMatrix (0..8*N).
-    pub fn new_unchecked(bitmap: super::bit_matrix::BitMatrix<N>, index_map: M) -> Self {
+    pub fn new_unchecked(bitmap: super::bit_matrix::BitMatrix<N, R>, index_map: M) -> Self {
         Self {
             bitmap,
             index_map,
@@ -55,7 +55,7 @@ where
     }
 }
 
-impl<const N: usize, NI, M> Graph<NI> for BitMapMatrix<N, NI, M>
+impl<const N: usize, const R: usize, NI, M> Graph<NI> for BitMapMatrix<N, R, NI, M>
 where
     NI: NodeIndex,
     M: MapTrait<NI, usize>,
@@ -149,7 +149,7 @@ mod tests {
             [0b00000000u8], // Row 6: no edges
             [0b00000000u8], // Row 7: no edges
         ];
-        let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
 
         // Map custom node IDs 'A','B' to matrix indices 0,1
         let mut index_map = Dictionary::<char, usize, 8>::new();
@@ -186,7 +186,7 @@ mod tests {
     fn test_bit_map_matrix_empty() {
         // Empty bitmap
         let bits = [[0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8]];
-        let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
 
         // Empty index map
         let index_map = Dictionary::<u32, usize, 8>::new();
@@ -214,7 +214,7 @@ mod tests {
             [0b00000000u8],
             [0b00000000u8],
         ];
-        let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
 
         let mut index_map = Dictionary::<u32, usize, 8>::new();
         index_map.insert(100, 0).unwrap();
@@ -241,7 +241,7 @@ mod tests {
             [0b00000000u8], // Row 6: no edges
             [0b00000000u8], // Row 7: no edges
         ];
-        let bitmap = super::super::bit_matrix::BitMatrix::new(bits);
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
 
         // Map custom node IDs 'A','B' to matrix indices 0,1
         let mut index_map = Dictionary::<char, usize, 8>::new();

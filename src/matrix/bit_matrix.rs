@@ -1,17 +1,97 @@
 use crate::graph::{Graph, GraphError};
 
-// Store edges in bits
-pub struct BitMatrix<const N: usize> {
-    bits: [[u8; N]; 8], // 8 rows, each with N columns
+/// A space-efficient adjacency matrix implementation using bit-level storage.
+///
+/// `BitMatrix` represents a directed graph using a bit-packed adjacency matrix.
+/// Each bit in the matrix represents the presence (1) or absence (0) of an edge
+/// between two nodes. This implementation is particularly memory-efficient for
+/// dense graphs, as it uses only one bit per potential edge.
+///
+/// # Type Parameters
+/// * `C` - Number of columns (bytes) per row. Each byte can store 8 edges.
+/// * `R` - Number of rows in the matrix. Must equal 8 * C for valid matrices.
+///
+/// # Matrix Layout
+/// The matrix is stored as a 2D array of bytes, where:
+/// * Each row represents a source node
+/// * Each byte in a row represents 8 potential target nodes
+/// * The total number of nodes is 8 * C
+/// * The total number of edges is (8 * C)²
+///
+/// # Example
+/// ```
+/// use heapless_graphs::matrix::bit_matrix::BitMatrix;
+/// use heapless_graphs::graph::Graph;
+///
+/// // Create a graph with 8 nodes (1 byte per row, 8 rows)
+/// let bits = [
+///     [0b00000001u8], // Node 0 -> Node 0
+///     [0b00000010u8], // Node 1 -> Node 1
+///     [0b00000100u8], // Node 2 -> Node 2
+///     [0b00001000u8], // Node 3 -> Node 3
+///     [0b00010000u8], // Node 4 -> Node 4
+///     [0b00100000u8], // Node 5 -> Node 5
+///     [0b01000000u8], // Node 6 -> Node 6
+///     [0b10000000u8], // Node 7 -> Node 7
+/// ];
+/// let matrix = BitMatrix::<1, 8>::new(bits).unwrap();
+///
+/// // Use the public Graph trait API
+/// let nodes: Vec<_> = matrix.iter_nodes().unwrap().collect();
+/// assert_eq!(nodes, vec![0, 1, 2, 3, 4, 5, 6, 7]);
+/// let edges: Vec<_> = matrix.iter_edges().unwrap().collect();
+/// assert_eq!(edges, vec![(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6), (7, 7)]);
+/// ```
+pub struct BitMatrix<const C: usize, const R: usize> {
+    bits: [[u8; C]; R], // R rows, each with C columns
 }
 
-impl<const N: usize> BitMatrix<N> {
-    pub fn new(bits: [[u8; N]; 8]) -> Self {
+impl<const C: usize, const R: usize> BitMatrix<C, R> {
+    /// Creates a new `BitMatrix` with validation of matrix dimensions.
+    ///
+    /// # Arguments
+    /// * `bits` - The raw bit matrix data. Each row must have C columns of bytes.
+    ///
+    /// # Returns
+    /// * `Ok(Self)` if R = 8*C, ensuring the matrix can represent a valid graph
+    /// * `Err(GraphError::InvalidMatrixSize)` if dimensions are invalid
+    ///
+    /// # Example
+    /// ```
+    /// use heapless_graphs::matrix::bit_matrix::BitMatrix;
+    ///
+    /// // Valid: 8 rows, 1 column (8 = 8*1)
+    /// let bits = [[0u8]; 8];
+    /// assert!(BitMatrix::<1, 8>::new(bits).is_ok());
+    ///
+    /// // Invalid: 4 rows, 1 column (4 ≠ 8*1)
+    /// let bits = [[0u8]; 4];
+    /// assert!(BitMatrix::<1, 4>::new(bits).is_err());
+    /// ```
+    pub fn new(bits: [[u8; C]; R]) -> Result<Self, GraphError<usize>> {
+        if R != 8 * C {
+            return Err(GraphError::InvalidMatrixSize);
+        }
+        Ok(Self { bits })
+    }
+
+    /// Creates a new `BitMatrix` without dimension validation.
+    ///
+    /// # Safety
+    /// This constructor bypasses the R = 8*C validation. The caller must ensure
+    /// that the matrix dimensions are valid, otherwise the graph operations
+    /// may not work as expected.
+    ///
+    /// # Arguments
+    /// * `bits` - The raw bit matrix data. Each row must have C columns of bytes.
+    pub fn new_unchecked(bits: [[u8; C]; R]) -> Self {
         Self { bits }
     }
 
+    /// Internal: Checks if an edge exists between two nodes.
+    /// Returns true if the edge exists and indices are in bounds, false otherwise.
     pub(super) fn get(&self, row: usize, col: usize) -> bool {
-        if row >= 8 || col >= 8 * N {
+        if row >= R || col >= 8 * C {
             return false;
         }
         let byte_col = col / 8;
@@ -20,26 +100,26 @@ impl<const N: usize> BitMatrix<N> {
     }
 }
 
-impl<const N: usize> Graph<usize> for BitMatrix<N> {
+impl<const C: usize, const R: usize> Graph<usize> for BitMatrix<C, R> {
     type Error = GraphError<usize>;
 
     fn iter_nodes(&self) -> Result<impl Iterator<Item = usize>, Self::Error> {
-        Ok(0..8 * N)
+        Ok(0..8 * C)
     }
 
     fn iter_edges(&self) -> Result<impl Iterator<Item = (usize, usize)>, Self::Error> {
-        let iter = (0..8)
-            .flat_map(move |row| (0..8 * N).map(move |col| (row, col)))
+        let iter = (0..8 * C)
+            .flat_map(move |row| (0..8 * C).map(move |col| (row, col)))
             .filter(move |(row, col)| self.get(*row, *col));
         Ok(iter)
     }
 
     fn outgoing_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
-        Ok((0..8 * N).filter(move |&col| self.get(node, col)))
+        Ok((0..8 * C).filter(move |&col| self.get(node, col)))
     }
 
     fn incoming_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
-        Ok((0..8 * N).filter(move |&row| self.get(row, node)))
+        Ok((0..8 * C).filter(move |&row| self.get(row, node)))
     }
 }
 
@@ -62,7 +142,7 @@ mod tests {
             [0b00000000u8], // 7-> no outgoing edges
         ];
 
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test nodes iteration
         let mut nodes = [0usize; 16];
@@ -107,7 +187,7 @@ mod tests {
             [0b00000000u8], // 7-> no edges
         ];
 
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test get method
         assert!(matrix.get(0, 0)); // 0->0 exists
@@ -136,7 +216,7 @@ mod tests {
             [0b00000000u8],
         ];
 
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test valid bounds
         assert!(matrix.get(0, 0)); // Should be true
@@ -171,7 +251,7 @@ mod tests {
             [0b00000000u8],
         ];
 
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test outgoing edges for valid nodes
         let mut outgoing_0 = [0usize; 8];
@@ -198,7 +278,7 @@ mod tests {
             [0b11111111u8], // All 8 edges from node 7
         ];
 
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Should have 8 nodes
         assert_eq!(matrix.iter_nodes().unwrap().count(), 8);
@@ -223,7 +303,7 @@ mod tests {
     fn test_bit_matrix_empty() {
         let bits = [[0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8]];
 
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test that empty matrix has nodes but no edges
         let mut nodes = [0usize; 16];
@@ -253,7 +333,7 @@ mod tests {
             [0b00000000u8, 0b00000000u8], // 7-> no edges
         ];
 
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Should have 16 nodes (8*2)
         assert_eq!(matrix.iter_nodes().unwrap().count(), 16);
@@ -326,7 +406,7 @@ mod tests {
             [0b00000000u8], // 6-> no edges
             [0b00000000u8], // 7-> no edges
         ];
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test node 0's incoming edges (should be from node 2)
         let mut edges = [0usize; 4];
@@ -362,7 +442,7 @@ mod tests {
             [0b00000000u8], // no edges
             [0b00000000u8], // no edges
         ];
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test all nodes have no incoming edges in an empty matrix
         for node in 0..4 {
@@ -384,7 +464,7 @@ mod tests {
             [0b00000000u8], // no edges
             [0b00000000u8], // no edges
         ];
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test node 0's incoming edges (should include self-loop)
         let mut edges = [0usize; 4];
@@ -416,12 +496,61 @@ mod tests {
             [0b00000000u8], // no edges
             [0b00000000u8], // no edges
         ];
-        let matrix = BitMatrix::new(bits);
+        let matrix = BitMatrix::new_unchecked(bits);
 
         // Test node 1's incoming edges
         let mut edges = [0usize; 4];
         let edges_slice = collect(matrix.incoming_edges(1).unwrap(), &mut edges);
         edges_slice.sort_unstable();
         assert_eq!(edges_slice, &[0, 2, 3]);
+    }
+
+    #[test]
+    fn test_bit_matrix_new_constructor() {
+        // Valid case: 8 rows (R=8) and 1 column (C=1) satisfies R = 8*C
+        let valid_bits = [
+            [0b00000001u8],
+            [0b00000010u8],
+            [0b00000100u8],
+            [0b00001000u8],
+            [0b00010000u8],
+            [0b00100000u8],
+            [0b01000000u8],
+            [0b10000000u8],
+        ];
+        assert!(BitMatrix::<1, 8>::new(valid_bits).is_ok());
+
+        // Invalid case: 4 rows (R=4) and 1 column (C=1) does not satisfy R = 8*C
+        let invalid_bits = [
+            [0b00000001u8],
+            [0b00000010u8],
+            [0b00000100u8],
+            [0b00001000u8],
+        ];
+        assert!(matches!(
+            BitMatrix::<1, 4>::new(invalid_bits),
+            Err(GraphError::InvalidMatrixSize)
+        ));
+
+        // Another valid case: 16 rows (R=16) and 2 columns (C=2) satisfies R = 8*C
+        let valid_bits_2 = [
+            [0b00000001u8, 0b00000000u8],
+            [0b00000010u8, 0b00000000u8],
+            [0b00000100u8, 0b00000000u8],
+            [0b00001000u8, 0b00000000u8],
+            [0b00010000u8, 0b00000000u8],
+            [0b00100000u8, 0b00000000u8],
+            [0b01000000u8, 0b00000000u8],
+            [0b10000000u8, 0b00000000u8],
+            [0b00000000u8, 0b00000001u8],
+            [0b00000000u8, 0b00000010u8],
+            [0b00000000u8, 0b00000100u8],
+            [0b00000000u8, 0b00001000u8],
+            [0b00000000u8, 0b00010000u8],
+            [0b00000000u8, 0b00100000u8],
+            [0b00000000u8, 0b01000000u8],
+            [0b00000000u8, 0b10000000u8],
+        ];
+        assert!(BitMatrix::<2, 16>::new(valid_bits_2).is_ok());
     }
 }

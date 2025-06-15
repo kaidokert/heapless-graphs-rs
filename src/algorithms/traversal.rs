@@ -391,7 +391,8 @@ mod tests {
             [0b00001000u8], // node 5 -> bit 3 (node 3)
             [0b00000000u8], // node 6 -> none
             [0b10000000u8], // node 7 -> bit 7 (node 7)
-        ]);
+        ])
+        .unwrap();
         let mut index_map = Dictionary::<usize, usize, 8>::new();
         index_map.insert(0, 0).unwrap();
         index_map.insert(1, 1).unwrap();

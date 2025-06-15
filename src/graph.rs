@@ -28,6 +28,8 @@ pub enum GraphError<NI: NodeIndex> {
     NodeNotFound(NI),
     /// Index is out of bounds
     IndexOutOfBounds(usize, NI),
+    /// Matrix size is invalid
+    InvalidMatrixSize,
     /// Unexpected condition occurred
     Unexpected,
 }
