@@ -1,12 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
+//! Kruskal's algorithm for finding minimum spanning trees
 
-use crate::{containers::maps::MapTrait, graph::GraphWithEdgeValues};
+use super::ContainerResultExt;
 
-use super::{AlgorithmError, OptionResultExt};
+use super::AlgorithmError;
+use crate::containers::maps::MapTrait;
+use crate::graph::{GraphWithEdgeValues, NodeIndex};
 
-/// Kruskal's algorithm for minimum spanning tree
+/// Kruskal's algorithm for finding minimum spanning trees
 ///
-/// Finds the minimum spanning tree of a graph
+/// This algorithm finds the minimum spanning tree of a connected, undirected graph
+/// with edge weights. It works by sorting all edges by weight and greedily adding
+/// edges that don't create cycles, using union-find for efficient cycle detection.
+///
+/// # Arguments
+/// * `graph` - Graph implementing GraphWithEdgeValues with edge weights
+/// * `edge_storage` - Temporary buffer for storing and sorting edges by weight
+/// * `parent` - Map for union-find data structure (each node initially maps to itself)
+/// * `mst` - Output buffer for the minimum spanning tree edges
+///
+/// # Returns
+/// * `Ok(&[(NI, NI, V)])` slice of MST edges if successful
+/// * `Err(AlgorithmError::EdgeCapacityExceeded)` if edge storage buffer is too small
+/// * `Err(AlgorithmError::ResultCapacityExceeded)` if MST output buffer is too small
+/// * `Err(AlgorithmError::GraphError(_))` for graph access errors
+///
+/// # Time Complexity
+/// O(E log E) where E is the number of edges (dominated by sorting)
 pub fn kruskals<'a, NI, G, V, M>(
     graph: &G,
     edge_storage: &mut [(NI, NI, V)],
@@ -14,186 +34,208 @@ pub fn kruskals<'a, NI, G, V, M>(
     mst: &'a mut [(NI, NI, V)],
 ) -> Result<&'a [(NI, NI, V)], AlgorithmError<NI>>
 where
-    G: GraphWithEdgeValues<V, NodeIndex = NI>,
+    NI: NodeIndex + Ord,
+    V: Copy + Ord,
+    G: GraphWithEdgeValues<NI, V>,
     M: MapTrait<NI, NI>,
-    NI: Eq + Copy + Default + Ord + Sized,
-    V: Copy + Default + Ord + Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
-    parent.clear();
-    for &node in graph.get_nodes()? {
-        parent.insert(node, node);
+    // Initialize union-find: each node is its own parent
+    for node in graph.iter_nodes()? {
+        parent.insert(node, node).capacity_error()?;
     }
-    fn find<NI, M>(node: NI, parent: &mut M) -> Result<NI, AlgorithmError<NI>>
-    where
-        NI: PartialEq + Eq + Copy,
-        M: MapTrait<NI, NI>,
-    {
-        let mut cur_node = node;
-        loop {
-            let parent_node = *parent.get(&cur_node).dict_error()?;
-            if parent_node == cur_node {
-                break;
+
+    // Collect all edges with weights into edge_storage
+    let mut edge_count = 0;
+    for (src, dst, weight_opt) in graph.iter_edge_values()? {
+        if let Some(weight) = weight_opt {
+            // Skip self-loops
+            if src == dst {
+                continue;
             }
-            let grandparent = *parent.get(&parent_node).dict_error()?;
-            *parent.get_mut(&cur_node).dict_error()? = grandparent;
-            cur_node = grandparent;
+
+            if edge_count >= edge_storage.len() {
+                return Err(AlgorithmError::EdgeCapacityExceeded);
+            }
+            edge_storage[edge_count] = (src, dst, *weight);
+            edge_count += 1;
         }
-        Ok(cur_node)
     }
-    fn union<NI, M>(u: NI, v: NI, parent: &mut M) -> Result<bool, AlgorithmError<NI>>
-    where
-        NI: PartialEq + Eq + Copy,
-        M: MapTrait<NI, NI>,
-    {
-        let root_u = find(u, parent)?;
-        let root_v = find(v, parent)?;
-        if root_u == root_v {
-            return Ok(false);
-        }
-        *parent.get_mut(&root_v).dict_error()? = root_u;
-        Ok(true)
-    }
-    let sorted_edges = edge_storage;
-    let mut count = 0;
-    for edge in graph.get_edge_values()? {
-        if count >= sorted_edges.len() {
-            return Err(AlgorithmError::EdgeCapacityExceeded {
-                max_edges: sorted_edges.len(),
-            });
-        }
-        if let Some(weight) = edge.2 {
-            sorted_edges[count] = (*edge.0, *edge.1, *weight);
-            count += 1;
+
+    // Sort edges by weight in ascending order
+    let edges = &mut edge_storage[..edge_count];
+    edges.sort_unstable_by_key(|(_, _, weight)| *weight);
+
+    // Union-find helper functions with path compression
+    fn find<NI: Copy + Eq + PartialOrd, M: MapTrait<NI, NI>>(
+        parent: &mut M,
+        node: NI,
+    ) -> Result<NI, AlgorithmError<NI>> {
+        if let Some(&p) = parent.get(&node) {
+            if p != node {
+                let root = find(parent, p)?;
+                parent.insert(node, root).capacity_error()?; // Path compression
+                Ok(root)
+            } else {
+                Ok(node)
+            }
         } else {
-            return Err(AlgorithmError::MissingEdgeWeight {
-                incoming_edge: *edge.0,
-                outgoing_edge: *edge.1,
-            });
+            Ok(node)
         }
     }
-    let sortable_slice = &mut sorted_edges[..count];
-    sortable_slice.sort_unstable_by(|a, b| a.2.cmp(&b.2));
-    count = 0;
-    for &(u, v, w) in sortable_slice.iter() {
-        if u == v {
-            continue; // Skip self-loops
+
+    fn union<NI: Copy + Eq + PartialOrd, M: MapTrait<NI, NI>>(
+        parent: &mut M,
+        u: NI,
+        v: NI,
+    ) -> Result<(), AlgorithmError<NI>> {
+        let root_u = find(parent, u)?;
+        let root_v = find(parent, v)?;
+        if root_u != root_v {
+            parent.insert(root_u, root_v).capacity_error()?;
         }
-        if union(u, v, &mut parent)? {
-            if count >= mst.len() {
-                return Err(AlgorithmError::OutputCapacityExceeded);
+        Ok(())
+    }
+
+    // Build MST by processing edges in weight order
+    let mut mst_count = 0;
+    for (u, v, weight) in edges.iter() {
+        // Check if adding this edge creates a cycle
+        let root_u = find(&mut parent, *u)?;
+        let root_v = find(&mut parent, *v)?;
+
+        if root_u != root_v {
+            // No cycle - add edge to MST
+            if mst_count >= mst.len() {
+                return Err(AlgorithmError::ResultCapacityExceeded);
             }
-            mst[count] = (u, v, w);
-            count += 1;
+            mst[mst_count] = (*u, *v, *weight);
+            mst_count += 1;
+
+            // Union the components
+            union(&mut parent, *u, *v)?;
         }
     }
-    let ret_range = &mut mst[..count];
-    Ok(ret_range)
+
+    Ok(&mst[..mst_count])
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[cfg(feature = "heapless")]
-    use crate::adjacency_list::MapAdjacencyList;
-    use crate::{
-        adjacency_list::{EdgesOnly, SliceAdjacencyList},
-        containers::maps::staticdict::Dictionary,
-    };
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::edges::EdgeValueStruct;
 
     #[test]
-    fn test_kruskals() {
-        use crate::nodes::NodeValueStructOption;
-        use crate::{edge_list::EdgeList, edges::EdgeValueStruct};
+    fn test_kruskals_simple() {
+        // Create a simple weighted graph:
+        // a(0) -- 1 -- b(1)
+        //  |            |
+        //  3            2
+        //  |            |
+        // c(2) -- 4 -- d(3)
+        let edge_data = EdgeValueStruct([
+            (0usize, 1usize, 1i32), // a-b weight 1
+            (0, 2, 3),              // a-c weight 3
+            (1, 3, 2),              // b-d weight 2
+            (2, 3, 4),              // c-d weight 4
+        ]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
 
-        let graph = EdgeList::<8, _, _>::new(EdgeValueStruct([
-            ('a', 'b', 1),
-            ('a', 'c', 3),
-            ('b', 'c', 2),
-            ('b', 'd', 2),
-            ('c', 'd', 4),
-        ]))
-        .unwrap();
-        let mut mst = [('0', '0', 0); 3];
-        let mut edge_storage = [('0', '0', 0); 5];
-        let res = kruskals(
-            &graph,
-            edge_storage.as_mut_slice(),
-            Dictionary::<_, _, 16>::new(),
-            &mut mst,
-        )
-        .unwrap();
-        assert_eq!(res, &[('a', 'b', 1), ('b', 'c', 2), ('b', 'd', 2)]);
+        let mut edge_storage = [(0usize, 0usize, 0i32); 16];
+        let parent = Dictionary::<usize, usize, 16>::new();
+        let mut mst = [(0usize, 0usize, 0i32); 8];
 
-        let graph = SliceAdjacencyList::new([
-            (
-                'a',
-                EdgesOnly(NodeValueStructOption([Some(('b', 1)), Some(('c', 3))])),
-            ),
-            (
-                'b',
-                EdgesOnly(NodeValueStructOption([Some(('c', 2)), Some(('d', 2))])),
-            ),
-            (
-                'c',
-                EdgesOnly(NodeValueStructOption([Some(('d', 4)), None])),
-            ),
-            ('d', EdgesOnly(NodeValueStructOption([None, None]))),
-        ])
-        .unwrap();
-        let mut mst2 = [('0', '0', 0); 3];
-        let mut edge_storage2 = [('0', '0', 0); 5];
-        let res = kruskals(
-            &graph,
-            edge_storage2.as_mut_slice(),
-            Dictionary::<_, _, 16>::new(),
-            &mut mst2,
-        )
-        .unwrap();
-        assert_eq!(res, &[('a', 'b', 1), ('b', 'c', 2), ('b', 'd', 2)]);
+        let result = kruskals(&graph, &mut edge_storage, parent, &mut mst).unwrap();
 
-        #[cfg(feature = "heapless")]
-        {
-            let graph = MapAdjacencyList::new(heapless::FnvIndexMap::<_, _, 8>::from_iter([
-                (
-                    'a',
-                    EdgesOnly(NodeValueStructOption([
-                        Some(('b', 1)),
-                        None,
-                        Some(('c', 3)),
-                        None,
-                    ])),
-                ),
-                (
-                    'b',
-                    EdgesOnly(NodeValueStructOption([
-                        None,
-                        None,
-                        Some(('c', 2)),
-                        Some(('d', 2)),
-                    ])),
-                ),
-                (
-                    'c',
-                    EdgesOnly(NodeValueStructOption([None, None, Some(('d', 4)), None])),
-                ),
-                (
-                    'd',
-                    EdgesOnly(NodeValueStructOption([None, None, None, None])),
-                ),
-            ]))
-            .unwrap();
-            let mut mst3 = [('0', '0', 0); 3];
-            let mut edge_storage3 = [('0', '0', 0); 5];
-            let res = kruskals(
-                &graph,
-                edge_storage3.as_mut_slice(),
-                Dictionary::<_, _, 16>::new(),
-                &mut mst3,
-            )
-            .unwrap();
-            assert_eq!(res, &[('a', 'b', 1), ('b', 'c', 2), ('b', 'd', 2)]);
+        // Expected MST: edges (0,1,1), (1,3,2), (0,2,3) with total weight 6
+        assert_eq!(result.len(), 3);
+
+        // Check that all expected edges are present (order may vary)
+        let mut found_edges = [false; 3];
+        for &(u, v, w) in result {
+            if (u == 0 && v == 1 && w == 1) || (u == 1 && v == 0 && w == 1) {
+                found_edges[0] = true;
+            } else if (u == 1 && v == 3 && w == 2) || (u == 3 && v == 1 && w == 2) {
+                found_edges[1] = true;
+            } else if (u == 0 && v == 2 && w == 3) || (u == 2 && v == 0 && w == 3) {
+                found_edges[2] = true;
+            }
         }
+        assert!(
+            found_edges.iter().all(|&found| found),
+            "Missing expected MST edges"
+        );
+
+        // Calculate total weight
+        let total_weight: i32 = result.iter().map(|(_, _, w)| w).sum();
+        assert_eq!(total_weight, 6);
+    }
+
+    #[test]
+    fn test_kruskals_disconnected() {
+        // Create a disconnected graph: 0-1 and 2-3 (no connection between pairs)
+        let edge_data = EdgeValueStruct([
+            (0usize, 1usize, 5i32), // 0-1 weight 5
+            (2, 3, 3),              // 2-3 weight 3
+        ]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
+
+        let mut edge_storage = [(0usize, 0usize, 0i32); 16];
+        let parent = Dictionary::<usize, usize, 16>::new();
+        let mut mst = [(0usize, 0usize, 0i32); 8];
+
+        let result = kruskals(&graph, &mut edge_storage, parent, &mut mst).unwrap();
+
+        // For disconnected graph, we get a minimum spanning forest
+        assert_eq!(result.len(), 2);
+
+        // Check that both edges are present
+        let mut found_edges = [false; 2];
+        for &(u, v, w) in result {
+            if (u == 0 && v == 1 && w == 5) || (u == 1 && v == 0 && w == 5) {
+                found_edges[0] = true;
+            } else if (u == 2 && v == 3 && w == 3) || (u == 3 && v == 2 && w == 3) {
+                found_edges[1] = true;
+            }
+        }
+        assert!(
+            found_edges.iter().all(|&found| found),
+            "Missing expected MST edges"
+        );
+    }
+
+    #[test]
+    fn test_kruskals_no_edges() {
+        // Graph with nodes but no edges
+        let edge_data = EdgeValueStruct([
+            (0usize, 1usize, 1i32), // Add at least one edge to create nodes
+        ]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
+
+        let mut edge_storage = [(0usize, 0usize, 0i32); 16];
+        let parent = Dictionary::<usize, usize, 16>::new();
+        let mut mst = [(0usize, 0usize, 0i32); 8];
+
+        let result = kruskals(&graph, &mut edge_storage, parent, &mut mst).unwrap();
+
+        // MST should contain exactly one edge (the only edge in the graph)
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], (0, 1, 1));
+    }
+
+    #[test]
+    fn test_kruskals_capacity_exceeded() {
+        // Create graph with more edges than storage capacity
+        let edge_data = EdgeValueStruct([(0usize, 1usize, 1i32), (1, 2, 2), (2, 3, 3)]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
+
+        let mut edge_storage = [(0usize, 0usize, 0i32); 2]; // Only room for 2 edges
+        let parent = Dictionary::<usize, usize, 16>::new();
+        let mut mst = [(0usize, 0usize, 0i32); 8];
+
+        let result = kruskals(&graph, &mut edge_storage, parent, &mut mst);
+        assert!(matches!(result, Err(AlgorithmError::EdgeCapacityExceeded)));
     }
 }

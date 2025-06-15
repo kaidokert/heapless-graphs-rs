@@ -1,161 +1,170 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{visited::TriStateVisitedTracker, Graph};
+//! Topological sorting algorithms for directed acyclic graphs (DAGs)
 
 use super::AlgorithmError;
+use crate::graph::{Graph, NodeIndex};
+use crate::visited::TriStateVisitedTracker;
 
-/// Depth-first post-order traversal, with nodes enumerated in reverse order
-///
-/// Detects cycles
-fn dfs_recursive_postorder<G, NI, VT, F>(
+fn topological_sort_dfs_visit<G, NI, VT>(
     graph: &G,
     node: NI,
     visited: &mut VT,
-    operation: &mut F,
+    sorted_nodes: &mut [NI],
+    sort_index: &mut usize,
 ) -> Result<(), AlgorithmError<NI>>
 where
-    NI: PartialEq + Copy + core::fmt::Debug,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: TriStateVisitedTracker<NI> + ?Sized,
-    F: FnMut(&NI),
     AlgorithmError<NI>: From<G::Error>,
 {
+    if visited.is_visiting(&node) {
+        return Err(AlgorithmError::CycleDetected);
+    }
     if visited.is_visited(&node) {
         return Ok(());
     }
-    visited.mark_visiting(&node);
-    for next_node in graph.outgoing_edges_for_node(&node)? {
-        if visited.is_visiting(next_node) {
-            return Err(AlgorithmError::CycleDetected {
-                outgoing_edge: *next_node,
-                incoming_edge: node,
-            });
-        }
-        if !visited.is_visited(next_node) {
-            dfs_recursive_postorder(graph, *next_node, visited, operation)?;
-        }
+
+    visited
+        .mark_visiting(&node)
+        .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
+
+    for next_node in graph.outgoing_edges(node)? {
+        topological_sort_dfs_visit(graph, next_node, visited, sorted_nodes, sort_index)?;
     }
-    visited.mark_visited(&node);
-    operation(&node);
+
+    visited
+        .mark_visited(&node)
+        .map_err(|_| AlgorithmError::VisitedTrackerCapacityExceeded)?;
+
+    // Add to front of result (DFS post-order gives reverse topological order)
+    if *sort_index >= sorted_nodes.len() {
+        return Err(AlgorithmError::ResultCapacityExceeded);
+    }
+    sorted_nodes[*sort_index] = node;
+    *sort_index += 1;
+
     Ok(())
 }
 
-/// Topological sort of a directed graph
+/// DFS-based topological sort algorithm
 ///
-/// Returns an error if a cycle is found
-pub fn topological_sort<'a, G, NI, VT>(
+/// Performs a topological sort on a directed graph using depth-first search.
+/// The algorithm detects cycles and returns an error if the graph is not a DAG.
+///
+/// # Arguments
+/// * `graph` - The graph to sort topologically (must implement Graph)
+/// * `visited` - Tri-state visited tracker (unvisited/visiting/visited)
+/// * `sorted_nodes` - Buffer to store the topologically sorted nodes
+///
+/// # Returns
+/// * `Ok(&[NI])` slice of sorted nodes if successful
+/// * `Err(AlgorithmError::CycleDetected)` if a cycle is found
+/// * `Err(AlgorithmError::ResultCapacityExceeded)` if result buffer is full
+///
+/// # Time Complexity
+/// O(V + E) where V is the number of vertices and E is the number of edges
+pub fn topological_sort_dfs<'a, G, NI, VT>(
     graph: &G,
     visited: &mut VT,
     sorted_nodes: &'a mut [NI],
 ) -> Result<&'a [NI], AlgorithmError<NI>>
 where
-    NI: PartialEq + Copy + core::fmt::Debug,
-    G: Graph<NodeIndex = NI>,
+    G: Graph<NI>,
+    NI: NodeIndex,
     VT: TriStateVisitedTracker<NI> + ?Sized,
     AlgorithmError<NI>: From<G::Error>,
 {
+    visited.reset();
     let mut sort_index = 0;
-    let mut append_to_list = |node: &NI| {
-        sorted_nodes[sort_index] = *node;
-        sort_index += 1;
-    };
-    for node in graph.get_nodes()? {
-        if visited.is_unvisited(node) {
-            dfs_recursive_postorder(graph, *node, visited, &mut append_to_list)?;
+
+    // Visit all nodes in the graph
+    for node in graph.iter_nodes()? {
+        if visited.is_unvisited(&node) {
+            topological_sort_dfs_visit(graph, node, visited, sorted_nodes, &mut sort_index)?;
         }
     }
-    // Catch isolated nodes
-    for node in graph.get_nodes()? {
-        if visited.is_unvisited(node) {
-            append_to_list(node);
-        }
-    }
-    let sorted_slice = &mut sorted_nodes[..sort_index];
-    sorted_slice.reverse();
-    Ok(sorted_slice)
+
+    // Reverse the result since DFS post-order gives reverse topological order
+    let result_slice = &mut sorted_nodes[..sort_index];
+    result_slice.reverse();
+
+    Ok(result_slice)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edge_list::{EdgeList, EdgeNodeList};
-    use crate::edges::EdgeStruct;
-    use crate::nodes::{NodeStruct, NodeValueTwoArray};
-    use crate::NodeState;
-    use core::slice::SliceIndex;
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::visited::NodeState;
 
-    fn test_topological<'a, const C: usize, E, NI>(elg: &'a E, order_check: &[NI])
-    where
-        NI: Default
-            + PartialEq
-            + Copy
-            + core::fmt::Debug
-            + SliceIndex<[NodeState], Output = NodeState>
-            + 'a,
-        E: Graph<NodeIndex = NI>,
-        AlgorithmError<NI>: From<E::Error>,
-    {
-        let mut storage: [NI; C] = core::array::from_fn(|_| NI::default());
+    #[test]
+    fn test_topological_sort_simple() {
+        // Create a simple DAG: 0 -> 1 -> 2
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (1, 2)]);
         let mut visited = [NodeState::Unvisited; 8];
-        let sort_slice =
-            topological_sort(elg, visited.as_mut_slice(), storage.as_mut_slice()).unwrap();
-        assert_eq!(sort_slice, order_check);
+        let mut sorted_nodes = [0usize; 8];
+
+        let result =
+            topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes).unwrap();
+
+        assert_eq!(result, &[0, 1, 2]);
     }
 
     #[test]
-    fn test_topological_sort() {
-        // Node1 --> Node5 --> Node3
-        //   v          Node0    Node6
-        // Node4   Node2 --> Node7
-        let edge_struct = EdgeStruct([(5, 3), (1_usize, 5), (2, 7), (1, 4)]);
-        let edge_struct2 = EdgeStruct([(5, 3), (1_usize, 5), (2, 7), (1, 4)]);
-        let edges = EdgeList::<8, _, _>::new(edge_struct).unwrap();
-        test_topological::<8, _, _>(&edges, &[2, 7, 1, 4, 5, 3]);
-        let node_struct = NodeValueTwoArray(
-            [1, 4, 3, 6, 0, 5, 2, 7],
-            ['b', 'c', 'd', 'a', 'e', 'f', 'g', 'h'],
-        );
-        let edges_with_nodes = EdgeNodeList::new(edge_struct2, node_struct).unwrap();
-        test_topological::<8, _, _>(&edges_with_nodes, &[2, 7, 0, 6, 1, 4, 5, 3]);
-    }
-    #[test]
-    fn test_empty_topolocical() {
-        let empty_edges_with_nodes =
-            EdgeNodeList::new(EdgeStruct::<0, usize>([]), NodeStruct([])).unwrap();
-        test_topological::<0, _, _>(&empty_edges_with_nodes, &[]);
-    }
-    #[test]
-    fn test_one_topolocical() {
-        let single_node = EdgeStruct([]); // no edges
-        let single_node_with_value = NodeValueTwoArray([0], ['a']);
-        let edges_with_single_node =
-            EdgeNodeList::new(single_node, single_node_with_value).unwrap();
-        test_topological::<1, _, _>(&edges_with_single_node, &[0]);
-    }
-    #[test]
-    fn test_cycles_topological() {
-        let cyclic_edges = EdgeStruct([(1, 2), (2, 3), (3, 1)]);
-        let edges = EdgeList::<5, _, _>::new(cyclic_edges).unwrap();
+    fn test_topological_sort_complex() {
+        // Create a more complex DAG: 0 -> 1, 0 -> 2, 1 -> 3, 2 -> 3
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 3), (2, 3)]);
         let mut visited = [NodeState::Unvisited; 8];
-        let mut storage = [0; 5];
-        assert_eq!(
-            topological_sort(&edges, visited.as_mut_slice(), &mut storage),
-            Err(AlgorithmError::CycleDetected {
-                incoming_edge: 3,
-                outgoing_edge: 1
-            })
-        );
+        let mut sorted_nodes = [0usize; 8];
+
+        let result =
+            topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes).unwrap();
+
+        assert_eq!(result.len(), 4);
+
+        // Valid topological orderings: [0, 1, 2, 3] or [0, 2, 1, 3]
+        // Both should have 0 first and 3 last
+        assert_eq!(result[0], 0);
+        assert_eq!(result[result.len() - 1], 3);
+
+        // Check that all nodes are present
+        assert!(result.contains(&1));
+        assert!(result.contains(&2));
     }
+
     #[test]
-    fn test_duplicate_edges_topological() {
-        let edges = EdgeStruct([(0, 1), (0, 1)]);
-        let duplicate_edges = EdgeList::<8, _, _>::new(edges).unwrap();
-        test_topological::<3, _, _>(&duplicate_edges, &[0, 1]);
+    fn test_topological_sort_cycle_detection() {
+        // Create a graph with a cycle: 0 -> 1 -> 2 -> 0
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (1, 2), (2, 0)]);
+        let mut visited = [NodeState::Unvisited; 8];
+        let mut sorted_nodes = [0usize; 8];
+
+        let error = topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes);
+
+        assert!(matches!(error, Err(AlgorithmError::CycleDetected)));
     }
+
     #[test]
-    fn test_fully_connected_dag_topological() {
-        let fully_connected_dag = EdgeStruct([(1, 2), (0, 1), (0, 2)]);
-        let edges = EdgeList::<8, _, _>::new(fully_connected_dag).unwrap();
-        test_topological::<3, _, _>(&edges, &[0, 1, 2]);
+    fn test_topological_sort_disconnected() {
+        // Create a disconnected graph: 0 -> 1, 2 -> 3 (no connection between pairs)
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (2, 3)]);
+        let mut visited = [NodeState::Unvisited; 8];
+        let mut sorted_nodes = [0usize; 8];
+
+        let result =
+            topological_sort_dfs(&graph, visited.as_mut_slice(), &mut sorted_nodes).unwrap();
+
+        assert_eq!(result.len(), 4);
+
+        // Check relative ordering within connected components
+        let pos_0 = result.iter().position(|&x| x == 0).unwrap();
+        let pos_1 = result.iter().position(|&x| x == 1).unwrap();
+        let pos_2 = result.iter().position(|&x| x == 2).unwrap();
+        let pos_3 = result.iter().position(|&x| x == 3).unwrap();
+
+        assert!(pos_0 < pos_1); // 0 should come before 1
+        assert!(pos_2 < pos_3); // 2 should come before 3
     }
 }

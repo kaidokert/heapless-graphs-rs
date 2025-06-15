@@ -9,6 +9,11 @@ use core::slice::SliceIndex;
 
 use crate::containers::{maps::MapTrait, sets::SetTrait};
 
+/// Represents the visitation state of a node during graph traversal
+///
+/// This enum is used by tri-state visited trackers to track whether a node
+/// has been unvisited, is currently being visited, or has been fully visited.
+/// This is particularly useful for cycle detection algorithms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeState {
     /// Node not visited, default
@@ -19,29 +24,33 @@ pub enum NodeState {
     Visited,
 }
 
-/// Abstraction for visiting nodes in a graph
+/// Trait for tracking visited nodes during graph traversal
 ///
-/// Implementations: a simple array of booleans for very small
-/// graphs where node indices are within array
-/// bounds, or more typically a set
+/// This trait provides a common interface for different strategies of tracking
+/// which nodes have been visited during graph algorithms like DFS or BFS.
+///
+/// Implementations include:
+/// - Simple array of booleans for compact graphs with small node indices
+/// - Set-based tracking for sparse graphs with arbitrary node types
 pub trait VisitedTracker<NI> {
     /// Reset tracker state
     fn reset(&mut self);
     /// Mark node as visited.
-    fn mark_visited(&mut self, node: &NI);
+    fn mark_visited(&mut self, node: &NI) -> Result<(), NI>;
     /// Return true if node is visited.
     fn is_visited(&self, node: &NI) -> bool;
     /// Return true if node is unvisited.
     fn is_unvisited(&self, node: &NI) -> bool;
 }
 
-/// Visited tracker with 3-rd state: visiting
+/// Extension of [`VisitedTracker`] that supports three states: unvisited, visiting, and visited
 ///
-/// This is similar to VisitedTracker, but also allows
-/// tracking whether node is currently on visiting stack
+/// This trait is particularly useful for algorithms that need to detect cycles,
+/// such as topological sorting or strongly connected component detection.
+/// The "visiting" state indicates a node is currently on the traversal stack.
 pub trait TriStateVisitedTracker<NI>: VisitedTracker<NI> {
     // Mark node as visiting
-    fn mark_visiting(&mut self, node: &NI);
+    fn mark_visiting(&mut self, node: &NI) -> Result<(), NI>;
     /// Return true if node is visiting.
     fn is_visiting(&self, node: &NI) -> bool;
 }
@@ -56,8 +65,9 @@ where
     fn reset(&mut self) {
         self.fill(false);
     }
-    fn mark_visited(&mut self, node: &NI) {
+    fn mark_visited(&mut self, node: &NI) -> Result<(), NI> {
         self[*node] = true;
+        Ok(())
     }
 
     fn is_visited(&self, node: &NI) -> bool {
@@ -79,8 +89,9 @@ where
     fn reset(&mut self) {
         self.fill(NodeState::Unvisited)
     }
-    fn mark_visited(&mut self, node: &NI) {
+    fn mark_visited(&mut self, node: &NI) -> Result<(), NI> {
         self[*node] = NodeState::Visited;
+        Ok(())
     }
 
     fn is_visited(&self, node: &NI) -> bool {
@@ -95,8 +106,9 @@ impl<NI> TriStateVisitedTracker<NI> for [NodeState]
 where
     NI: SliceIndex<[NodeState], Output = NodeState> + Copy,
 {
-    fn mark_visiting(&mut self, node: &NI) {
+    fn mark_visiting(&mut self, node: &NI) -> Result<(), NI> {
         self[*node] = NodeState::Visiting;
+        Ok(())
     }
 
     fn is_visiting(&self, node: &NI) -> bool {
@@ -114,8 +126,8 @@ where
     NodeState: Clone,
 {
     fn reset(&mut self) {}
-    fn mark_visited(&mut self, node: &K) {
-        self.0.insert(*node);
+    fn mark_visited(&mut self, node: &K) -> Result<(), K> {
+        self.0.insert(*node).map_or_else(|_| Err(*node), |_| Ok(()))
     }
 
     fn is_visited(&self, node: &K) -> bool {
@@ -135,11 +147,14 @@ where
     NodeState: Clone,
 {
     fn reset(&mut self) {}
-    fn mark_visited(&mut self, node: &K) {
+    fn mark_visited(&mut self, node: &K) -> Result<(), K> {
         if let Some(k) = self.0.get_mut(node) {
             *k = NodeState::Visited;
+            Ok(())
         } else {
-            self.0.insert(*node, NodeState::Visited);
+            self.0
+                .insert(*node, NodeState::Visited)
+                .map_or_else(|_| Err(*node), |_| Ok(()))
         }
     }
 
@@ -158,11 +173,14 @@ where
     K: Eq + core::hash::Hash + Copy,
     NodeState: Clone,
 {
-    fn mark_visiting(&mut self, node: &K) {
+    fn mark_visiting(&mut self, node: &K) -> Result<(), K> {
         if let Some(k) = self.0.get_mut(node) {
             *k = NodeState::Visiting;
+            Ok(())
         } else {
-            self.0.insert(*node, NodeState::Visiting);
+            self.0
+                .insert(*node, NodeState::Visiting)
+                .map_or_else(|_| Err(*node), |_| Ok(()))
         }
     }
 
@@ -181,10 +199,10 @@ mod test {
 
     use super::*;
 
-    fn test_visited<NI, T: VisitedTracker<NI> + ?Sized>(track: &mut T, n: NI) {
+    fn test_visited<NI: core::fmt::Debug, T: VisitedTracker<NI> + ?Sized>(track: &mut T, n: NI) {
         assert_eq!(track.is_visited(&n), false);
         assert_eq!(track.is_unvisited(&n), true);
-        track.mark_visited(&n);
+        track.mark_visited(&n).unwrap();
     }
     #[test]
     fn test_bool_array() {

@@ -31,8 +31,9 @@ pub trait MapTrait<K, V> {
     /// Returns the number of elements the map can hold
     fn capacity(&self) -> usize;
     /// Inserts a key-value pair into the map.
-    /// If the map did not have this key present, None is returned.
-    fn insert(&mut self, key: K, value: V) -> Option<V>;
+    /// Returns Ok(None) if the key was not present, Ok(Some(old_value)) if it was.
+    /// Returns Err(()) if the insertion failed due to capacity limits.
+    fn insert(&mut self, key: K, value: V) -> Result<Option<V>, (K, V)>;
     /// Return an iterator over the key-value pairs of the map.
     fn iter(&self) -> Self::Iter<'_>;
     /// Returns a reference to the value corresponding to the key.
@@ -81,8 +82,8 @@ where
         HashMap::new()
     }
 
-    fn insert(&mut self, key: K, value: V) -> Option<V> {
-        HashMap::insert(self, key, value)
+    fn insert(&mut self, key: K, value: V) -> Result<Option<V>, (K, V)> {
+        Ok(HashMap::insert(self, key, value))
     }
 
     fn iter(&self) -> Self::Iter<'_> {
@@ -144,8 +145,8 @@ where
         FnvIndexMap::capacity(self)
     }
 
-    fn insert(&mut self, key: K, value: V) -> Option<V> {
-        FnvIndexMap::insert(self, key, value).ok().flatten()
+    fn insert(&mut self, key: K, value: V) -> Result<Option<V>, (K, V)> {
+        FnvIndexMap::insert(self, key, value)
     }
 
     fn iter(&self) -> Self::Iter<'_> {
@@ -187,8 +188,8 @@ mod tests {
     use super::*;
 
     fn test_maps<M: MapTrait<u32, u32>>(map: &mut M) {
-        assert_eq!(map.insert(1, 2), None);
-        assert_eq!(map.insert(1, 3), Some(2));
+        assert_eq!(map.insert(1, 2), Ok(None));
+        assert_eq!(map.insert(1, 3), Ok(Some(2)));
         assert_eq!(map.get(&1), Some(&3));
         assert_eq!(map.get(&2), None);
         assert_eq!(map.remove(&1), Some(3));
@@ -199,9 +200,9 @@ mod tests {
     // Test basic iteration, ignoring ordering
     fn test_map_iter<M: MapTrait<u32, u32>>(map: &mut M) {
         map.clear();
-        assert_eq!(map.insert(1, 20), None);
-        assert_eq!(map.insert(2, 30), None);
-        assert_eq!(map.insert(3, 40), None);
+        assert_eq!(map.insert(1, 20), Ok(None));
+        assert_eq!(map.insert(2, 30), Ok(None));
+        assert_eq!(map.insert(3, 40), Ok(None));
         let mut expect = [(false, 1, 20), (false, 2, 30), (false, 3, 40)];
         let mut iter = map.iter();
         for _ in 0..3 {

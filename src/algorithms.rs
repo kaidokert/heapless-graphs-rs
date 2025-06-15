@@ -7,72 +7,78 @@
 //! Note: These are not necessarily efficient implementations,
 //! nor thoroughly tested.
 
-#[cfg(feature = "num-traits")]
 mod bellman_ford;
-#[cfg(feature = "num-traits")]
+mod connected_components;
 mod dijkstra;
-#[cfg(feature = "heapless")]
 mod greedy_coloring;
 mod kahns;
 mod kruskals;
+mod tarjan_scc;
 mod topological_sort;
 mod traversal;
 
-#[cfg(feature = "num-traits")]
 pub use bellman_ford::bellman_ford;
-#[cfg(feature = "num-traits")]
+pub use connected_components::{connected_components, count_connected_components};
 pub use dijkstra::dijkstra;
+pub use greedy_coloring::greedy_color;
 pub use kahns::kahns;
 pub use kruskals::kruskals;
-pub use topological_sort::topological_sort;
+pub use tarjan_scc::{count_tarjan_scc, tarjan_scc};
+pub use topological_sort::topological_sort_dfs;
 pub use traversal::{bfs, bfs_unchecked, dfs_iterative, dfs_recursive, dfs_recursive_unchecked};
 
-use crate::graph::GraphError;
+use crate::edgelist::edge_list::EdgeListError;
+use crate::edges::EdgeNodeError;
+use crate::graph::{GraphError, NodeIndex};
 
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum AlgorithmError<NI: PartialEq> {
-    /// Edge list iteration issue, capacity etc.
-    GraphError(GraphError<NI>),
-    /// Unexpected error in accessing dictionary items
-    DictionaryError,
-    /// Buffer for edges too small
-    EdgeCapacityExceeded { max_edges: usize },
-    /// Output buffer too small
-    OutputCapacityExceeded,
-    /// Stack capacity too small
+/// Errors that can occur during graph algorithm execution
+///
+/// This enum represents various error conditions that may arise when running
+/// graph algorithms, including capacity limitations and graph-related errors.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AlgorithmError<NI: NodeIndex> {
+    /// Queue capacity exceeded during breadth-first operations
+    QueueCapacityExceeded,
+    /// Stack capacity exceeded during depth-first operations
     StackCapacityExceeded,
-    /// Indicates a cycle was detected at a specific node,
-    /// along with the two edges that formed the cycle.
-    CycleDetected {
-        incoming_edge: NI,
-        outgoing_edge: NI,
-    },
-    /// A negative cycle was detected in the graph
-    NegativeCycle {
-        incoming_edge: NI,
-        outgoing_edge: NI,
-    },
-    /// Edge weight is missing, cannot continue
-    MissingEdgeWeight {
-        incoming_edge: NI,
-        outgoing_edge: NI,
-    },
-    /// Cycle detected in algorithm consistency check
-    CycleDetectedInConsistencyCheck,
+    /// Buffer for edges too small
+    EdgeCapacityExceeded,
+    /// Visited tracker capacity exceeded
+    VisitedTrackerCapacityExceeded,
+    /// Cycle detected in algorithm that requires acyclic graph
+    CycleDetected,
+    /// Output buffer too small
+    ResultCapacityExceeded,
+    /// Invalid algorithm state (e.g., empty stack when expecting nodes)
+    InvalidState,
+    /// Graph operation error
+    GraphError(GraphError<NI>),
+    /// Edge node error
+    EdgeNodeError(EdgeNodeError),
 }
-impl<NI: PartialEq> From<GraphError<NI>> for AlgorithmError<NI> {
+
+impl<NI: NodeIndex> From<GraphError<NI>> for AlgorithmError<NI> {
     fn from(e: GraphError<NI>) -> Self {
         AlgorithmError::GraphError(e)
     }
 }
 
-// Helper to easily cast unlikely missing dict values to errors
-trait OptionResultExt<T, NI: PartialEq> {
-    fn dict_error(self) -> Result<T, AlgorithmError<NI>>;
+// Helper to easily cast container capacity errors to algorithm errors
+pub trait ContainerResultExt<T, NI: NodeIndex> {
+    fn capacity_error(self) -> Result<T, AlgorithmError<NI>>;
 }
 
-impl<T, NI: PartialEq> OptionResultExt<T, NI> for Option<T> {
-    fn dict_error(self) -> Result<T, AlgorithmError<NI>> {
-        self.ok_or(AlgorithmError::DictionaryError)
+impl<T, V, NI: NodeIndex> ContainerResultExt<T, NI> for Result<T, V> {
+    fn capacity_error(self) -> Result<T, AlgorithmError<NI>> {
+        self.map_err(|_| AlgorithmError::ResultCapacityExceeded)
+    }
+}
+
+impl<NI: NodeIndex> From<EdgeListError<NI>> for AlgorithmError<NI> {
+    fn from(e: EdgeListError<NI>) -> Self {
+        match e {
+            EdgeListError::GraphError(ge) => AlgorithmError::GraphError(ge),
+            EdgeListError::EdgeNodeError(ene) => AlgorithmError::EdgeNodeError(ene),
+        }
     }
 }

@@ -34,8 +34,6 @@ jobs:
             cmd_args: --no-default-features
           - name: Heapless
             cmd_args: --no-default-features --features=heapless
-          - name: Num-traits
-            cmd_args: --no-default-features --features=num-traits
           - name: Std
             cmd_args: --no-default-features --features=std
           - name: Everything

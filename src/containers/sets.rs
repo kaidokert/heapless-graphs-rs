@@ -15,9 +15,10 @@ pub trait SetTrait<K> {
     ///
     /// # Returns
     ///
-    /// `true` if the key was not present in the set and was inserted successfully.
-    /// `false` if the key was already present.
-    fn insert(&mut self, key: K) -> bool;
+    /// `Ok(true)` if the key was not present and was inserted successfully.
+    /// `Ok(false)` if the key was already present.
+    /// `Err(key)` if the insertion failed due to capacity limits, returning the key that couldn't be inserted.
+    fn insert(&mut self, key: K) -> Result<bool, K>;
 
     /// Removes a key from the set.
     ///
@@ -61,8 +62,8 @@ where
         Self::new()
     }
 
-    fn insert(&mut self, key: K) -> bool {
-        self.insert(key)
+    fn insert(&mut self, key: K) -> Result<bool, K> {
+        Ok(self.insert(key))
     }
     fn remove(&mut self, key: &K) -> bool {
         self.remove(key)
@@ -93,8 +94,8 @@ where
         Self::new()
     }
 
-    fn insert(&mut self, key: K) -> bool {
-        self.insert(key).unwrap_or(false)
+    fn insert(&mut self, key: K) -> Result<bool, K> {
+        self.insert(key)
     }
 
     fn remove(&mut self, key: &K) -> bool {
@@ -115,6 +116,9 @@ where
     fn clear(&mut self) {
         self.clear();
     }
+    fn is_full(&self) -> bool {
+        self.len() == N
+    }
 }
 
 #[cfg(test)]
@@ -122,7 +126,8 @@ mod tests {
     #[cfg(feature = "heapless")]
     use heapless::FnvIndexSet;
 
-    use super::*;
+    #[cfg(feature = "heapless")]
+    use super::{staticset, SetTrait};
 
     #[cfg(feature = "heapless")]
     #[test]
@@ -138,9 +143,9 @@ mod tests {
     #[cfg(feature = "heapless")]
     #[test]
     fn test_insert() {
-        fn test<K, T: SetTrait<K>>(key: K) {
+        fn test<K: core::fmt::Debug, T: SetTrait<K>>(key: K) {
             let mut set = T::new();
-            assert_eq!(set.insert(key), true);
+            assert_eq!(set.insert(key).unwrap(), true);
         }
         test::<_, FnvIndexSet<usize, 4>>(2);
         test::<_, staticset::Set<usize, 4>>(2);
@@ -150,11 +155,11 @@ mod tests {
     #[cfg(feature = "heapless")]
     #[test]
     fn test_remove() {
-        fn test<K, T: SetTrait<K>>(key1: K, key2: K, key3: K) {
+        fn test<K: Copy + core::fmt::Debug, T: SetTrait<K>>(key1: K, key2: K, _key3: K) {
             let mut set = T::new();
             assert_eq!(set.remove(&key1), false);
-            assert_eq!(set.insert(key2), true);
-            assert_eq!(set.remove(&key3), true);
+            assert_eq!(set.insert(key2).unwrap(), true);
+            assert_eq!(set.remove(&key2), true);
         }
         test::<_, FnvIndexSet<usize, 4>>(1, 2, 2);
         test::<_, staticset::Set<usize, 4>>(1, 2, 2);
@@ -164,11 +169,11 @@ mod tests {
     #[cfg(feature = "heapless")]
     #[test]
     fn test_contains() {
-        fn test<K, T: SetTrait<K>>(key1: K, key2: K, key3: K) {
+        fn test<K: Copy + core::fmt::Debug, T: SetTrait<K>>(key1: K, key2: K, _key3: K) {
             let mut set = T::new();
             assert_eq!(set.contains(&key1), false);
-            assert_eq!(set.insert(key2), true);
-            assert_eq!(set.contains(&key3), true);
+            assert_eq!(set.insert(key2).unwrap(), true);
+            assert_eq!(set.contains(&key2), true);
         }
         test::<_, FnvIndexSet<usize, 4>>(1, 2, 2);
         test::<_, staticset::Set<usize, 4>>(1, 2, 2);
@@ -178,14 +183,14 @@ mod tests {
     #[cfg(feature = "heapless")]
     #[test]
     fn test_len() {
-        fn test<K, T: SetTrait<K>>(key1: K, key2: K, key3: K) {
+        fn test<K: Copy + core::fmt::Debug, T: SetTrait<K>>(key1: K, key2: K, _key3: K) {
             let mut set = T::new();
             assert_eq!(set.len(), 0);
-            assert_eq!(set.insert(key1), true);
+            assert_eq!(set.insert(key1).unwrap(), true);
             assert_eq!(set.len(), 1);
-            assert_eq!(set.insert(key2), true);
+            assert_eq!(set.insert(key2).unwrap(), true);
             assert_eq!(set.len(), 2);
-            assert_eq!(set.remove(&key3), true);
+            assert_eq!(set.remove(&key2), true);
             assert_eq!(set.len(), 1);
         }
         test::<_, FnvIndexSet<usize, 4>>(1, 2, 2);
@@ -197,14 +202,14 @@ mod tests {
     #[cfg(feature = "heapless")]
     #[test]
     fn test_is_empty() {
-        fn test<K, T: SetTrait<K>>(key1: K, key2: K, key3: K, key4: K) {
+        fn test<K: Copy + core::fmt::Debug, T: SetTrait<K>>(key1: K, key2: K, _key3: K, key4: K) {
             let mut set = T::new();
             assert_eq!(set.is_empty(), true);
-            assert_eq!(set.insert(key1), true);
+            assert_eq!(set.insert(key1).unwrap(), true);
             assert_eq!(set.is_empty(), false);
-            assert_eq!(set.insert(key2), true);
+            assert_eq!(set.insert(key2).unwrap(), true);
             assert_eq!(set.is_empty(), false);
-            assert_eq!(set.remove(&key3), true);
+            assert_eq!(set.remove(&key1), true);
             assert_eq!(set.is_empty(), false);
             assert_eq!(set.remove(&key4), true);
             assert_eq!(set.is_empty(), true);

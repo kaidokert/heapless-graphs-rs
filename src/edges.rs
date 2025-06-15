@@ -40,12 +40,19 @@ struct EdgeVec<const E: usize, NI>(heapless::Vec<(NI, NI), E>);
 #[derive(Debug, Default)]
 struct EdgeVecValue<const E: usize, NI, V>(heapless::Vec<(NI, NI, V), E>);
 
-/// Reference to a value of an edge
+/// Extension of [`EdgeRef`] that provides access to edge values
+///
+/// This trait allows retrieving values associated with edges in addition
+/// to the basic edge reference functionality.
 pub trait EdgeRefValue<V>: EdgeRef {
     fn get_edge_value(&self, index: usize) -> Option<&V>;
 }
 
-/// Reference to a en edge, a pair of node indexes
+/// Reference to an edge, represented as a pair of node indices
+///
+/// This trait provides basic access to edge data in edge collections.
+/// It's used to implement iterators and provide a common interface
+/// for accessing edge information.
 pub trait EdgeRef {
     type NodeIndex;
     /// Reference to an edge at given index
@@ -202,7 +209,40 @@ impl<const E: usize, NI, V> Deref for EdgeValueStruct<E, NI, V> {
     }
 }
 
-// Todo: ref and mut ref for slices of (NI, NI, V)
+// Implement EdgeRef for slices of (NI, NI, V)
+impl<NI, V> EdgeRef for &[(NI, NI, V)] {
+    type NodeIndex = NI;
+    fn get_edge(&self, index: usize) -> Option<(&Self::NodeIndex, &Self::NodeIndex)> {
+        let edge = self.get(index)?;
+        Some((&edge.0, &edge.1))
+    }
+    fn capacity(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<NI, V> EdgeRef for &mut [(NI, NI, V)] {
+    type NodeIndex = NI;
+    fn get_edge(&self, index: usize) -> Option<(&Self::NodeIndex, &Self::NodeIndex)> {
+        let edge = self.get(index)?;
+        Some((&edge.0, &edge.1))
+    }
+    fn capacity(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<NI, V> EdgeRefValue<V> for &[(NI, NI, V)] {
+    fn get_edge_value(&self, index: usize) -> Option<&V> {
+        self.get(index).map(|e| &e.2)
+    }
+}
+
+impl<NI, V> EdgeRefValue<V> for &mut [(NI, NI, V)] {
+    fn get_edge_value(&self, index: usize) -> Option<&V> {
+        self.get(index).map(|e| &e.2)
+    }
+}
 
 impl<const E: usize, NI, V> EdgeRef for [(NI, NI, V); E] {
     type NodeIndex = NI;
@@ -602,8 +642,10 @@ where
 }
 
 /// Provide a reference iterator over edges
+/// Trait for iterating over edges in an edge collection
 ///
-/// This trait is blanket implemented for anything that implements [EdgeRef]
+/// Provides read-only iteration over edge references. This trait is
+/// automatically implemented for any type that implements [`EdgeRef`].
 pub trait EdgesIterable {
     type Node;
     // todo: Maybe doesn't need to be DoubleEnded
@@ -628,9 +670,11 @@ where
     }
 }
 
-/// Provide a reference iterator over edges with values
+/// Trait for iterating over edges with their associated values
 ///
-/// This trait is blanket implemented for anything that implements [EdgeRefValue]
+/// Extends [`EdgesIterable`] to provide iteration over both edges and their
+/// values. This trait is automatically implemented for any type that implements
+/// [`EdgeRefValue`].
 pub trait EdgeValuesIterable<V>: EdgesIterable {
     type IterValues<'a>: DoubleEndedIterator<Item = (&'a Self::Node, &'a Self::Node, Option<&'a V>)>
     where
@@ -655,7 +699,10 @@ where
     }
 }
 
-/// Trait for edge structs where edges can be added
+/// Trait for edge collections that support adding new edges
+///
+/// This trait allows dynamic addition of edges to an edge collection,
+/// returning the index where the edge was inserted if successful.
 pub trait AddEdge {
     type Edge;
     fn add_edge(&mut self, edge: Self::Edge) -> Option<usize>;
@@ -720,34 +767,6 @@ impl<const E: usize, NI, V> AddEdge for EdgeVecValue<E, NI, V> {
     }
 }
 
-/// Provide an iterator over nodes in edge list
-pub trait EdgeNodesIterable<NI> {
-    /// Associated type for the iterator
-    type Iter<'a, const N: usize>: DoubleEndedIterator<Item = &'a NI>
-    where
-        Self: 'a,
-        NI: 'a;
-
-    /// Return iterator that yields node references
-    fn iter_nodes<const N: usize>(&self) -> Result<Self::Iter<'_, N>, EdgeNodeError>;
-}
-
-impl<T, NI> EdgeNodesIterable<NI> for T
-where
-    T: EdgesIterable<Node = NI>,
-    NI: PartialEq + Ord,
-{
-    type Iter<'a, const N: usize>
-        = EdgesToNodesIterator<'a, N, NI>
-    where
-        Self: 'a,
-        NI: 'a;
-
-    fn iter_nodes<const N: usize>(&self) -> Result<Self::Iter<'_, N>, EdgeNodeError> {
-        EdgesToNodesIterator::new(self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -808,6 +827,22 @@ mod tests {
     #[test]
     fn test_edges_mut_slice() {
         let mut arr = [(0, 1), (1, 20), (2, 3)];
+        let edge_list = arr.as_mut_slice();
+        iterate_over(&edge_list, &EXPECTED);
+        (&edge_list).iter_edges();
+        use_edges(&edge_list);
+    }
+    #[test]
+    fn test_edges_value_slice() {
+        let arr = [(0, 1, 'a'), (1, 20, 'b'), (2, 3, 'c')];
+        let edge_list = arr.as_slice();
+        iterate_over(&edge_list, &EXPECTED);
+        (&edge_list).iter_edges();
+        use_edges(&edge_list);
+    }
+    #[test]
+    fn test_edges_value_mut_slice() {
+        let mut arr = [(0, 1, 'a'), (1, 20, 'b'), (2, 3, 'c')];
         let edge_list = arr.as_mut_slice();
         iterate_over(&edge_list, &EXPECTED);
         (&edge_list).iter_edges();
@@ -883,20 +918,6 @@ mod tests {
     }
 
     #[test]
-    fn test_iter_nodes() {
-        let edge_list = EdgeStructOption([Some((0usize, 1)), Some((1, 20)), None, Some((2, 3))]);
-        let ref_edge_list = &edge_list;
-        let nodes = ref_edge_list
-            .iter_nodes::<4>()
-            .expect("Failed to create iterator");
-        let mut collect = [42; 6];
-        nodes
-            .zip(&mut collect.iter_mut())
-            .for_each(|(n, c)| *c = *n);
-        assert_eq!(collect, [0, 1, 2, 3, 20, 42])
-    }
-
-    #[test]
     fn edge_values_iterable() {
         fn test<'a, NI, V, T>(t: &'a T, cmp: &[V])
         where
@@ -956,5 +977,13 @@ mod tests {
         let edges =
             EdgeValueStructOption([Some((0, 1, 'a')), None, None, Some((1, 20, 'b')), None]);
         test(&edges, &['a', 'b']);
+
+        let value_array = [(0, 1, 'x'), (1, 20, 'y'), (2, 3, 'z')];
+        let value_slice = value_array.as_slice();
+        test(&value_slice, &['x', 'y', 'z']);
+
+        let mut mut_value_array = [(0, 1, 'x'), (1, 20, 'y'), (2, 3, 'z')];
+        let value_mut_slice = mut_value_array.as_mut_slice();
+        test(&value_mut_slice, &['x', 'y', 'z']);
     }
 }

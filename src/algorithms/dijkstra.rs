@@ -1,81 +1,127 @@
 // SPDX-License-Identifier: Apache-2.0
+//! Dijkstra algorithm for finding shortest paths
 
-use crate::{containers::maps::MapTrait, graph::GraphWithEdgeValues, VisitedTracker};
+use super::ContainerResultExt;
 
-use super::{AlgorithmError, OptionResultExt};
+use crate::containers::maps::MapTrait;
+use crate::graph::{GraphWithEdgeValues, NodeIndex};
+
+use super::AlgorithmError;
 
 /// Dijkstra algorithm to find shortest path between nodes
 ///
 /// Calculates the shortest path from a start node to all other nodes in the graph,
 /// does not handle negative edge weights.
-#[cfg(feature = "num-traits")]
-pub fn dijkstra<NI, V, VT, M, G>(
+///
+/// # Arguments
+/// * `graph` - Graph implementing GraphWithEdgeValues
+/// * `source` - Source node to find shortest paths from
+/// * `visited` - Map to track which nodes have been processed
+/// * `distance_map` - Map to store distances (None = infinite/unreachable, Some(v) = distance v)
+///
+/// # Returns
+/// * `Ok(M)` populated distance map if shortest paths computed successfully
+/// * `Err(AlgorithmError::GraphError(_))` for graph access errors
+pub fn dijkstra<G, NI, V, VIS, M>(
     graph: &G,
     source: NI,
-    mut visited: VT,
-    mut distance: M,
+    mut visited: VIS,
+    mut distance_map: M,
 ) -> Result<M, AlgorithmError<NI>>
 where
-    G: GraphWithEdgeValues<V, NodeIndex = NI>,
-    NI: PartialEq + Copy,
-    VT: VisitedTracker<NI>,
-    M: MapTrait<NI, V>,
-    V: num_traits::Bounded + num_traits::Zero + PartialOrd + Copy,
+    G: GraphWithEdgeValues<NI, V>,
+    NI: NodeIndex,
+    VIS: MapTrait<NI, bool>,
+    M: MapTrait<NI, Option<V>>,
+    V: PartialOrd + Copy + core::ops::Add<Output = V> + Default,
     AlgorithmError<NI>: From<G::Error>,
 {
-    distance.clear();
-    for &node in graph.get_nodes()? {
-        if node == source {
-            distance.insert(node, V::zero());
-        } else {
-            distance.insert(node, V::max_value());
+    // Initialize distances: source is 0, others are None (infinite/unreachable)
+    distance_map
+        .insert(source, Some(V::default()))
+        .capacity_error()?;
+
+    // Initialize all other nodes as unreachable
+    for node in graph.iter_nodes()? {
+        if node != source {
+            distance_map.insert(node, None).capacity_error()?;
         }
     }
-    for _ in graph.get_nodes()? {
-        let mut min_distance = V::max_value();
+
+    // Initialize visited tracking
+    for node in graph.iter_nodes()? {
+        visited.insert(node, false).capacity_error()?;
+    }
+
+    let node_count = graph.iter_nodes()?.count();
+
+    // Main Dijkstra loop
+    for _ in 0..node_count {
+        // Find unvisited node with minimum distance
+        let mut min_distance = None;
         let mut min_node = None;
-        for v in graph.get_nodes()? {
-            let dist = distance.get(v).dict_error()?;
-            if !visited.is_visited(v) && dist < &min_distance {
-                min_distance = *dist;
-                min_node = Some(v);
+
+        for node in graph.iter_nodes()? {
+            if let (Some(is_visited), Some(dist_opt)) =
+                (visited.get(&node), distance_map.get(&node))
+            {
+                if !*is_visited {
+                    if let Some(dist) = dist_opt {
+                        if let Some(current_min) = min_distance {
+                            if *dist < current_min {
+                                min_distance = Some(*dist);
+                                min_node = Some(node);
+                            }
+                        } else {
+                            min_distance = Some(*dist);
+                            min_node = Some(node);
+                        }
+                    }
+                }
             }
         }
-        if min_node.is_none() {
-            break;
-        }
-        let u = min_node.unwrap();
-        visited.mark_visited(u);
-        for (v, value) in graph.neighboring_nodes_with_values(u)? {
-            if visited.is_unvisited(v) {
-                let u_dist = *distance.get(u).dict_error()?;
-                let v_dist = *distance.get(v).dict_error()?;
-                if let Some(&weight) = value {
-                    let new_distance = u_dist + weight;
-                    if new_distance < v_dist {
-                        distance.insert(*v, new_distance);
+
+        // If no unvisited node found, we're done
+        let u = match min_node {
+            Some(node) => node,
+            None => break,
+        };
+
+        // Mark current node as visited
+        visited.insert(u, true).capacity_error()?;
+
+        // Update distances to neighbors
+        // iterate only outgoing edges from `u`
+        for (dst, weight_opt) in graph.outgoing_edge_values(u)? {
+            if let Some(weight) = weight_opt {
+                if !*visited.get(&dst).unwrap_or(&false) {
+                    if let Some(Some(u_dist)) = distance_map.get(&u) {
+                        let new_distance = *u_dist + *weight;
+                        if let Some(dst_dist_opt) = distance_map.get(&dst) {
+                            if dst_dist_opt.is_none_or(|old| new_distance < old) {
+                                distance_map
+                                    .insert(dst, Some(new_distance))
+                                    .capacity_error()?;
+                            }
+                        }
                     }
-                } else {
-                    return Err(AlgorithmError::MissingEdgeWeight {
-                        incoming_edge: *u,
-                        outgoing_edge: *v,
-                    });
                 }
             }
         }
     }
-    Ok(distance)
+
+    Ok(distance_map)
 }
 
 #[cfg(test)]
-#[cfg(feature = "num-traits")]
 mod tests {
     use super::*;
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::edges::EdgeValueStruct;
+
     #[test]
-    fn test_djikstra() {
-        use crate::containers::maps::{staticdict::Dictionary, MapTrait};
-        use crate::{edge_list::EdgeList, edges::EdgeValueStruct};
-        use crate::{visited::MapWrapper, NodeState};
+    fn test_dijkstra_simple() {
         //    (1)        (2)
         //A ------ B -------- C
         // \       |          |
@@ -87,22 +133,40 @@ mod tests {
         //          (4)
 
         // Create the graph with positive edge weights
-        let graph = EdgeList::<5, _, _>::new(EdgeValueStruct([
+        let edge_data = EdgeValueStruct([
             ('A', 'B', 1),
             ('A', 'C', 4),
             ('B', 'C', 2),
             ('B', 'D', 5),
             ('C', 'D', 1),
-        ]))
-        .unwrap();
+        ]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
 
-        let visited = MapWrapper(Dictionary::<char, NodeState, 37>::new());
-        let dict = Dictionary::<_, _, 16>::new();
-        let res = dijkstra(&graph, 'A', visited, dict).expect("this worked?");
+        let distance_map = Dictionary::<char, Option<i32>, 16>::new();
+        let visited = Dictionary::<char, bool, 16>::new();
+
+        let result = dijkstra(&graph, 'A', visited, distance_map).unwrap();
+
         // Check the expected distances
-        assert_eq!(res.get(&'A'), Some(&0));
-        assert_eq!(res.get(&'B'), Some(&1));
-        assert_eq!(res.get(&'C'), Some(&3)); // 1 (A->B) + 2 (B->C)
-        assert_eq!(res.get(&'D'), Some(&4)); // 3 (A->B->C) + 1 (C->D)
+        assert_eq!(result.get(&'A'), Some(&Some(0)));
+        assert_eq!(result.get(&'B'), Some(&Some(1)));
+        assert_eq!(result.get(&'C'), Some(&Some(3))); // 1 (A->B) + 2 (B->C)
+        assert_eq!(result.get(&'D'), Some(&Some(4))); // 3 (A->B->C) + 1 (C->D)
+    }
+
+    #[test]
+    fn test_dijkstra_disconnected() {
+        // Create disconnected graph: 0 -> 1 (weight 2), 2 isolated
+        let edge_data = EdgeValueStruct([(0usize, 1usize, 2i32)]);
+        let graph = EdgeList::<8, _, _>::new(edge_data);
+
+        let distance_map = Dictionary::<usize, Option<i32>, 16>::new();
+        let visited = Dictionary::<usize, bool, 16>::new();
+
+        let result = dijkstra(&graph, 0, visited, distance_map).unwrap();
+
+        // Check distances - node 1 should be reachable
+        assert_eq!(result.get(&0), Some(&Some(0)));
+        assert_eq!(result.get(&1), Some(&Some(2)));
     }
 }

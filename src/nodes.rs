@@ -69,7 +69,10 @@ pub trait NodeRef {
     fn capacity(&self) -> usize;
 }
 
-/// Reference to value of a node
+/// Extension of [`NodeRef`] that provides access to node values
+///
+/// This trait allows retrieving values associated with nodes in addition
+/// to the basic node reference functionality.
 pub trait NodeRefValue<V>: NodeRef {
     /// Returns a reference to a value of a node at index
     fn get_node_value(&self, index: usize) -> Option<&V>;
@@ -487,8 +490,10 @@ node_struct_into_iter!(NodeStructVecValue, NI, V);
 node_struct_into_iter!(NodeStructVecOptionValue, NI, V);
 
 /// Provide a reference iterator over nodes
+/// Trait for iterating over nodes in a node collection
 ///
-/// Blanket implemented for any struct implementing [`NodeRef`]
+/// Provides read-only iteration over node references. This trait is
+/// automatically implemented for any type that implements [`NodeRef`].
 pub trait NodesIterable {
     type Node;
     // todo: Maybe doesn't need to be DoubleEnded
@@ -513,9 +518,11 @@ where
     }
 }
 
-/// Provide a reference iterator over nodes with values
+/// Trait for iterating over nodes with their associated values
 ///
-/// Blanket implemented for any struct implementing [NodeRefValue]
+/// Extends [`NodesIterable`] to provide iteration over both nodes and their
+/// values. This trait is automatically implemented for any type that implements
+/// [`NodeRefValue`].
 pub trait NodesValuesIterable<V>: NodesIterable {
     type IterValues<'a>: DoubleEndedIterator<Item = (&'a Self::Node, Option<&'a V>)>
     where
@@ -543,10 +550,11 @@ where
     }
 }
 
-/// Provide a reference iterator over nodes
+/// Trait for converting node collections into owning iterators
 ///
-/// Blanket implemented for any struct implementing a
-/// [`IntoIterator`]
+/// This trait provides a way to consume a node collection and obtain an
+/// iterator that owns the nodes. It's automatically implemented for any
+/// type that implements [`IntoIterator`].
 pub trait IntoNodesIterator {
     type Node;
     type NodeOwningIterator: Iterator<Item = Self::Node>;
@@ -567,11 +575,17 @@ where
     }
 }
 
-/// Trait for node structs where elements can be added
+/// Trait for node collections that support adding new nodes
+///
+/// This trait allows dynamic addition of nodes to a node collection,
+/// returning the index where the node was inserted if successful.
 pub trait AddNode<NI> {
     fn add(&mut self, node: NI) -> Option<usize>;
 }
-/// Trait for node structs where elements with values can be added
+/// Trait for node collections that support adding nodes with associated values
+///
+/// This trait allows dynamic addition of nodes along with their values to a
+/// node collection, returning the index where the node was inserted if successful.
 pub trait AddNodeValue<NI, V> {
     fn add_value(&mut self, node: NI, value: V) -> Option<usize>;
 }
@@ -635,7 +649,10 @@ impl<const N: usize, NI: PartialEq, V> AddNodeValue<NI, V> for NodeStructVecOpti
     }
 }
 
-/// Trait for node structs with removable elements
+/// Trait for node collections that support removing nodes
+///
+/// This trait allows dynamic removal of nodes from a node collection,
+/// returning the index where the node was found if removal was successful.
 pub trait RemoveNode<NI: PartialEq> {
     fn remove(&mut self, node: NI) -> Option<usize>;
 }

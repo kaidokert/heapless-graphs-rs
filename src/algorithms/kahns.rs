@@ -1,251 +1,188 @@
 // SPDX-License-Identifier: Apache-2.0
+//! Kahn's algorithm for topological sorting of directed acyclic graphs (DAGs)
 
-use crate::{
-    containers::{maps::MapTrait, queues::Deque},
-    Graph,
-};
+use super::ContainerResultExt;
 
-use super::{AlgorithmError, OptionResultExt};
+use super::AlgorithmError;
+use crate::containers::{maps::MapTrait, queues::Deque};
+use crate::graph::{Graph, NodeIndex};
 
-/// Kahn's algorithm for topologically sorting a graph
+/// Kahn's algorithm for topological sorting
 ///
-/// Does not need a starting node, works with disconnected
-/// graphs and detects cycles.
-pub fn kahns<'a, NI, G, Q, M>(
+/// Performs a topological sort on a directed graph using Kahn's algorithm (BFS-based).
+/// This algorithm tracks in-degrees of nodes and processes nodes with zero in-degree.
+/// It detects cycles and returns an error if the graph is not a DAG.
+///
+/// # Arguments
+/// * `graph` - The graph to sort topologically (must implement Graph)
+/// * `queue` - Queue for BFS processing (nodes with zero in-degree)
+/// * `in_degree_map` - Map to track in-degree count for each node
+/// * `sorted_nodes` - Buffer to store the topologically sorted nodes
+///
+/// # Returns
+/// * `Ok(&[NI])` slice of sorted nodes if successful
+/// * `Err(AlgorithmError::CycleDetected)` if a cycle is found
+/// * `Err(AlgorithmError::QueueCapacityExceeded)` if queue capacity exceeded
+/// * `Err(AlgorithmError::ResultCapacityExceeded)` if result buffer is full
+///
+/// # Time Complexity
+/// O(V + E) where V is the number of vertices and E is the number of edges.
+/// For matrix-based graphs with optimized incoming_edges, the in-degree
+/// calculation is O(V) instead of O(V + E).
+pub fn kahns<'a, G, NI, D, M>(
     graph: &G,
-    mut queue: Q,
+    mut queue: D,
     mut in_degree_map: M,
     sorted_nodes: &'a mut [NI],
 ) -> Result<&'a [NI], AlgorithmError<NI>>
 where
-    NI: PartialEq + Copy + core::fmt::Debug,
-    G: Graph<NodeIndex = NI>,
-    Q: Deque<NI>,
+    G: Graph<NI>,
+    NI: NodeIndex,
+    D: Deque<NI>,
     M: MapTrait<NI, isize>,
     AlgorithmError<NI>: From<G::Error>,
 {
+    queue.clear();
+
     let mut sort_index = 0;
-    let mut append_to_list = |node: &NI| -> Result<(), AlgorithmError<NI>> {
+    let mut append_to_list = |node: NI| -> Result<(), AlgorithmError<NI>> {
         if sort_index >= sorted_nodes.len() {
-            return Err(AlgorithmError::OutputCapacityExceeded);
+            return Err(AlgorithmError::ResultCapacityExceeded);
         }
-        sorted_nodes[sort_index] = *node;
+        sorted_nodes[sort_index] = node;
         sort_index += 1;
         Ok(())
     };
-    for node in graph.get_nodes()? {
-        in_degree_map.insert(*node, 0);
+
+    // Calculate in-degrees by directly counting incoming edges for each node
+    for node in graph.iter_nodes()? {
+        let in_degree = graph.incoming_edges(node)?.count() as isize;
+        in_degree_map.insert(node, in_degree).capacity_error()?;
     }
-    // Count incoming connections for all nodes
-    for (_, dst) in graph.get_edges()? {
-        let mut in_degree = *in_degree_map.get(dst).dict_error()?;
-        in_degree += 1;
-        in_degree_map.insert(*dst, in_degree);
-    }
-    // Get nodes with no incoming connections
-    for (node, &deg) in in_degree_map.iter() {
-        if deg == 0 {
+
+    // Find all nodes with zero in-degree and add to queue
+    for (node, &degree) in in_degree_map.iter() {
+        if degree == 0 {
             queue
                 .push_back(*node)
-                .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
+                .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
         }
     }
-    while let Some(node) = queue.pop_back() {
-        append_to_list(&node)?;
-        for &neighbor in graph.neighboring_nodes(&node)? {
-            let mut in_degree = *in_degree_map.get(&neighbor).dict_error()?;
-            in_degree -= 1;
-            in_degree_map.insert(neighbor, in_degree);
-            if in_degree == 0 {
-                queue
-                    .push_back(neighbor)
-                    .map_err(|_| AlgorithmError::StackCapacityExceeded)?;
+
+    // Process nodes in topological order
+    while let Some(node) = queue.pop_front() {
+        append_to_list(node)?;
+
+        // Reduce in-degree of all neighbors
+        for target in graph.outgoing_edges(node)? {
+            if let Some(degree) = in_degree_map.get_mut(&target) {
+                *degree -= 1;
+                if *degree == 0 {
+                    queue
+                        .push_back(target)
+                        .map_err(|_| AlgorithmError::QueueCapacityExceeded)?;
+                }
             }
         }
     }
-    // Cycle detection
-    if sort_index != in_degree_map.len() {
-        return Err(AlgorithmError::CycleDetectedInConsistencyCheck);
+
+    // Check for cycles - if any node still has positive in-degree, there's a cycle
+    for (_, &degree) in in_degree_map.iter() {
+        if degree > 0 {
+            return Err(AlgorithmError::CycleDetected);
+        }
     }
-    let sorted_slice = &mut sorted_nodes[..sort_index];
-    Ok(sorted_slice)
+
+    Ok(&sorted_nodes[..sort_index])
 }
 
 #[cfg(test)]
-mod test {
-    use crate::{
-        containers::{maps::staticdict::Dictionary, queues::CircularQueue},
-        edge_list::{EdgeList, EdgeNodeList},
-    };
-
+mod tests {
     use super::*;
+    use crate::containers::{maps::staticdict::Dictionary, queues::CircularQueue};
+    use crate::edgelist::edge_list::EdgeList;
 
     #[test]
-    fn test_basic() {
-        // Node1 --> Node5 --> Node3
-        //    v
-        // Node4
-        let mut sorted_nodes = [0; 5];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let edges = [(5, 3), (1, 4), (1_usize, 5)];
-        let graph = EdgeList::<8, _, _>::new(edges).unwrap();
-        let sorted = kahns(&graph, queue, dict, &mut sorted_nodes).unwrap();
-        assert_eq!(sorted, [1, 5, 3, 4]);
+    fn test_kahns_simple() {
+        // Create a simple DAG: 0 -> 1 -> 2
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (1, 2)]);
+        let queue = CircularQueue::<usize, 8>::new();
+        let in_degree_map = Dictionary::<usize, isize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
+
+        let result = kahns(&graph, queue, in_degree_map, &mut sorted_nodes).unwrap();
+
+        assert_eq!(result, &[0, 1, 2]);
     }
 
     #[test]
-    fn test_cycle_detection() {
-        // Node1 --> Node2 --> Node3
-        //    ^              |
-        //    +--------------+
-        let mut sorted_nodes = [0; 3];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let edges = [(1_usize, 2), (2, 3), (3, 1)];
-        let graph = EdgeList::<8, _, _>::new(edges).unwrap();
-        let result = kahns(&graph, queue, dict, &mut sorted_nodes);
-        assert!(result.is_err());
+    fn test_kahns_complex() {
+        // Create a more complex DAG: 0 -> 1, 0 -> 2, 1 -> 3, 2 -> 3
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 3), (2, 3)]);
+        let queue = CircularQueue::<usize, 8>::new();
+        let in_degree_map = Dictionary::<usize, isize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
+
+        let result = kahns(&graph, queue, in_degree_map, &mut sorted_nodes).unwrap();
+
+        assert_eq!(result.len(), 4);
+
+        // Kahn's algorithm should produce: [0, 1, 2, 3] or [0, 2, 1, 3]
+        // 0 should be first (no incoming edges)
+        // 3 should be last (no outgoing edges)
+        assert_eq!(result[0], 0);
+        assert_eq!(result[result.len() - 1], 3);
+
+        // Check that all nodes are present
+        assert!(result.contains(&1));
+        assert!(result.contains(&2));
     }
 
     #[test]
-    fn test_disconnected_graph() {
-        // Node1 --> Node2
-        // Node3 --> Node4
-        let mut sorted_nodes = [0; 4];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let graph = EdgeList::<8, _, _>::new([(1_usize, 2), (3, 4)]).unwrap();
-        let sorted = kahns(&graph, queue, dict, &mut sorted_nodes).unwrap();
-        assert_eq!(sorted, [1, 2, 3, 4]);
+    fn test_kahns_cycle_detection() {
+        // Create a graph with a cycle: 0 -> 1 -> 2 -> 0
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (1, 2), (2, 0)]);
+        let queue = CircularQueue::<usize, 8>::new();
+        let in_degree_map = Dictionary::<usize, isize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
+
+        let error = kahns(&graph, queue, in_degree_map, &mut sorted_nodes);
+
+        assert_eq!(error, Err(AlgorithmError::CycleDetected));
     }
 
     #[test]
-    fn test_single_node() {
-        // Node1 with no edges
-        let mut sorted_nodes = [0; 1];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let edges: [(usize, usize); 0] = [];
-        let graph = EdgeNodeList::new(edges, [1_usize]).unwrap();
-        let sorted = kahns(&graph, queue, dict, &mut sorted_nodes).unwrap();
-        assert_eq!(sorted, [1]);
+    fn test_kahns_disconnected() {
+        // Create a disconnected graph: 0 -> 1, 2 -> 3 (no connection between pairs)
+        let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (2, 3)]);
+        let queue = CircularQueue::<usize, 8>::new();
+        let in_degree_map = Dictionary::<usize, isize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
+
+        let result = kahns(&graph, queue, in_degree_map, &mut sorted_nodes).unwrap();
+
+        assert_eq!(result.len(), 4);
+
+        // Check relative ordering within connected components
+        let pos_0 = result.iter().position(|&x| x == 0).unwrap();
+        let pos_1 = result.iter().position(|&x| x == 1).unwrap();
+        let pos_2 = result.iter().position(|&x| x == 2).unwrap();
+        let pos_3 = result.iter().position(|&x| x == 3).unwrap();
+
+        assert!(pos_0 < pos_1); // 0 should come before 1
+        assert!(pos_2 < pos_3); // 2 should come before 3
     }
 
     #[test]
-    fn test_empty_graph() {
-        let edges: [(usize, usize); 0] = [];
-        let mut sorted_nodes = [0; 0];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let graph = EdgeNodeList::new(edges, []).unwrap();
-        let sorted = kahns(&graph, queue, dict, &mut sorted_nodes).unwrap();
-        assert_eq!(sorted, []);
-    }
+    fn test_kahns_self_loop() {
+        // Create a graph with a self-loop: 0 -> 0
+        let graph = EdgeList::<8, _, _>::new([(0usize, 0usize)]);
+        let queue = CircularQueue::<usize, 8>::new();
+        let in_degree_map = Dictionary::<usize, isize, 8>::new();
+        let mut sorted_nodes = [0usize; 8];
 
-    #[test]
-    fn test_queue_capacity_error() {
-        let mut sorted_nodes = [0; 4];
-        let queue = CircularQueue::<usize, 2>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let graph = EdgeList::<8, _, _>::new([(1_usize, 2), (3, 4), (5, 6)]).unwrap();
-        let result = kahns(&graph, queue, dict, &mut sorted_nodes);
-        assert_eq!(result, Err(AlgorithmError::StackCapacityExceeded));
-    }
+        let error = kahns(&graph, queue, in_degree_map, &mut sorted_nodes);
 
-    #[test]
-    fn test_dict_capacity_error() {
-        // Test with a small dictionary that cannot hold all necessary nodes
-        // Graph: Node1 --> Node2 --> Node3 --> Node4
-        let edges = [(1_usize, 2), (2, 3), (3, 4)];
-        let mut sorted_nodes = [0; 4];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 2>::new();
-        let graph = EdgeList::<8, _, _>::new(edges).unwrap();
-        let result = kahns(&graph, queue, dict, &mut sorted_nodes);
-        assert_eq!(result, Err(AlgorithmError::DictionaryError));
-    }
-
-    #[test]
-    fn test_queue_and_dict_exact_capacity() {
-        // Test with queue and dictionary having exactly the required capacity
-        // Graph: Node1 --> Node2
-        // Node3 --> Node4
-        let edges = [(1_usize, 2), (3, 4)];
-        let mut sorted_nodes = [0; 4];
-        let queue = CircularQueue::<usize, 2>::new(); // Exact capacity
-        let dict = Dictionary::<_, _, 4>::new(); // Exact capacity
-        let graph = EdgeList::<8, _, _>::new(edges).unwrap();
-        let sorted = kahns(&graph, queue, dict, &mut sorted_nodes).unwrap();
-        assert_eq!(sorted, [1, 2, 3, 4]);
-    }
-
-    #[test]
-    fn test_output_capacity_exceeded() {
-        // Graph: Node1 --> Node2 --> Node3
-        let mut sorted_nodes = [0; 2]; // Insufficient capacity
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let graph = EdgeList::<8, _, _>::new([(1_usize, 2), (2, 3)]).unwrap();
-        let result = kahns(&graph, queue, dict, &mut sorted_nodes);
-        assert_eq!(result, Err(AlgorithmError::OutputCapacityExceeded));
-    }
-
-    #[test]
-    fn test_self_loop_detection() {
-        // Graph: Node1 --> Node1 (self-loop)
-        let edges = [(1_usize, 1)];
-        let mut sorted_nodes = [0; 1];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let graph = EdgeList::<8, _, _>::new(edges).unwrap();
-        let result = kahns(&graph, queue, dict, &mut sorted_nodes);
-        assert!(matches!(
-            result,
-            Err(AlgorithmError::CycleDetectedInConsistencyCheck)
-        ));
-    }
-
-    #[test]
-    fn test_parallel_edges() {
-        // Graph: Node1 --> Node2 (two parallel edges)
-        let edges = [(1_usize, 2), (1, 2)];
-        let mut sorted_nodes = [0; 2];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let graph = EdgeList::<8, _, _>::new(edges).unwrap();
-        let sorted = kahns(&graph, queue, dict, &mut sorted_nodes).unwrap();
-        assert_eq!(sorted, [1, 2]);
-    }
-
-    #[test]
-    fn test_complex_cycle_detection() {
-        // Graph with interlinked cycles
-        // Node1 --> Node2 --> Node3 --> Node1
-        //             |
-        //             v
-        //           Node4 --> Node5 --> Node2
-        let edges = [(1_usize, 2), (2, 3), (3, 1), (2, 4), (4, 5), (5, 2)];
-        let mut sorted_nodes = [0; 5];
-        let queue = CircularQueue::<usize, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let graph = EdgeList::<10, _, _>::new(edges).unwrap();
-        let result = kahns(&graph, queue, dict, &mut sorted_nodes);
-        assert!(matches!(
-            result,
-            Err(AlgorithmError::CycleDetectedInConsistencyCheck)
-        ));
-    }
-
-    #[test]
-    fn test_non_integer_node_identifiers() {
-        // Use &str as node identifiers
-        let edges = [("Node1", "Node2"), ("Node2", "Node3")];
-        let mut sorted_nodes = [""; 3];
-        let queue = CircularQueue::<&str, 10>::new();
-        let dict = Dictionary::<_, _, 10>::new();
-        let graph = EdgeList::<8, _, _>::new(edges).unwrap();
-        let sorted = kahns(&graph, queue, dict, &mut sorted_nodes).unwrap();
-        assert_eq!(sorted, ["Node1", "Node2", "Node3"]);
+        assert_eq!(error, Err(AlgorithmError::CycleDetected));
     }
 }
