@@ -237,9 +237,8 @@ mod tests {
         let edge_values = graph.iter_edge_values().unwrap();
         let mut edges_with_values = [(0usize, 0usize, 0i32); 8];
         let edges_slice = collect(
-            edge_values.filter_map(|(src, dst, weight_opt)| 
-                weight_opt.map(|w| (src, dst, *w))),
-            &mut edges_with_values
+            edge_values.filter_map(|(src, dst, weight_opt)| weight_opt.map(|w| (src, dst, *w))),
+            &mut edges_with_values,
         );
         assert_eq!(edges_slice, &[(0, 1, 5), (1, 2, 3), (0, 2, 8)]);
     }

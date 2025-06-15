@@ -147,7 +147,10 @@ mod tests {
         let mut edges = [(0usize, 0usize); 8];
         let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
         assert_eq!(edges_slice.len(), 6);
-        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 0)]);
+        assert_eq!(
+            edges_slice,
+            &[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 0)]
+        );
     }
 
     #[test]
@@ -247,7 +250,10 @@ mod tests {
         // Test multiple edges pointing to same target
         let mut edges = [(0usize, 0usize); 8];
         let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice, &[(0, 1), (0, 0), (2, 1), (2, 0), (1, 0), (1, 0)]);
+        assert_eq!(
+            edges_slice,
+            &[(0, 1), (0, 0), (2, 1), (2, 0), (1, 0), (1, 0)]
+        );
 
         // Test contains_node for all nodes
         assert!(graph.contains_node(0).unwrap());

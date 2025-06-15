@@ -249,7 +249,11 @@ mod tests {
         ];
 
         for &expected_edge in &expected_edges {
-            assert!(edges_slice.contains(&expected_edge), "Expected edge {:?} not found", expected_edge);
+            assert!(
+                edges_slice.contains(&expected_edge),
+                "Expected edge {:?} not found",
+                expected_edge
+            );
         }
     }
 
@@ -441,9 +445,11 @@ mod tests {
         // Test iter_edge_values
         let mut edges_with_values = [(0u32, 0u32, 0i32); 16];
         let edges_slice = collect(
-            map_matrix.iter_edge_values().unwrap().filter_map(|(src, dst, value_opt)| 
-                value_opt.map(|v| (src, dst, *v))),
-            &mut edges_with_values
+            map_matrix
+                .iter_edge_values()
+                .unwrap()
+                .filter_map(|(src, dst, value_opt)| value_opt.map(|v| (src, dst, *v))),
+            &mut edges_with_values,
         );
         assert_eq!(edges_slice.len(), 6); // 6 Some values in matrix
 
@@ -458,15 +464,21 @@ mod tests {
         ];
 
         for &expected_edge in &expected_edges {
-            assert!(edges_slice.contains(&expected_edge), "Expected edge {:?} not found", expected_edge);
+            assert!(
+                edges_slice.contains(&expected_edge),
+                "Expected edge {:?} not found",
+                expected_edge
+            );
         }
 
         // Test outgoing_edge_values from node 10
         let mut outgoing = [(0u32, 0i32); 8];
         let outgoing_slice = collect(
-            map_matrix.outgoing_edge_values(10).unwrap().filter_map(|(dst, value_opt)| 
-                value_opt.map(|v| (dst, *v))),
-            &mut outgoing
+            map_matrix
+                .outgoing_edge_values(10)
+                .unwrap()
+                .filter_map(|(dst, value_opt)| value_opt.map(|v| (dst, *v))),
+            &mut outgoing,
         );
         assert_eq!(outgoing_slice.len(), 2);
         assert!(outgoing_slice.contains(&(10, 1)));
