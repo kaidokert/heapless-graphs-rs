@@ -197,7 +197,10 @@ mod tests {
     use crate::edgelist::edge_node_list::EdgeNodeList;
     use crate::edges::EdgeStruct;
     use crate::matrix::{bit_map_matrix::BitMapMatrix, simple_matrix::Matrix};
-    use crate::nodes::{NodeStruct, NodeStructOption, NodeValueStructOption};
+    use crate::nodes::{NodeStruct, NodeStructOption};
+
+    #[cfg(feature = "heapless")]
+    use crate::nodes::NodeValueStructOption;
     use core::slice::SliceIndex;
     #[cfg(feature = "heapless")]
     use heapless::FnvIndexMap;
