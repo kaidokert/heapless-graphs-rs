@@ -209,7 +209,40 @@ impl<const E: usize, NI, V> Deref for EdgeValueStruct<E, NI, V> {
     }
 }
 
-// Todo: ref and mut ref for slices of (NI, NI, V)
+// Implement EdgeRef for slices of (NI, NI, V)
+impl<NI, V> EdgeRef for &[(NI, NI, V)] {
+    type NodeIndex = NI;
+    fn get_edge(&self, index: usize) -> Option<(&Self::NodeIndex, &Self::NodeIndex)> {
+        let edge = self.get(index)?;
+        Some((&edge.0, &edge.1))
+    }
+    fn capacity(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<NI, V> EdgeRef for &mut [(NI, NI, V)] {
+    type NodeIndex = NI;
+    fn get_edge(&self, index: usize) -> Option<(&Self::NodeIndex, &Self::NodeIndex)> {
+        let edge = self.get(index)?;
+        Some((&edge.0, &edge.1))
+    }
+    fn capacity(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<NI, V> EdgeRefValue<V> for &[(NI, NI, V)] {
+    fn get_edge_value(&self, index: usize) -> Option<&V> {
+        self.get(index).map(|e| &e.2)
+    }
+}
+
+impl<NI, V> EdgeRefValue<V> for &mut [(NI, NI, V)] {
+    fn get_edge_value(&self, index: usize) -> Option<&V> {
+        self.get(index).map(|e| &e.2)
+    }
+}
 
 impl<const E: usize, NI, V> EdgeRef for [(NI, NI, V); E] {
     type NodeIndex = NI;
@@ -800,6 +833,22 @@ mod tests {
         use_edges(&edge_list);
     }
     #[test]
+    fn test_edges_value_slice() {
+        let arr = [(0, 1, 'a'), (1, 20, 'b'), (2, 3, 'c')];
+        let edge_list = arr.as_slice();
+        iterate_over(&edge_list, &EXPECTED);
+        (&edge_list).iter_edges();
+        use_edges(&edge_list);
+    }
+    #[test]
+    fn test_edges_value_mut_slice() {
+        let mut arr = [(0, 1, 'a'), (1, 20, 'b'), (2, 3, 'c')];
+        let edge_list = arr.as_mut_slice();
+        iterate_over(&edge_list, &EXPECTED);
+        (&edge_list).iter_edges();
+        use_edges(&edge_list);
+    }
+    #[test]
     fn test_edges_edgestruct() {
         let edge_list = EdgeStruct::<3, usize>([(0, 1), (1, 20), (2, 3)]);
         iterate_over(&edge_list, &EXPECTED);
@@ -928,5 +977,13 @@ mod tests {
         let edges =
             EdgeValueStructOption([Some((0, 1, 'a')), None, None, Some((1, 20, 'b')), None]);
         test(&edges, &['a', 'b']);
+
+        let value_array = [(0, 1, 'x'), (1, 20, 'y'), (2, 3, 'z')];
+        let value_slice = value_array.as_slice();
+        test(&value_slice, &['x', 'y', 'z']);
+
+        let mut mut_value_array = [(0, 1, 'x'), (1, 20, 'y'), (2, 3, 'z')];
+        let value_mut_slice = mut_value_array.as_mut_slice();
+        test(&value_mut_slice, &['x', 'y', 'z']);
     }
 }

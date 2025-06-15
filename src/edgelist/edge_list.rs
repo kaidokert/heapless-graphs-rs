@@ -22,7 +22,7 @@ impl<NI: NodeIndex> From<GraphError<NI>> for EdgeListError<NI> {
 /// Edge list graph that stores only edges
 ///
 /// This struct represents a graph using an edge list. It is optimized for
-/// compact edge representation, but iterating over nodes may be expensive.
+/// compact edge representation, but iterating over nodes is expensive.
 /// Edges can also have values.
 ///
 /// See [`crate::edges::EdgesToNodesIterator`] for the expensive node iteration used.
