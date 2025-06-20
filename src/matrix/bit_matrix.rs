@@ -127,7 +127,7 @@ impl<const C: usize, const R: usize> Graph<usize> for BitMatrix<C, R> {
 mod tests {
 
     use super::*;
-    use crate::tests::collect;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_bit_matrix_basic() {
@@ -415,8 +415,7 @@ mod tests {
 
         // Test node 1's incoming edges (should be from nodes 0 and 3)
         let mut edges = [0usize; 4];
-        let edges_slice = collect(matrix.incoming_edges(1).unwrap(), &mut edges);
-        edges_slice.sort_unstable();
+        let edges_slice = collect_sorted(matrix.incoming_edges(1).unwrap(), &mut edges);
         assert_eq!(edges_slice, &[0, 3]);
 
         // Test node 2's incoming edges (should be from node 1)
@@ -500,8 +499,7 @@ mod tests {
 
         // Test node 1's incoming edges
         let mut edges = [0usize; 4];
-        let edges_slice = collect(matrix.incoming_edges(1).unwrap(), &mut edges);
-        edges_slice.sort_unstable();
+        let edges_slice = collect_sorted(matrix.incoming_edges(1).unwrap(), &mut edges);
         assert_eq!(edges_slice, &[0, 2, 3]);
     }
 

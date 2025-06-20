@@ -87,7 +87,7 @@ mod tests {
     use super::*;
     use crate::edges::EdgeNodeError;
     use crate::graph::{GraphError, GraphWithEdgeValues};
-    use crate::tests::collect;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_edge_list_new() {
@@ -214,8 +214,7 @@ mod tests {
         // Test node iteration (this uses EdgesToNodesIterator internally)
         let nodes_iter = edge_list.iter_nodes().unwrap();
         let mut nodes = [0usize; 10];
-        let nodes_slice = collect(nodes_iter, &mut nodes);
-        nodes_slice.sort_unstable();
+        let nodes_slice = collect_sorted(nodes_iter, &mut nodes);
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
