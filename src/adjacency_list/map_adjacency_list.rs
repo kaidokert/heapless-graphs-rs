@@ -313,7 +313,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_map_adjacency_list_not_all_edges() {
         let mut dict = Dictionary::<_, NodeStructOption<3, _>, 5>::new();
