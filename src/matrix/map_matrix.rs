@@ -1,6 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
-    graph::{Graph, GraphError, NodeIndex},
+    graph::{Graph, GraphError, GraphWithMutableNodes, NodeIndex},
 };
 
 /// A matrix-based graph representation that maps arbitrary node indices to matrix positions
@@ -165,12 +165,40 @@ where
     }
 }
 
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> GraphWithMutableNodes<NI>
+    for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
+where
+    NI: NodeIndex,
+    ROW: AsRef<[Option<EDGEVALUE>]>,
+    COLUMNS: AsRef<[ROW]>,
+    M: MapTrait<NI, usize>,
+{
+    fn add_node(&mut self, node: NI) -> Result<(), Self::Error> {
+        // Check if node already exists
+        if self.index_map.contains_key(&node) {
+            return Err(GraphError::DuplicateNode(node));
+        }
+
+        // Find an unused matrix index using iterator approach
+        let unused_index = (0..N)
+            .find(|&idx| !self.index_map.iter().any(|(_, &used_idx)| used_idx == idx))
+            .ok_or(GraphError::OutOfCapacity)?;
+
+        // Insert the new node mapping
+        self.index_map
+            .insert(node, unused_index)
+            .map_err(|_| GraphError::OutOfCapacity)?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
     use crate::graph::GraphWithEdgeValues;
-    use crate::tests::collect;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_graphval_iter_nodes() {
@@ -563,5 +591,160 @@ mod tests {
         // Test incoming edges for non-existent node should return empty iterator
         let incoming_count = map_matrix.incoming_edges(999).unwrap().count();
         assert_eq!(incoming_count, 0);
+    }
+
+    #[test]
+    fn test_add_node_to_empty_matrix() {
+        let matrix = [[None, None, None], [None, None, None], [None, None, None]];
+        let index_map = Dictionary::<u32, usize, 5>::new();
+
+        type ValMatrix = MapMatrix<
+            3,
+            u32,
+            i32,
+            Dictionary<u32, usize, 5>,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let mut map_matrix = ValMatrix::new(matrix, index_map).unwrap();
+
+        map_matrix.add_node(42).unwrap();
+
+        let mut nodes = [0u32; 2];
+        let nodes_slice = collect(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[42]);
+        assert_eq!(map_matrix.outgoing_edges(42).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_add_node_to_existing_matrix() {
+        let matrix = [
+            [Some(1), None, None],
+            [None, None, None],
+            [None, None, None],
+        ];
+        let mut index_map = Dictionary::<u32, usize, 5>::new();
+        index_map.insert(10, 0).unwrap();
+
+        type ValMatrix = MapMatrix<
+            3,
+            u32,
+            i32,
+            Dictionary<u32, usize, 5>,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let mut map_matrix = ValMatrix::new(matrix, index_map).unwrap();
+
+        map_matrix.add_node(20).unwrap();
+
+        let mut nodes = [0u32; 4];
+        let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[10, 20]);
+        assert_eq!(map_matrix.outgoing_edges(20).unwrap().count(), 0);
+        assert_eq!(map_matrix.outgoing_edges(10).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_add_duplicate_node() {
+        let matrix = [[None, None, None], [None, None, None], [None, None, None]];
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(10, 0).unwrap();
+
+        type ValMatrix = MapMatrix<
+            3,
+            u32,
+            i32,
+            Dictionary<u32, usize, 3>,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let mut map_matrix = ValMatrix::new(matrix, index_map).unwrap();
+
+        let result = map_matrix.add_node(10);
+        assert!(matches!(result, Err(GraphError::DuplicateNode(10))));
+
+        let mut nodes = [0u32; 2];
+        let nodes_slice = collect(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[10]);
+    }
+
+    #[test]
+    fn test_add_node_capacity_exceeded() {
+        let matrix = [[None, None], [None, None]];
+        let mut index_map = Dictionary::<u32, usize, 3>::new();
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+
+        type ValMatrix = MapMatrix<
+            2,
+            u32,
+            i32,
+            Dictionary<u32, usize, 3>,
+            [[Option<i32>; 2]; 2],
+            [Option<i32>; 2],
+        >;
+        let mut map_matrix = ValMatrix::new(matrix, index_map).unwrap();
+
+        let result = map_matrix.add_node(30);
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+
+        let mut nodes = [0u32; 4];
+        let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[10, 20]);
+    }
+
+    #[test]
+    fn test_add_multiple_nodes() {
+        let matrix = [
+            [None, None, None, None],
+            [None, None, None, None],
+            [None, None, None, None],
+            [None, None, None, None],
+        ];
+        let index_map = Dictionary::<u32, usize, 10>::new();
+
+        type ValMatrix = MapMatrix<
+            4,
+            u32,
+            i32,
+            Dictionary<u32, usize, 10>,
+            [[Option<i32>; 4]; 4],
+            [Option<i32>; 4],
+        >;
+        let mut map_matrix = ValMatrix::new(matrix, index_map).unwrap();
+
+        map_matrix.add_node(100).unwrap();
+        map_matrix.add_node(200).unwrap();
+        map_matrix.add_node(300).unwrap();
+
+        let mut nodes = [0u32; 4];
+        let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[100, 200, 300]);
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_add_node_fills_gaps() {
+        let matrix = [[None, None, None], [None, None, None], [None, None, None]];
+        let mut index_map = Dictionary::<u32, usize, 5>::new();
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(30, 2).unwrap();
+
+        type ValMatrix = MapMatrix<
+            3,
+            u32,
+            i32,
+            Dictionary<u32, usize, 5>,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let mut map_matrix = ValMatrix::new(matrix, index_map).unwrap();
+
+        map_matrix.add_node(20).unwrap();
+
+        let mut nodes = [0u32; 4];
+        let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[10, 20, 30]);
     }
 }
