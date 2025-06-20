@@ -30,6 +30,8 @@ pub enum GraphError<NI: NodeIndex> {
     IndexOutOfBounds(usize, NI),
     /// Matrix size is invalid
     InvalidMatrixSize,
+    /// Out of capacity for adding nodes
+    OutOfCapacity,
     /// Unexpected condition occurred
     Unexpected,
 }

@@ -86,11 +86,21 @@ pub use visited::VisitedTracker;
 
 #[cfg(test)]
 mod tests {
+    /// Collects elements from an iterator into a slice, returning the slice.
     pub(crate) fn collect<T: Copy, I: Iterator<Item = T>>(iter: I, dest: &mut [T]) -> &mut [T] {
         let slice_len = iter
             .zip(dest.iter_mut())
             .map(|(item, slot)| *slot = item)
             .count();
         &mut dest[..slice_len]
+    }
+    /// Collects elements from an iterator into a sorted slice, returning the slice.
+    pub(crate) fn collect_sorted<T: Copy + Ord, I: Iterator<Item = T>>(
+        iter: I,
+        dest: &mut [T],
+    ) -> &mut [T] {
+        let slice = collect(iter, dest);
+        slice.sort_unstable();
+        slice
     }
 }

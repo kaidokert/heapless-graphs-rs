@@ -209,7 +209,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::tests::collect;
+    use crate::tests::collect_sorted;
 
     #[test]
     fn test_iter_with_gaps() {
@@ -219,8 +219,7 @@ mod test {
         dict.insert(3, 'c').unwrap();
 
         let mut values = ['\0'; 5];
-        let values_slice = collect(dict.iter().map(|(_, v)| *v), &mut values);
-        values_slice.sort_unstable();
+        let values_slice = collect_sorted(dict.iter().map(|(_, v)| *v), &mut values);
         assert_eq!(values_slice, &['a', 'b', 'c']);
     }
 

@@ -1,6 +1,6 @@
 use crate::containers::maps::MapTrait;
 use crate::graph::{integrity_check, Graph, GraphError, NodeIndex};
-use crate::nodes::NodesIterable;
+use crate::nodes::{AddNode, NodesIterable};
 
 use super::outgoing_nodes::AsOutgoingNodes;
 
@@ -44,6 +44,34 @@ where
     }
 }
 
+impl<NI, E, C, M> MapAdjacencyList<NI, E, C, M>
+where
+    NI: NodeIndex,
+    E: NodesIterable<Node = NI>,
+    C: AsOutgoingNodes<NI, E> + AddNode<NI> + Default,
+    M: MapTrait<NI, C>,
+{
+    pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, G::Error>
+    where
+        G::Error: core::fmt::Debug,
+    {
+        let mut nodes = M::new();
+        for node in source_graph.iter_nodes()? {
+            let mut outbound = C::default();
+            for edge in source_graph.outgoing_edges(node)? {
+                outbound.add(edge);
+            }
+            nodes
+                .insert(node, outbound)
+                .map_err(|_| GraphError::OutOfCapacity)?;
+        }
+        Ok(Self {
+            nodes,
+            _phantom: Default::default(),
+        })
+    }
+}
+
 impl<NI, E, C, M> Graph<NI> for MapAdjacencyList<NI, E, C, M>
 where
     M: MapTrait<NI, C>,
@@ -81,7 +109,9 @@ where
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
-    use crate::tests::collect;
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::nodes::NodeStructOption;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_map_adjacency_list_new() {
@@ -93,8 +123,7 @@ mod tests {
         let graph = MapAdjacencyList::new(dict).unwrap();
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
-        nodes_slice.sort_unstable();
+        let nodes_slice = collect_sorted(graph.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
@@ -108,8 +137,7 @@ mod tests {
         let graph = MapAdjacencyList::new_unchecked(dict);
 
         let mut nodes = [0usize; 4];
-        let nodes_slice = collect(graph.iter_nodes().unwrap(), &mut nodes);
-        nodes_slice.sort_unstable();
+        let nodes_slice = collect_sorted(graph.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[0, 1, 2]);
     }
 
@@ -258,8 +286,7 @@ mod tests {
 
         // Test self-loop edges
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        edges_slice.sort_unstable();
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
         assert_eq!(edges_slice, &[(0, 0), (0, 1), (1, 1), (1, 1)]);
 
         // Test outgoing edges with self-loops
@@ -279,11 +306,61 @@ mod tests {
 
         // Test multiple edges pointing to same target
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        edges_slice.sort_unstable();
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
         assert_eq!(
             edges_slice,
             &[(0, 1), (0, 1), (1, 0), (1, 0), (2, 0), (2, 1)]
+        );
+    }
+
+    #[test]
+    fn test_map_adjacency_list_not_all_edges() {
+        let mut dict = Dictionary::<_, NodeStructOption<3, _>, 5>::new();
+        dict.insert(0, NodeStructOption([Some(1), Some(2), None]))
+            .unwrap();
+        dict.insert(1, NodeStructOption([Some(2), Some(0), None]))
+            .unwrap();
+        dict.insert(2, NodeStructOption([Some(0), None, None]))
+            .unwrap();
+
+        let graph = MapAdjacencyList::new_unchecked(dict);
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(2, 0), (0, 1), (0, 2), (1, 2), (1, 0)]);
+    }
+
+    #[test]
+    fn test_map_adjacency_list_from_graph() {
+        let src_graph = EdgeList::<8, _, _>::new([(0, 1), (0, 2), (1, 3), (2, 3)]);
+        let adjlist =
+            MapAdjacencyList::<_, _, _, Dictionary<_, NodeStructOption<5, _>, 5>>::from_graph(
+                &src_graph,
+            )
+            .unwrap();
+
+        let mut nodes = [0usize; 8];
+        let node_slice = collect_sorted(adjlist.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(node_slice, &[0usize, 1, 2, 3]);
+
+        let mut edges = [(0usize, 0usize); 8];
+        let edge_slice = collect_sorted(adjlist.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edge_slice, &[(0, 1), (0, 2), (1, 3), (2, 3)]);
+
+        assert_eq!(
+            collect_sorted(adjlist.outgoing_edges(0).unwrap(), &mut nodes),
+            &[1, 2]
+        );
+        assert_eq!(
+            collect_sorted(adjlist.outgoing_edges(1).unwrap(), &mut nodes),
+            &[3]
+        );
+        assert_eq!(
+            collect_sorted(adjlist.outgoing_edges(2).unwrap(), &mut nodes),
+            &[3]
+        );
+        assert_eq!(
+            collect_sorted(adjlist.outgoing_edges(3).unwrap(), &mut nodes),
+            &[]
         );
     }
 }
