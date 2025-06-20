@@ -1,5 +1,5 @@
 use crate::containers::maps::MapTrait;
-use crate::graph::{integrity_check, Graph, GraphError, NodeIndex};
+use crate::graph::{integrity_check, Graph, GraphError, GraphWithMutableNodes, NodeIndex};
 use crate::nodes::{AddNode, NodesIterable};
 
 pub struct MapAdjacencyList<NI, E, M>
@@ -96,6 +96,24 @@ where
         // The key insight: use Option to unify the iterator types, then flatten
         let edges_option = self.nodes.get(&node).map(|edges| edges.iter_nodes());
         Ok(edges_option.into_iter().flatten().copied())
+    }
+}
+
+impl<NI, E, M> GraphWithMutableNodes<NI> for MapAdjacencyList<NI, E, M>
+where
+    NI: NodeIndex + Eq + core::hash::Hash + Copy,
+    E: NodesIterable<Node = NI> + Default,
+    M: MapTrait<NI, E>,
+{
+    fn add_node(&mut self, node: NI) -> Result<(), Self::Error> {
+        if self.nodes.contains_key(&node) {
+            return Err(GraphError::DuplicateNode(node));
+        }
+        let outbound = E::default();
+        self.nodes
+            .insert(node, outbound)
+            .map_err(|_| GraphError::OutOfCapacity)?;
+        Ok(())
     }
 }
 
@@ -356,5 +374,114 @@ mod tests {
             collect_sorted(adjlist.outgoing_edges(3).unwrap(), &mut nodes),
             &[]
         );
+    }
+
+    #[test]
+    fn test_add_node_to_empty_graph() {
+        let dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Add a node to empty graph
+        graph.add_node(42).unwrap();
+
+        // Verify the node was added
+        assert!(graph.contains_node(42).unwrap());
+        assert_eq!(graph.iter_nodes().unwrap().count(), 1);
+        assert_eq!(graph.outgoing_edges(42).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_add_node_to_existing_graph() {
+        let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([Some(1), None])).unwrap();
+        dict.insert(1, NodeStructOption([None, None])).unwrap();
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Add a new node
+        graph.add_node(2).unwrap();
+
+        // Verify all nodes exist
+        assert!(graph.contains_node(0).unwrap());
+        assert!(graph.contains_node(1).unwrap());
+        assert!(graph.contains_node(2).unwrap());
+        assert_eq!(graph.iter_nodes().unwrap().count(), 3);
+
+        // Verify new node has no outgoing edges
+        assert_eq!(graph.outgoing_edges(2).unwrap().count(), 0);
+
+        // Verify existing edges are preserved
+        let mut edges = [0usize; 2];
+        let edges_slice = collect(graph.outgoing_edges(0).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[1]);
+    }
+
+    #[test]
+    fn test_add_duplicate_node() {
+        let mut dict = Dictionary::<usize, NodeStructOption<1, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([None])).unwrap();
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Try to add duplicate node
+        let result = graph.add_node(0);
+
+        // Should return error
+        assert!(result.is_err());
+        match result {
+            Err(GraphError::DuplicateNode(node)) => assert_eq!(node, 0),
+            _ => panic!("Expected DuplicateNode error"),
+        }
+
+        // Original graph should be unchanged
+        assert_eq!(graph.iter_nodes().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_add_node_capacity_exceeded() {
+        // Create a dictionary with capacity for only 2 nodes
+        let mut dict = Dictionary::<usize, NodeStructOption<1, usize>, 2>::new();
+        dict.insert(0, NodeStructOption([None])).unwrap();
+        dict.insert(1, NodeStructOption([None])).unwrap();
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Try to add a third node (should exceed capacity)
+        let result = graph.add_node(2);
+
+        // Should return capacity error
+        assert!(result.is_err());
+        match result {
+            Err(GraphError::OutOfCapacity) => {}
+            _ => panic!("Expected OutOfCapacity error"),
+        }
+
+        // Original graph should be unchanged
+        assert_eq!(graph.iter_nodes().unwrap().count(), 2);
+    }
+
+    #[test]
+    fn test_add_multiple_nodes() {
+        let dict = Dictionary::<usize, NodeStructOption<3, usize>, 10>::new();
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Add multiple nodes
+        graph.add_node(10).unwrap();
+        graph.add_node(20).unwrap();
+        graph.add_node(30).unwrap();
+
+        // Verify all nodes were added
+        assert!(graph.contains_node(10).unwrap());
+        assert!(graph.contains_node(20).unwrap());
+        assert!(graph.contains_node(30).unwrap());
+        assert_eq!(graph.iter_nodes().unwrap().count(), 3);
+
+        // Verify no edges exist between nodes
+        assert_eq!(graph.iter_edges().unwrap().count(), 0);
+
+        // Verify each node has no outgoing edges
+        assert_eq!(graph.outgoing_edges(10).unwrap().count(), 0);
+        assert_eq!(graph.outgoing_edges(20).unwrap().count(), 0);
+        assert_eq!(graph.outgoing_edges(30).unwrap().count(), 0);
     }
 }

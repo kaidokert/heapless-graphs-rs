@@ -1,4 +1,4 @@
-use crate::graph::{integrity_check, Graph, GraphError, NodeIndex};
+use crate::graph::{integrity_check, Graph, GraphError, GraphWithMutableNodes, NodeIndex};
 
 /// Edge list graph that stores both edges and nodes.
 ///
@@ -102,6 +102,21 @@ where
     }
 }
 
+impl<NI, E, N> GraphWithMutableNodes<NI> for EdgeNodeList<NI, E, N>
+where
+    NI: NodeIndex,
+    N: crate::nodes::NodesIterable<Node = NI> + crate::nodes::AddNode<NI>,
+    E: crate::edges::EdgesIterable<Node = NI>,
+{
+    fn add_node(&mut self, node: NI) -> Result<(), Self::Error> {
+        if self.contains_node(node)? {
+            return Err(GraphError::DuplicateNode(node));
+        }
+        self.nodes.add(node).ok_or(GraphError::OutOfCapacity)?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -193,5 +208,155 @@ mod test {
             graph.node_value(99).unwrap_err(),
             GraphError::NodeNotFound(99)
         ));
+    }
+
+    #[test]
+    fn test_add_node_to_empty_graph() {
+        use crate::nodes::NodeStructOption;
+
+        let edges: [(usize, usize); 0] = [];
+        let nodes = NodeStructOption([None, None, None]); // Capacity for 3 nodes
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Add a node to empty graph
+        graph.add_node(42).unwrap();
+
+        // Verify the node was added
+        assert!(graph.contains_node(42).unwrap());
+        assert_eq!(graph.iter_nodes().unwrap().count(), 1);
+        assert_eq!(graph.outgoing_edges(42).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_add_node_to_existing_graph() {
+        use crate::nodes::NodeStructOption;
+
+        let edges = [(0usize, 1usize), (1, 2)];
+        let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]); // Room to add more
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Add a new node
+        graph.add_node(3).unwrap();
+
+        // Verify all nodes exist
+        assert!(graph.contains_node(0).unwrap());
+        assert!(graph.contains_node(1).unwrap());
+        assert!(graph.contains_node(2).unwrap());
+        assert!(graph.contains_node(3).unwrap());
+        assert_eq!(graph.iter_nodes().unwrap().count(), 4);
+
+        // Verify new node has no outgoing edges
+        assert_eq!(graph.outgoing_edges(3).unwrap().count(), 0);
+
+        // Verify existing edges are preserved
+        let mut edges = [0usize; 2];
+        let edges_slice = collect(graph.outgoing_edges(0).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[1]);
+
+        let mut edges = [0usize; 2];
+        let edges_slice = collect(graph.outgoing_edges(1).unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[2]);
+    }
+
+    #[test]
+    fn test_add_node_capacity_exceeded() {
+        use crate::nodes::NodeStructOption;
+
+        // Create a NodeStructOption that's already at full capacity
+        let edges = [(0usize, 1usize)];
+        let nodes = NodeStructOption([Some(0), Some(1)]); // Full capacity, no None slots
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Try to add a third node (should exceed capacity)
+        let result = graph.add_node(2);
+
+        // Should return capacity error
+        assert!(result.is_err());
+        match result {
+            Err(GraphError::OutOfCapacity) => {}
+            _ => panic!("Expected OutOfCapacity error"),
+        }
+
+        // Original graph should be unchanged
+        assert_eq!(graph.iter_nodes().unwrap().count(), 2);
+    }
+
+    #[test]
+    fn test_add_multiple_nodes() {
+        use crate::nodes::NodeStructOption;
+
+        let edges: [(usize, usize); 0] = [];
+        let nodes = NodeStructOption([None, None, None, None, None]); // Capacity for 5 nodes
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Add multiple nodes
+        graph.add_node(10).unwrap();
+        graph.add_node(20).unwrap();
+        graph.add_node(30).unwrap();
+
+        // Verify all nodes were added
+        assert!(graph.contains_node(10).unwrap());
+        assert!(graph.contains_node(20).unwrap());
+        assert!(graph.contains_node(30).unwrap());
+        assert_eq!(graph.iter_nodes().unwrap().count(), 3);
+
+        // Verify no edges exist between nodes (since we started with empty edges)
+        assert_eq!(graph.iter_edges().unwrap().count(), 0);
+
+        // Verify each node has no outgoing edges
+        assert_eq!(graph.outgoing_edges(10).unwrap().count(), 0);
+        assert_eq!(graph.outgoing_edges(20).unwrap().count(), 0);
+        assert_eq!(graph.outgoing_edges(30).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_add_duplicate_node() {
+        use crate::nodes::NodeStructOption;
+
+        let edges = [(0usize, 1usize)];
+        let nodes = NodeStructOption([Some(0), Some(1), None]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Try to add a duplicate node
+        let result = graph.add_node(0);
+
+        // Should return error
+        assert!(result.is_err());
+        match result {
+            Err(GraphError::DuplicateNode(node)) => assert_eq!(node, 0),
+            _ => panic!("Expected DuplicateNode error"),
+        }
+
+        // Original graph should be unchanged
+        assert_eq!(graph.iter_nodes().unwrap().count(), 2);
+    }
+
+    #[test]
+    fn test_add_node_with_option_container() {
+        use crate::nodes::NodeStructOption;
+
+        let edges = [(0usize, 1usize)];
+        let nodes = NodeStructOption([Some(0), Some(1), None]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Add a new node to the empty slot
+        graph.add_node(2).unwrap();
+
+        // Verify all nodes exist
+        assert!(graph.contains_node(0).unwrap());
+        assert!(graph.contains_node(1).unwrap());
+        assert!(graph.contains_node(2).unwrap());
+        assert_eq!(graph.iter_nodes().unwrap().count(), 3);
+
+        // Verify new node has no outgoing edges
+        assert_eq!(graph.outgoing_edges(2).unwrap().count(), 0);
+
+        // Try to add another node when container is full
+        let result = graph.add_node(3);
+        assert!(result.is_err());
+        match result {
+            Err(GraphError::OutOfCapacity) => {}
+            _ => panic!("Expected OutOfCapacity error"),
+        }
     }
 }

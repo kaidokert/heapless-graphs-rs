@@ -32,6 +32,8 @@ pub enum GraphError<NI: NodeIndex> {
     InvalidMatrixSize,
     /// Out of capacity for adding nodes
     OutOfCapacity,
+    /// Duplicate node
+    DuplicateNode(NI),
     /// Unexpected condition occurred
     Unexpected,
 }
@@ -164,6 +166,11 @@ where
             .filter(move |(_src, dst, _weight)| *dst == node)
             .map(|(src, _dst, weight)| (src, weight)))
     }
+}
+
+// TODO: WIP
+pub trait GraphWithMutableNodes<NI: NodeIndex>: Graph<NI> {
+    fn add_node(&mut self, node: NI) -> Result<(), Self::Error>;
 }
 
 /// Integrity check for graphs - validates that all edges reference valid nodes
