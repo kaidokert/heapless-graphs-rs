@@ -313,12 +313,9 @@ mod tests {
         );
     }
 
-    fn test_nodes_iterable<NI, T: NodesIterable<Node = NI>>(iter: T) {}
-
-    fn test_nodes_iterable_with_ni<NI, T: NodesIterable<Node = NI>>(iter: T, ni: NI) {}
 
     #[test]
-    fn test_map_adjaceny_list_not_all_edges() {
+    fn test_map_adjacency_list_not_all_edges() {
         let mut dict = Dictionary::<_, NodeStructOption<3, _>, 5>::new();
         dict.insert(0, NodeStructOption([Some(1), Some(2), None]))
             .unwrap();

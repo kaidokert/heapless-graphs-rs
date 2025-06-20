@@ -209,7 +209,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::tests::{collect, collect_sorted};
+    use crate::tests::collect_sorted;
 
     #[test]
     fn test_iter_with_gaps() {
