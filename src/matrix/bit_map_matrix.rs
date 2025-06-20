@@ -1,6 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
-    graph::{Graph, GraphError, NodeIndex},
+    graph::{Graph, GraphError, GraphWithMutableNodes, NodeIndex},
 };
 
 /// A bit-packed adjacency matrix with arbitrary node indices
@@ -142,11 +142,37 @@ where
     }
 }
 
+impl<const N: usize, const R: usize, NI, M> GraphWithMutableNodes<NI> for BitMapMatrix<N, R, NI, M>
+where
+    NI: NodeIndex,
+    M: MapTrait<NI, usize>,
+{
+    fn add_node(&mut self, node: NI) -> Result<(), Self::Error> {
+        // Check if node already exists
+        if self.index_map.contains_key(&node) {
+            return Err(GraphError::DuplicateNode(node));
+        }
+
+        // Find an unused matrix index (BitMatrix supports 0..8*N)
+        let max_index = 8 * N;
+        let unused_index = (0..max_index)
+            .find(|&idx| !self.index_map.iter().any(|(_, &used_idx)| used_idx == idx))
+            .ok_or(GraphError::OutOfCapacity)?;
+
+        // Insert the new node mapping
+        self.index_map
+            .insert(node, unused_index)
+            .map_err(|_| GraphError::OutOfCapacity)?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
-    use crate::tests::collect;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_bit_map_matrix_basic() {
@@ -308,5 +334,116 @@ mod tests {
         let mut outgoing = ['\0'; 8];
         let outgoing_slice = collect(bit_map_matrix.outgoing_edges('D').unwrap(), &mut outgoing);
         assert_eq!(outgoing_slice.len(), 0);
+    }
+
+    #[test]
+    fn test_add_node_to_empty_bit_matrix() {
+        let bits = [[0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8]];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let index_map = Dictionary::<u32, usize, 10>::new();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+        bit_map_matrix.add_node(42).unwrap();
+
+        let mut nodes = [0u32; 2];
+        let nodes_slice = collect(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[42]);
+        assert_eq!(bit_map_matrix.outgoing_edges(42).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_add_node_to_existing_bit_matrix() {
+        let bits = [
+            [0b00000001u8], // Row 0: edge to node 0 (self-loop)
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+        ];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<char, usize, 10>::new();
+        index_map.insert('A', 0).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+        bit_map_matrix.add_node('B').unwrap();
+
+        let mut nodes = ['\0'; 4];
+        let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &['A', 'B']);
+        assert_eq!(bit_map_matrix.outgoing_edges('B').unwrap().count(), 0);
+        assert_eq!(bit_map_matrix.outgoing_edges('A').unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_add_duplicate_node_bit_matrix() {
+        let bits = [[0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8]];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<u32, usize, 8>::new();
+        index_map.insert(100, 0).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        let result = bit_map_matrix.add_node(100);
+        assert!(matches!(result, Err(GraphError::DuplicateNode(100))));
+
+        let mut nodes = [0u32; 2];
+        let nodes_slice = collect(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[100]);
+    }
+
+    #[test]
+    fn test_add_node_capacity_exceeded_bit_matrix() {
+        let bits = [[0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8]];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<u32, usize, 8>::new();
+        for i in 0..8 {
+            index_map.insert(i as u32, i).unwrap();
+        }
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        let result = bit_map_matrix.add_node(999);
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+
+        let mut nodes = [0u32; 10];
+        let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[0, 1, 2, 3, 4, 5, 6, 7]);
+    }
+
+    #[test]
+    fn test_add_multiple_nodes_bit_matrix() {
+        let bits = [[0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8]];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let index_map = Dictionary::<char, usize, 10>::new();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+        bit_map_matrix.add_node('X').unwrap();
+        bit_map_matrix.add_node('Y').unwrap();
+        bit_map_matrix.add_node('Z').unwrap();
+
+        let mut nodes = ['\0'; 4];
+        let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &['X', 'Y', 'Z']);
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_add_node_fills_gaps_bit_matrix() {
+        let bits = [[0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8], [0u8]];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<u32, usize, 10>::new();
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(30, 2).unwrap();
+        index_map.insert(50, 4).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+        bit_map_matrix.add_node(20).unwrap();
+
+        let mut nodes = [0u32; 6];
+        let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[10, 20, 30, 50]);
     }
 }
