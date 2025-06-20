@@ -22,7 +22,7 @@ Readonly graph class
 - [ ] Check duplicate nodes in integrity_check ?
 - [ ] Adjacency list AsRef[NI,C] doesn't work with heapless::Vec, figure that out
 - [x] Sort out inconsistent parameter type ordering, it's all over the place. NI first ? or const usize: ?
-- [ ] Deal with the DoubleEndedIterator dependency - doesn't really work everywhere and shouldn't be a hard requirement
+- [x] Deal with the DoubleEndedIterator dependency - doesn't really work everywhere and shouldn't be a hard requirement
       it's currently only used by `.rev()` call in iterative DFS impl.
 - [ ] clean up TODOs in code
 - [ ] Provide `std` implementations of all the traits as well ?

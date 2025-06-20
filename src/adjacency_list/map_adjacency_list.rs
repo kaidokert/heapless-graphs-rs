@@ -2,25 +2,21 @@ use crate::containers::maps::MapTrait;
 use crate::graph::{integrity_check, Graph, GraphError, NodeIndex};
 use crate::nodes::{AddNode, NodesIterable};
 
-use super::outgoing_nodes::AsOutgoingNodes;
-
-pub struct MapAdjacencyList<NI, E, C, M>
+pub struct MapAdjacencyList<NI, E, M>
 where
     NI: NodeIndex,
     E: NodesIterable<Node = NI>,
-    C: AsOutgoingNodes<NI, E>,
-    M: MapTrait<NI, C>,
+    M: MapTrait<NI, E>,
 {
     nodes: M,
-    _phantom: core::marker::PhantomData<(E, C)>,
+    _phantom: core::marker::PhantomData<E>,
 }
 
-impl<NI, E, C, M> MapAdjacencyList<NI, E, C, M>
+impl<NI, E, M> MapAdjacencyList<NI, E, M>
 where
     NI: NodeIndex,
     E: NodesIterable<Node = NI>,
-    C: AsOutgoingNodes<NI, E>,
-    M: MapTrait<NI, C>,
+    M: MapTrait<NI, E>,
 {
     /// Create new map adjacency list with validation
     ///
@@ -44,12 +40,11 @@ where
     }
 }
 
-impl<NI, E, C, M> MapAdjacencyList<NI, E, C, M>
+impl<NI, E, M> MapAdjacencyList<NI, E, M>
 where
     NI: NodeIndex,
-    E: NodesIterable<Node = NI>,
-    C: AsOutgoingNodes<NI, E> + AddNode<NI> + Default,
-    M: MapTrait<NI, C>,
+    E: NodesIterable<Node = NI> + AddNode<NI> + Default,
+    M: MapTrait<NI, E>,
 {
     pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, G::Error>
     where
@@ -57,7 +52,7 @@ where
     {
         let mut nodes = M::new();
         for node in source_graph.iter_nodes()? {
-            let mut outbound = C::default();
+            let mut outbound = E::default();
             for edge in source_graph.outgoing_edges(node)? {
                 outbound.add(edge);
             }
@@ -72,12 +67,11 @@ where
     }
 }
 
-impl<NI, E, C, M> Graph<NI> for MapAdjacencyList<NI, E, C, M>
+impl<NI, E, M> Graph<NI> for MapAdjacencyList<NI, E, M>
 where
-    M: MapTrait<NI, C>,
+    M: MapTrait<NI, E>,
     NI: NodeIndex + Eq + core::hash::Hash + Copy,
     E: NodesIterable<Node = NI>,
-    C: AsOutgoingNodes<NI, E>,
 {
     type Error = GraphError<NI>;
 
@@ -89,7 +83,7 @@ where
         Ok(self
             .nodes
             .iter()
-            .flat_map(|(n, c)| c.as_outgoing_nodes().map(move |m| (*n, *m))))
+            .flat_map(|(n, e_container)| e_container.iter_nodes().map(move |m| (*n, *m))))
     }
 
     /// Optimized O(1) contains_node for map adjacency list
@@ -100,7 +94,7 @@ where
     /// Optimized O(out-degree) outgoing_edges for map adjacency list
     fn outgoing_edges(&self, node: NI) -> Result<impl Iterator<Item = NI>, Self::Error> {
         // The key insight: use Option to unify the iterator types, then flatten
-        let edges_option = self.nodes.get(&node).map(|edges| edges.as_outgoing_nodes());
+        let edges_option = self.nodes.get(&node).map(|edges| edges.iter_nodes());
         Ok(edges_option.into_iter().flatten().copied())
     }
 }
@@ -333,7 +327,7 @@ mod tests {
     fn test_map_adjacency_list_from_graph() {
         let src_graph = EdgeList::<8, _, _>::new([(0, 1), (0, 2), (1, 3), (2, 3)]);
         let adjlist =
-            MapAdjacencyList::<_, _, _, Dictionary<_, NodeStructOption<5, _>, 5>>::from_graph(
+            MapAdjacencyList::<_, _, Dictionary<_, NodeStructOption<5, _>, 5>>::from_graph(
                 &src_graph,
             )
             .unwrap();

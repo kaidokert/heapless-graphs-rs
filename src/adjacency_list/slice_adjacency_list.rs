@@ -1,25 +1,21 @@
 use crate::graph::{integrity_check, Graph, GraphError, NodeIndex};
 use crate::nodes::NodesIterable;
 
-use super::outgoing_nodes::AsOutgoingNodes;
-
-pub struct SliceAdjacencyList<NI, E, C, T>
+pub struct SliceAdjacencyList<NI, E, T>
 where
     NI: NodeIndex,
     E: NodesIterable<Node = NI>,
-    C: AsOutgoingNodes<NI, E>,
-    T: AsRef<[(NI, C)]>,
+    T: AsRef<[(NI, E)]>,
 {
     nodes_container: T,
-    _phantom: core::marker::PhantomData<(E, C)>,
+    _phantom: core::marker::PhantomData<E>,
 }
 
-impl<NI, E, C, T> SliceAdjacencyList<NI, E, C, T>
+impl<NI, E, T> SliceAdjacencyList<NI, E, T>
 where
     NI: NodeIndex,
     E: NodesIterable<Node = NI>,
-    C: AsOutgoingNodes<NI, E>,
-    T: AsRef<[(NI, C)]>,
+    T: AsRef<[(NI, E)]>,
 {
     /// Create new slice adjacency list with validation
     ///
@@ -43,12 +39,11 @@ where
     }
 }
 
-impl<NI, E, C, T> Graph<NI> for SliceAdjacencyList<NI, E, C, T>
+impl<NI, E, T> Graph<NI> for SliceAdjacencyList<NI, E, T>
 where
     NI: NodeIndex,
     E: NodesIterable<Node = NI>,
-    C: AsOutgoingNodes<NI, E>,
-    T: AsRef<[(NI, C)]>,
+    T: AsRef<[(NI, E)]>,
 {
     type Error = GraphError<NI>;
 
@@ -61,7 +56,7 @@ where
             .nodes_container
             .as_ref()
             .iter()
-            .flat_map(|(n, c)| c.as_outgoing_nodes().map(move |m| (*n, *m))))
+            .flat_map(|(n, e_container)| e_container.iter_nodes().map(move |m| (*n, *m))))
     }
 
     /// Optimized O(n) contains_node for slice adjacency list
@@ -81,7 +76,7 @@ where
             .as_ref()
             .iter()
             .find(|(n, _)| *n == node)
-            .map(|(_, node_data)| node_data.as_outgoing_nodes());
+            .map(|(_, node_data)| node_data.iter_nodes());
         Ok(edges_option.into_iter().flatten().copied())
     }
 }
