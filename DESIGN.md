@@ -53,6 +53,17 @@ as part of the graph.
 Values at both Nodes and Edges are optional, and are provided through
 corresponding EdgeRefValue + NodeRefValue traits.
 
+### Mutable Node Operations
+
+The library provides two complementary traits for dynamic node operations:
+
+- **MutableNodes<NI>**: For containers that store nodes only, with `add(node)` and `remove(node)` methods
+- **MutableNodeValue<NI, V>**: For containers that store nodes with associated values, with `add_value(node, value)` and `remove_value(node)` methods
+
+Some flexible containers (e.g., `NodeValueStructOption`) implement both traits through dual implementations, allowing them to be used in either context.
+
+**TODO**: Implement graph-level traits (e.g., `GraphWithMutableNodeValues`) that leverage `MutableNodeValue` for adding/removing nodes with values at the graph level, complementing the existing `GraphWithMutableNodes` trait.
+
 ### Graph Implementations
 
 The library provides several graph implementations:

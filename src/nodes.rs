@@ -590,9 +590,14 @@ pub trait MutableNodes<NI: PartialEq> {
 /// node collection, returning the index where the node was inserted/removed if successful.
 pub trait MutableNodeValue<NI: PartialEq, V> {
     fn add_value(&mut self, node: NI, value: V) -> Option<usize>;
-    fn remove(&mut self, node: NI) -> Option<usize>;
+    fn remove_value(&mut self, node: NI) -> Option<usize>;
 }
 
+/// # Performance Note
+///
+/// Both `add()` and `remove()` operations use linear search (O(n)) to find empty slots
+/// or matching nodes in the array. For better performance with larger datasets, consider
+/// using map-based containers instead.
 impl<const N: usize, NI: PartialEq> MutableNodes<NI> for NodeStructOption<N, NI> {
     fn add(&mut self, node: NI) -> Option<usize> {
         if let Some(index) = self.0.iter().position(|opt| opt.is_none()) {
@@ -611,6 +616,11 @@ impl<const N: usize, NI: PartialEq> MutableNodes<NI> for NodeStructOption<N, NI>
     }
 }
 
+/// # Performance Note
+///
+/// Both `add_value()` and `remove_value()` operations use linear search (O(n)) to find empty slots
+/// or matching nodes in the array. For better performance with larger datasets, consider
+/// using map-based containers instead.
 impl<const N: usize, NI: PartialEq, V> MutableNodeValue<NI, V> for NodeValueStructOption<N, NI, V> {
     fn add_value(&mut self, node: NI, value: V) -> Option<usize> {
         if let Some(index) = self.0.iter().position(|opt| opt.is_none()) {
@@ -620,7 +630,7 @@ impl<const N: usize, NI: PartialEq, V> MutableNodeValue<NI, V> for NodeValueStru
         None
     }
 
-    fn remove(&mut self, node: NI) -> Option<usize> {
+    fn remove_value(&mut self, node: NI) -> Option<usize> {
         if let Some(index) = self
             .0
             .iter()
@@ -645,11 +655,16 @@ impl<const N: usize, NI: PartialEq, V: Default> MutableNodes<NI>
 
     fn remove(&mut self, node: NI) -> Option<usize> {
         // Reuse existing remove logic from MutableNodeValue
-        <Self as MutableNodeValue<NI, V>>::remove(self, node)
+        <Self as MutableNodeValue<NI, V>>::remove_value(self, node)
     }
 }
 
 #[cfg(feature = "heapless")]
+/// # Performance Note
+///
+/// The `remove()` operation uses linear search (O(n)) to find matching nodes in the vector,
+/// followed by shifting all subsequent elements. The `add()` operation is O(1) when capacity
+/// is available. For better removal performance, consider using option-based containers.
 impl<const N: usize, NI: PartialEq> MutableNodes<NI> for NodeStructVec<N, NI> {
     fn add(&mut self, node: NI) -> Option<usize> {
         self.0.push(node).ok().map(|_| self.0.len() - 1)
@@ -665,6 +680,11 @@ impl<const N: usize, NI: PartialEq> MutableNodes<NI> for NodeStructVec<N, NI> {
 }
 
 #[cfg(feature = "heapless")]
+/// # Performance Note
+///
+/// Both `add()` and `remove()` operations may use linear search (O(n)). The `add()` operation
+/// first searches for an empty slot, then appends if none found. The `remove()` operation
+/// searches for the matching node and marks it as None, preserving indices.
 impl<const N: usize, NI: PartialEq> MutableNodes<NI> for NodeStructOptionVec<N, NI> {
     fn add(&mut self, node: NI) -> Option<usize> {
         if let Some(index) = self.0.iter().position(|opt| opt.is_none()) {
@@ -684,12 +704,17 @@ impl<const N: usize, NI: PartialEq> MutableNodes<NI> for NodeStructOptionVec<N, 
 }
 
 #[cfg(feature = "heapless")]
+/// # Performance Note
+///
+/// The `remove_value()` operation uses linear search (O(n)) to find matching nodes in the vector,
+/// followed by shifting all subsequent elements. The `add_value()` operation is O(1) when capacity
+/// is available. For better removal performance, consider using option-based containers.
 impl<const N: usize, NI: PartialEq, V> MutableNodeValue<NI, V> for NodeStructVecValue<N, NI, V> {
     fn add_value(&mut self, node: NI, value: V) -> Option<usize> {
         self.0.push((node, value)).ok().map(|_| self.0.len() - 1)
     }
 
-    fn remove(&mut self, node: NI) -> Option<usize> {
+    fn remove_value(&mut self, node: NI) -> Option<usize> {
         if let Some(index) = self.0.iter().position(|(ni, _)| *ni == node) {
             self.0.remove(index);
             return Some(index);
@@ -699,6 +724,11 @@ impl<const N: usize, NI: PartialEq, V> MutableNodeValue<NI, V> for NodeStructVec
 }
 
 #[cfg(feature = "heapless")]
+/// # Performance Note
+///
+/// Both `add_value()` and `remove_value()` operations may use linear search (O(n)). The `add_value()` operation
+/// first searches for an empty slot, then appends if none found. The `remove_value()` operation
+/// searches for the matching node and marks it as None, preserving indices.
 impl<const N: usize, NI: PartialEq, V> MutableNodeValue<NI, V>
     for NodeStructVecOptionValue<N, NI, V>
 {
@@ -713,7 +743,7 @@ impl<const N: usize, NI: PartialEq, V> MutableNodeValue<NI, V>
             .map(|_| self.0.len() - 1)
     }
 
-    fn remove(&mut self, node: NI) -> Option<usize> {
+    fn remove_value(&mut self, node: NI) -> Option<usize> {
         if let Some(index) = self
             .0
             .iter()
@@ -739,7 +769,7 @@ impl<const N: usize, NI: PartialEq, V: Default> MutableNodes<NI>
 
     fn remove(&mut self, node: NI) -> Option<usize> {
         // Reuse existing remove logic from MutableNodeValue
-        <Self as MutableNodeValue<NI, V>>::remove(self, node)
+        <Self as MutableNodeValue<NI, V>>::remove_value(self, node)
     }
 }
 
@@ -918,7 +948,7 @@ mod tests {
         f: &mut T,
         to_remove: NI,
     ) -> Option<usize> {
-        f.remove(to_remove)
+        f.remove_value(to_remove)
     }
     fn remove_node<NI: PartialEq, T: MutableNodes<NI>>(f: &mut T, to_remove: NI) -> Option<usize> {
         f.remove(to_remove)
@@ -1033,13 +1063,13 @@ mod tests {
 
         // Test remove (disambiguate since this type implements both traits)
         assert_eq!(
-            <NodeValueStructOption<5, u32, &str> as MutableNodeValue<u32, &str>>::remove(
+            <NodeValueStructOption<5, u32, &str> as MutableNodeValue<u32, &str>>::remove_value(
                 &mut nodes, 2
             ),
             Some(1)
         ); // Remove middle element
         assert_eq!(
-            <NodeValueStructOption<5, u32, &str> as MutableNodeValue<u32, &str>>::remove(
+            <NodeValueStructOption<5, u32, &str> as MutableNodeValue<u32, &str>>::remove_value(
                 &mut nodes, 999
             ),
             None
@@ -1083,7 +1113,7 @@ mod tests {
         assert_eq!(slice, &[10, 20, 30]);
 
         // Test remove from middle - should shift elements
-        assert_eq!(vec_nodes.remove(20), Some(1));
+        assert_eq!(vec_nodes.remove_value(20), Some(1));
 
         // Verify remaining elements
         let mut collected = [0u32; 8];
