@@ -123,17 +123,20 @@ where
             }
         }
 
-        // Create the underlying matrix using the Simple Matrix from_graph implementation
-        // We need to create a proxy graph that maps node indices to matrix indices
-        let proxy_graph = ProxyGraph {
-            source: source_graph,
-            index_map: &index_map,
-            _phantom: core::marker::PhantomData,
-        };
+        // Create empty matrix and populate it with mapped edges
+        let mut inner_matrix = super::simple_matrix::Matrix::<N, EDGEVALUE, COLUMNS, ROW>::new(COLUMNS::default());
 
-        let inner_matrix =
-            super::simple_matrix::Matrix::<N, EDGEVALUE, COLUMNS, ROW>::from_graph(&proxy_graph)
-                .map_err(|_| GraphError::OutOfCapacity)?;
+        // Add all edges using mapped indices
+        if let Ok(edges_iter) = source_graph.iter_edges() {
+            for (src, dst) in edges_iter {
+                // Look up matrix indices for both source and destination
+                if let (Some(&src_idx), Some(&dst_idx)) = (index_map.get(&src), index_map.get(&dst)) {
+                    // Add edge using matrix indices
+                    inner_matrix.add_edge(src_idx, dst_idx).map_err(|_| GraphError::OutOfCapacity)?;
+                }
+                // If we can't find indices for either node, skip the edge
+            }
+        }
 
         Ok(Self {
             inner: inner_matrix,
@@ -143,41 +146,6 @@ where
     }
 }
 
-/// A proxy graph that translates arbitrary node indices to matrix indices (0..N)
-struct ProxyGraph<'a, NI, G, M> {
-    source: &'a G,
-    index_map: &'a M,
-    _phantom: core::marker::PhantomData<NI>,
-}
-
-impl<NI, G, M> Graph<usize> for ProxyGraph<'_, NI, G, M>
-where
-    NI: NodeIndex + Copy,
-    G: Graph<NI>,
-    M: MapTrait<NI, usize>,
-{
-    type Error = GraphError<usize>;
-
-    fn iter_nodes(&self) -> Result<impl Iterator<Item = usize>, Self::Error> {
-        // Return matrix indices (0..N) for all nodes in the source graph
-        Ok(self.index_map.iter().map(|(_, &matrix_idx)| matrix_idx))
-    }
-
-    fn iter_edges(&self) -> Result<impl Iterator<Item = (usize, usize)>, Self::Error> {
-        // Translate source graph edges from node indices to matrix indices
-        let edges_iter = self
-            .source
-            .iter_edges()
-            .map_err(|_| GraphError::Unexpected)?
-            .filter_map(|(src, dst)| {
-                let src_idx = self.index_map.get(&src).copied()?;
-                let dst_idx = self.index_map.get(&dst).copied()?;
-                Some((src_idx, dst_idx))
-            });
-
-        Ok(edges_iter)
-    }
-}
 
 impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> Graph<NI>
     for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>

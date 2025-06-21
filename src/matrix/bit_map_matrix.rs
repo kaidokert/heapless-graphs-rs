@@ -104,71 +104,46 @@ where
         // Collect all nodes and assign bit matrix indices
         let max_index = 8 * N; // BitMatrix supports 0..8*N
 
-        for (matrix_index, node) in source_graph
-            .iter_nodes()
-            .map_err(|_| GraphError::Unexpected)?
-            .enumerate()
-        {
-            if matrix_index >= max_index {
-                return Err(GraphError::OutOfCapacity);
-            }
+        // Handle the case where iter_nodes() fails (e.g., empty EdgeList)
+        match source_graph.iter_nodes() {
+            Ok(nodes_iter) => {
+                for (matrix_index, node) in nodes_iter.enumerate() {
+                    if matrix_index >= max_index {
+                        return Err(GraphError::OutOfCapacity);
+                    }
 
-            // Insert mapping from node to matrix index
-            index_map
-                .insert(node, matrix_index)
-                .map_err(|_| GraphError::OutOfCapacity)?;
+                    // Insert mapping from node to matrix index
+                    index_map
+                        .insert(node, matrix_index)
+                        .map_err(|_| GraphError::OutOfCapacity)?;
+                }
+            }
+            Err(_) => {
+                // If iter_nodes() fails (e.g., empty EdgeList), we'll create an empty matrix
+                // This is valid - the matrix will have no nodes mapped
+            }
         }
 
-        // Create the underlying BitMatrix using the BitMatrix from_graph implementation
-        // We need to create a proxy graph that maps node indices to matrix indices
-        let proxy_graph = BitProxyGraph {
-            source: source_graph,
-            index_map: &index_map,
-            _phantom: core::marker::PhantomData,
-        };
+        // Create empty BitMatrix and populate it with mapped edges
+        let mut bitmap = super::bit_matrix::BitMatrix::<N, R>::new([[0u8; N]; R])
+            .map_err(|_| GraphError::InvalidMatrixSize)?;
 
-        let bitmap = super::bit_matrix::BitMatrix::<N, R>::from_graph(&proxy_graph)
-            .map_err(|_| GraphError::OutOfCapacity)?;
+        // Add all edges using mapped indices
+        if let Ok(edges_iter) = source_graph.iter_edges() {
+            for (src, dst) in edges_iter {
+                // Look up matrix indices for both source and destination
+                if let (Some(&src_idx), Some(&dst_idx)) = (index_map.get(&src), index_map.get(&dst)) {
+                    // Add edge using matrix indices
+                    bitmap.add_edge(src_idx, dst_idx).map_err(|_| GraphError::OutOfCapacity)?;
+                }
+                // If we can't find indices for either node, skip the edge
+            }
+        }
 
         Ok(Self::new_unchecked(bitmap, index_map))
     }
 }
 
-/// A proxy graph that translates arbitrary node indices to bit matrix indices (0..8*N)
-struct BitProxyGraph<'a, NI, G, M> {
-    source: &'a G,
-    index_map: &'a M,
-    _phantom: core::marker::PhantomData<NI>,
-}
-
-impl<NI, G, M> Graph<usize> for BitProxyGraph<'_, NI, G, M>
-where
-    NI: NodeIndex + Copy,
-    G: Graph<NI>,
-    M: MapTrait<NI, usize>,
-{
-    type Error = GraphError<usize>;
-
-    fn iter_nodes(&self) -> Result<impl Iterator<Item = usize>, Self::Error> {
-        // Return matrix indices for all nodes in the source graph
-        Ok(self.index_map.iter().map(|(_, &matrix_idx)| matrix_idx))
-    }
-
-    fn iter_edges(&self) -> Result<impl Iterator<Item = (usize, usize)>, Self::Error> {
-        // Translate source graph edges from node indices to matrix indices
-        let edges_iter = self
-            .source
-            .iter_edges()
-            .map_err(|_| GraphError::Unexpected)?
-            .filter_map(|(src, dst)| {
-                let src_idx = self.index_map.get(&src).copied()?;
-                let dst_idx = self.index_map.get(&dst).copied()?;
-                Some((src_idx, dst_idx))
-            });
-
-        Ok(edges_iter)
-    }
-}
 
 impl<const N: usize, const R: usize, NI, M> Graph<NI> for BitMapMatrix<N, R, NI, M>
 where
