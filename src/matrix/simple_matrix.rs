@@ -20,7 +20,91 @@ where
             _phantom: core::marker::PhantomData,
         }
     }
+}
 
+impl<const N: usize, EDGEVALUE, ROW, COLUMNS> Matrix<N, EDGEVALUE, COLUMNS, ROW>
+where
+    EDGEVALUE: Default,
+    ROW: AsRef<[Option<EDGEVALUE>]> + AsMut<[Option<EDGEVALUE>]>,
+    COLUMNS: AsRef<[ROW]> + AsMut<[ROW]> + Default,
+{
+    /// Creates a Matrix from any graph by copying all edges
+    ///
+    /// This function iterates over all edges in the source graph and adds them
+    /// to a new Matrix. The source graph must have usize node indices in the
+    /// range 0..N, where N is the matrix size.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy edges from
+    ///
+    /// # Returns
+    /// * `Ok(Matrix)` if successful
+    /// * `Err(GraphError)` if any node indices are out of range or iteration fails
+    ///
+    /// # Constraints
+    /// * Source graph nodes must be usize indices from 0 to N-1
+    /// * Edge values use EDGEVALUE::default() for all edges
+    /// * Matrix must have mutable storage (AsMut traits)
+    ///
+    /// # Example
+    /// ```
+    /// use heapless_graphs::matrix::simple_matrix::Matrix;
+    /// use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
+    /// use heapless_graphs::containers::maps::MapTrait;
+    ///
+    /// // Create a source graph (adjacency list)
+    /// let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+    /// dict.insert(0, [1, 2]).unwrap();
+    /// dict.insert(1, [2, 0]).unwrap();
+    /// dict.insert(2, [0, 1]).unwrap();
+    /// let source = MapAdjacencyList::new_unchecked(dict);
+    ///
+    /// // Convert to Matrix (3x3 matrix to fit nodes 0, 1, 2)
+    /// let matrix: Matrix<3, (), [[Option<()>; 3]; 3], [Option<()>; 3]> =
+    ///     Matrix::from_graph(&source).unwrap();
+    /// ```
+    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<usize>>
+    where
+        G: Graph<usize>,
+        GraphError<usize>: From<G::Error>,
+    {
+        // Create empty matrix with default storage
+        let mut matrix = Self::new(COLUMNS::default());
+
+        // Validate all nodes are within range first
+        for node in source_graph.iter_nodes()? {
+            if node >= N {
+                return Err(GraphError::EdgeHasInvalidNode(node));
+            }
+        }
+
+        // Add all edges to the matrix
+        for (source, destination) in source_graph.iter_edges()? {
+            // These should already be validated above, but double-check for safety
+            if source >= N {
+                return Err(GraphError::EdgeHasInvalidNode(source));
+            }
+            if destination >= N {
+                return Err(GraphError::EdgeHasInvalidNode(destination));
+            }
+
+            // Set edge in matrix
+            if !matrix.set_edge_value(source, destination, Some(EDGEVALUE::default())) {
+                // This should not happen since we validated indices
+                return Err(GraphError::OutOfCapacity);
+            }
+        }
+
+        Ok(matrix)
+    }
+}
+
+impl<const N: usize, EDGEVALUE, ROW, COLUMNS> Matrix<N, EDGEVALUE, COLUMNS, ROW>
+where
+    ROW: AsRef<[Option<EDGEVALUE>]>,
+    COLUMNS: AsRef<[ROW]>,
+{
     pub(crate) fn get_edge_value(&self, row: usize, col: usize) -> Option<&EDGEVALUE> {
         self.matrix.as_ref().get(row)?.as_ref().get(col)?.as_ref()
     }
@@ -441,5 +525,81 @@ mod tests {
 
         // Verify all removed
         assert_eq!(matrix.iter_edges().unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_matrix_from_graph() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::containers::maps::MapTrait;
+
+        // Create a source graph (adjacency list with nodes 0, 1, 2)
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2
+        dict.insert(1, [2, 0]).unwrap(); // 1 -> 2, 0
+        dict.insert(2, [0, 1]).unwrap(); // 2 -> 0, 1
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to Matrix (4x4 to fit nodes 0, 1, 2 with space)
+        let matrix: Matrix<4, (), [[Option<()>; 4]; 4], [Option<()>; 4]> =
+            Matrix::from_graph(&source).unwrap();
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect(matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice.len(), 6); // Should have 6 edges total
+
+        // Check that all expected edges are present
+        assert!(edges_slice.contains(&(0, 1)));
+        assert!(edges_slice.contains(&(0, 2)));
+        assert!(edges_slice.contains(&(1, 2)));
+        assert!(edges_slice.contains(&(1, 0)));
+        assert!(edges_slice.contains(&(2, 0)));
+        assert!(edges_slice.contains(&(2, 1)));
+
+        // Verify nodes are preserved
+        let node_count = matrix.iter_nodes().unwrap().count();
+        assert_eq!(node_count, 4); // Matrix always has N nodes (0..N)
+    }
+
+    #[test]
+    fn test_matrix_from_graph_empty() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::containers::maps::MapTrait;
+
+        // Create an empty source graph
+        let dict = Dictionary::<usize, [usize; 2], 8>::default();
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to Matrix
+        let matrix: Matrix<3, (), [[Option<()>; 3]; 3], [Option<()>; 3]> =
+            Matrix::from_graph(&source).unwrap();
+
+        // Verify no edges
+        assert_eq!(matrix.iter_edges().unwrap().count(), 0);
+
+        // Matrix still has N nodes (0..N)
+        let node_count = matrix.iter_nodes().unwrap().count();
+        assert_eq!(node_count, 3);
+    }
+
+    #[test]
+    fn test_matrix_from_graph_node_out_of_range() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::containers::maps::MapTrait;
+
+        // Create a source graph with node index too large for 2x2 matrix
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap(); // Node 2 is out of range for 2x2 matrix
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Try to convert to 2x2 Matrix (can only fit nodes 0, 1)
+        let result: Result<Matrix<2, (), [[Option<()>; 2]; 2], [Option<()>; 2]>, _> =
+            Matrix::from_graph(&source);
+
+        // Should fail because node 2 is out of range
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(2))));
     }
 }

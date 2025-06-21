@@ -53,6 +53,132 @@ where
     }
 }
 
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
+where
+    NI: NodeIndex + Copy,
+    EDGEVALUE: Default,
+    ROW: AsRef<[Option<EDGEVALUE>]> + AsMut<[Option<EDGEVALUE>]>,
+    COLUMNS: AsRef<[ROW]> + AsMut<[ROW]> + Default,
+    M: MapTrait<NI, usize> + Default,
+{
+    /// Creates a MapMatrix from any graph by copying all nodes and edges
+    ///
+    /// This function creates a mapping from arbitrary node indices to matrix positions (0..N)
+    /// and populates the underlying matrix with edges. Each node in the source graph is
+    /// assigned a unique matrix index from 0 to N-1.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy nodes and edges from
+    ///
+    /// # Returns
+    /// * `Ok(MapMatrix)` if successful
+    /// * `Err(GraphError)` if too many nodes or iteration fails
+    ///
+    /// # Constraints
+    /// * Source graph must have at most N nodes
+    /// * Node index type must implement Copy
+    /// * Edge values use EDGEVALUE::default() for all edges
+    /// * Map M must have sufficient capacity for all nodes
+    ///
+    /// # Example
+    /// ```
+    /// use heapless_graphs::matrix::map_matrix::MapMatrix;
+    /// use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// use heapless_graphs::edges::EdgeStructOption;
+    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
+    ///
+    /// // Create a source graph (edge list)
+    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
+    /// let source = EdgeList::<4, usize, _>::new(edges);
+    ///
+    /// // Convert to MapMatrix (3x3 matrix to fit nodes 0, 1, 2)
+    /// let map_matrix: MapMatrix<3, usize, (), Dictionary<usize, usize, 8>, [[Option<()>; 3]; 3], [Option<()>; 3]> =
+    ///     MapMatrix::from_graph(&source).unwrap();
+    /// ```
+    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    where
+        G: Graph<NI>,
+    {
+        // Create default storage for matrix and index map
+        let mut index_map = M::default();
+
+        // Collect all nodes and assign matrix indices
+        // Handle the case where iter_nodes() fails (e.g., empty EdgeList)
+        match source_graph.iter_nodes() {
+            Ok(nodes_iter) => {
+                for (matrix_index, node) in nodes_iter.enumerate() {
+                    if matrix_index >= N {
+                        return Err(GraphError::OutOfCapacity);
+                    }
+
+                    // Insert mapping from node to matrix index
+                    index_map
+                        .insert(node, matrix_index)
+                        .map_err(|_| GraphError::OutOfCapacity)?;
+                }
+            }
+            Err(_) => {
+                // If iter_nodes() fails (e.g., empty EdgeList), we'll create an empty matrix
+                // This is valid - the matrix will have no nodes mapped
+            }
+        }
+
+        // Create the underlying matrix using the Simple Matrix from_graph implementation
+        // We need to create a proxy graph that maps node indices to matrix indices
+        let proxy_graph = ProxyGraph {
+            source: source_graph,
+            index_map: &index_map,
+            _phantom: core::marker::PhantomData,
+        };
+
+        let inner_matrix =
+            super::simple_matrix::Matrix::<N, EDGEVALUE, COLUMNS, ROW>::from_graph(&proxy_graph)
+                .map_err(|_| GraphError::OutOfCapacity)?;
+
+        Ok(Self {
+            inner: inner_matrix,
+            index_map,
+            _phantom: Default::default(),
+        })
+    }
+}
+
+/// A proxy graph that translates arbitrary node indices to matrix indices (0..N)
+struct ProxyGraph<'a, NI, G, M> {
+    source: &'a G,
+    index_map: &'a M,
+    _phantom: core::marker::PhantomData<NI>,
+}
+
+impl<NI, G, M> Graph<usize> for ProxyGraph<'_, NI, G, M>
+where
+    NI: NodeIndex + Copy,
+    G: Graph<NI>,
+    M: MapTrait<NI, usize>,
+{
+    type Error = GraphError<usize>;
+
+    fn iter_nodes(&self) -> Result<impl Iterator<Item = usize>, Self::Error> {
+        // Return matrix indices (0..N) for all nodes in the source graph
+        Ok(self.index_map.iter().map(|(_, &matrix_idx)| matrix_idx))
+    }
+
+    fn iter_edges(&self) -> Result<impl Iterator<Item = (usize, usize)>, Self::Error> {
+        // Translate source graph edges from node indices to matrix indices
+        let edges_iter = self
+            .source
+            .iter_edges()
+            .map_err(|_| GraphError::Unexpected)?
+            .filter_map(|(src, dst)| {
+                let src_idx = self.index_map.get(&src).copied()?;
+                let dst_idx = self.index_map.get(&dst).copied()?;
+                Some((src_idx, dst_idx))
+            });
+
+        Ok(edges_iter)
+    }
+}
+
 impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> Graph<NI>
     for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
@@ -1064,5 +1190,133 @@ mod tests {
         let mut edges = [(0u32, 0u32); 8];
         let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
         assert_eq!(edges_slice, &[(1, 1)]); // Self-loop now exists
+    }
+
+    #[test]
+    fn test_map_matrix_from_graph() {
+        use crate::edgelist::edge_list::EdgeList;
+        use crate::edges::EdgeStructOption;
+
+        // Create a source graph (edge list with nodes 10, 20, 30)
+        let edges = EdgeStructOption([Some((10, 20)), Some((20, 30)), Some((10, 30)), None]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Convert to MapMatrix (4x4 matrix to accommodate mapping)
+        type TestMatrix = MapMatrix<
+            4,
+            usize,
+            (),
+            Dictionary<usize, usize, 8>,
+            [[Option<()>; 4]; 4],
+            [Option<()>; 4],
+        >;
+        let map_matrix: TestMatrix = MapMatrix::from_graph(&source).unwrap();
+
+        // Verify nodes were mapped correctly (should have 3 nodes: 10, 20, 30)
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[10, 20, 30]);
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(10, 20), (10, 30), (20, 30)]);
+
+        // Test node containment
+        assert!(map_matrix.contains_node(10).unwrap());
+        assert!(map_matrix.contains_node(20).unwrap());
+        assert!(map_matrix.contains_node(30).unwrap());
+        assert!(!map_matrix.contains_node(40).unwrap());
+    }
+
+    #[test]
+    fn test_map_matrix_from_graph_empty() {
+        use crate::edgelist::edge_list::EdgeList;
+        use crate::edges::EdgeStructOption;
+
+        // Create an empty source graph
+        let edges = EdgeStructOption([None, None, None, None]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Convert to MapMatrix
+        type TestMatrix = MapMatrix<
+            3,
+            usize,
+            (),
+            Dictionary<usize, usize, 8>,
+            [[Option<()>; 3]; 3],
+            [Option<()>; 3],
+        >;
+        let map_matrix: TestMatrix = MapMatrix::from_graph(&source).unwrap();
+
+        // Verify no nodes or edges
+        assert_eq!(map_matrix.iter_nodes().unwrap().count(), 0);
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_map_matrix_from_graph_capacity_exceeded() {
+        use crate::edgelist::edge_list::EdgeList;
+        use crate::edges::EdgeStructOption;
+
+        // Create a source graph with 4 nodes but matrix only supports 3
+        let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((2, 3)), Some((3, 0))]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Try to convert to 3x3 MapMatrix (can only fit 3 nodes)
+        type TestMatrix = MapMatrix<
+            3,
+            usize,
+            (),
+            Dictionary<usize, usize, 8>,
+            [[Option<()>; 3]; 3],
+            [Option<()>; 3],
+        >;
+        let result: Result<TestMatrix, _> = MapMatrix::from_graph(&source);
+
+        // Should fail because source has 4 nodes but matrix only supports 3
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_map_matrix_from_graph_with_arbitrary_indices() {
+        use crate::edgelist::edge_list::EdgeList;
+        use crate::edges::EdgeStructOption;
+
+        // Create a source graph with non-contiguous node indices
+        let edges = EdgeStructOption([Some((100, 200)), Some((200, 500)), Some((500, 100)), None]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Convert to MapMatrix
+        type TestMatrix = MapMatrix<
+            4,
+            usize,
+            (),
+            Dictionary<usize, usize, 8>,
+            [[Option<()>; 4]; 4],
+            [Option<()>; 4],
+        >;
+        let map_matrix: TestMatrix = MapMatrix::from_graph(&source).unwrap();
+
+        // Verify nodes were mapped correctly
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[100, 200, 500]);
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(100, 200), (200, 500), (500, 100)]);
+
+        // Test outgoing edges
+        let mut outgoing = [0usize; 8];
+        let outgoing_slice = collect(map_matrix.outgoing_edges(100).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[200]);
+
+        let outgoing_slice = collect(map_matrix.outgoing_edges(200).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[500]);
+
+        let outgoing_slice = collect(map_matrix.outgoing_edges(500).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[100]);
     }
 }

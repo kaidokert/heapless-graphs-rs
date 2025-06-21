@@ -46,6 +46,77 @@ impl<NI, E, N> EdgeNodeList<NI, E, N> {
     }
 }
 
+impl<NI, E, N> EdgeNodeList<NI, E, N>
+where
+    NI: NodeIndex + Copy + Default,
+    E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI> + Default,
+    N: crate::nodes::NodesIterable<Node = NI> + crate::nodes::MutableNodes<NI> + Default,
+{
+    /// Creates an EdgeNodeList from any graph by copying all nodes and edges
+    ///
+    /// This function iterates over all nodes and edges in the source graph and creates
+    /// an EdgeNodeList representation. Both nodes and edges are stored explicitly.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy nodes and edges from
+    ///
+    /// # Returns
+    /// * `Ok(EdgeNodeList)` if successful
+    /// * `Err(GraphError)` if iteration fails or capacity is exceeded
+    ///
+    /// # Constraints
+    /// * Node index type must implement Copy
+    /// * Edge container E must implement Default and MutableEdges
+    /// * Node container N must implement Default and MutableNodes
+    /// * Requires sufficient capacity in both E and N for all edges and nodes
+    ///
+    /// # Example
+    /// ```
+    /// use heapless_graphs::edgelist::edge_node_list::EdgeNodeList;
+    /// use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
+    /// use heapless_graphs::containers::maps::MapTrait;
+    /// use heapless_graphs::edges::EdgeStructOption;
+    /// use heapless_graphs::nodes::NodeStructOption;
+    ///
+    /// // Create a source graph (adjacency list)
+    /// let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+    /// dict.insert(0, [1, 2]).unwrap();
+    /// dict.insert(1, [2, 0]).unwrap();
+    /// dict.insert(2, [0, 1]).unwrap();
+    /// let source = MapAdjacencyList::new_unchecked(dict);
+    ///
+    /// // Convert to EdgeNodeList with capacity for nodes and edges
+    /// let edge_node_graph: EdgeNodeList<usize, EdgeStructOption<8, usize>, NodeStructOption<4, usize>> =
+    ///     EdgeNodeList::from_graph(&source).unwrap();
+    /// ```
+    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    where
+        G: Graph<NI>,
+        GraphError<NI>: From<G::Error>,
+    {
+        // Create default containers for edges and nodes
+        let mut edges = E::default();
+        let mut nodes = N::default();
+
+        // Add all nodes to the node container
+        for node in source_graph.iter_nodes()? {
+            if nodes.add(node).is_none() {
+                return Err(GraphError::OutOfCapacity);
+            }
+        }
+
+        // Add all edges to the edge container
+        for (source, destination) in source_graph.iter_edges()? {
+            if edges.add_edge((source, destination)).is_none() {
+                return Err(GraphError::OutOfCapacity);
+            }
+        }
+
+        Ok(Self::new_unchecked(edges, nodes))
+    }
+}
+
 impl<NI, E, N> Graph<NI> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndex,
@@ -562,5 +633,199 @@ mod test {
         let mut edges = [(0usize, 0usize); 8];
         let sorted_edges = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
         assert_eq!(sorted_edges, &[(0, 1), (0, 3), (1, 2), (2, 3)]);
+    }
+
+    #[test]
+    fn test_edge_node_list_from_graph() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::containers::maps::MapTrait;
+        use crate::edges::EdgeStructOption;
+        use crate::nodes::NodeStructOption;
+
+        // Create a source graph (map adjacency list with nodes 0, 1, 2)
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2
+        dict.insert(1, [2, 0]).unwrap(); // 1 -> 2, 0
+        dict.insert(2, [0, 1]).unwrap(); // 2 -> 0, 1
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to EdgeNodeList with capacity for nodes and edges
+        let edge_node_graph: EdgeNodeList<
+            usize,
+            EdgeStructOption<8, usize>,
+            NodeStructOption<4, usize>,
+        > = EdgeNodeList::from_graph(&source).unwrap();
+
+        // Verify nodes were copied correctly
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(edge_node_graph.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice.len(), 3); // Should have 3 nodes
+        assert!(nodes_slice.contains(&0));
+        assert!(nodes_slice.contains(&1));
+        assert!(nodes_slice.contains(&2));
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect(edge_node_graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice.len(), 6); // Should have 6 edges total
+
+        // Check that all expected edges are present
+        assert!(edges_slice.contains(&(0, 1)));
+        assert!(edges_slice.contains(&(0, 2)));
+        assert!(edges_slice.contains(&(1, 2)));
+        assert!(edges_slice.contains(&(1, 0)));
+        assert!(edges_slice.contains(&(2, 0)));
+        assert!(edges_slice.contains(&(2, 1)));
+    }
+
+    #[test]
+    fn test_edge_node_list_from_graph_empty() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::edges::EdgeStructOption;
+        use crate::nodes::NodeStructOption;
+
+        // Create an empty source graph
+        let dict = Dictionary::<usize, [usize; 2], 8>::default();
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to EdgeNodeList
+        let edge_node_graph: EdgeNodeList<
+            usize,
+            EdgeStructOption<8, usize>,
+            NodeStructOption<4, usize>,
+        > = EdgeNodeList::from_graph(&source).unwrap();
+
+        // Verify no nodes or edges
+        assert_eq!(edge_node_graph.iter_nodes().unwrap().count(), 0);
+        assert_eq!(edge_node_graph.iter_edges().unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_edge_node_list_from_graph_node_capacity_exceeded() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::containers::maps::MapTrait;
+        use crate::edges::EdgeStructOption;
+        use crate::nodes::NodeStructOption;
+
+        // Create a source graph with 4 nodes but target has capacity for only 2
+        let mut dict = Dictionary::<usize, [usize; 1], 8>::new();
+        dict.insert(0, [1]).unwrap();
+        dict.insert(1, [2]).unwrap();
+        dict.insert(2, [3]).unwrap();
+        dict.insert(3, [0]).unwrap();
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Try to convert to EdgeNodeList with capacity for only 2 nodes
+        let result: Result<
+            EdgeNodeList<usize, EdgeStructOption<8, usize>, NodeStructOption<2, usize>>,
+            _,
+        > = EdgeNodeList::from_graph(&source);
+
+        // Should fail because source has 4 nodes but target has capacity for only 2
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_edge_node_list_from_graph_edge_capacity_exceeded() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::containers::maps::MapTrait;
+        use crate::edges::EdgeStructOption;
+        use crate::nodes::NodeStructOption;
+
+        // Create a source graph with 6 edges but target has capacity for only 4
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2 (2 edges)
+        dict.insert(1, [2, 0]).unwrap(); // 1 -> 2, 0 (2 edges)
+        dict.insert(2, [0, 1]).unwrap(); // 2 -> 0, 1 (2 edges)
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Try to convert to EdgeNodeList with capacity for only 4 edges
+        let result: Result<
+            EdgeNodeList<usize, EdgeStructOption<4, usize>, NodeStructOption<4, usize>>,
+            _,
+        > = EdgeNodeList::from_graph(&source);
+
+        // Should fail because source has 6 edges but target has capacity for only 4
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_edge_node_list_from_graph_single_node() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::containers::maps::MapTrait;
+        use crate::edges::EdgeStructOption;
+        use crate::nodes::NodeStructOption;
+
+        // Create a source graph with a single node and self-loop
+        let mut dict = Dictionary::<usize, [usize; 1], 8>::new();
+        dict.insert(42, [42]).unwrap(); // Node 42 -> 42 (self-loop)
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to EdgeNodeList
+        let edge_node_graph: EdgeNodeList<
+            usize,
+            EdgeStructOption<8, usize>,
+            NodeStructOption<4, usize>,
+        > = EdgeNodeList::from_graph(&source).unwrap();
+
+        // Verify single node
+        let mut nodes = [0usize; 4];
+        let nodes_slice = collect(edge_node_graph.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[42]);
+
+        // Verify self-loop edge
+        let mut edges = [(0usize, 0usize); 4];
+        let edges_slice = collect(edge_node_graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(42, 42)]);
+    }
+
+    #[test]
+    fn test_edge_node_list_from_graph_chain() {
+        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+        use crate::containers::maps::staticdict::Dictionary;
+        use crate::containers::maps::MapTrait;
+        use crate::edges::EdgeStructOption;
+        use crate::nodes::NodeStructOption;
+
+        // Create a source graph forming a partial chain: 0 -> 1 -> 2
+        // Node 3 will have a self-loop
+        let mut dict = Dictionary::<usize, [usize; 1], 8>::new();
+        dict.insert(0, [1]).unwrap(); // 0 -> 1
+        dict.insert(1, [2]).unwrap(); // 1 -> 2
+        dict.insert(2, [0]).unwrap(); // 2 -> 0 (cycle back)
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to EdgeNodeList
+        let edge_node_graph: EdgeNodeList<
+            usize,
+            EdgeStructOption<8, usize>,
+            NodeStructOption<8, usize>,
+        > = EdgeNodeList::from_graph(&source).unwrap();
+
+        // Verify all nodes
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(edge_node_graph.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[0, 1, 2]);
+
+        // Verify edges
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(edge_node_graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (1, 2), (2, 0)]);
+
+        // Verify outgoing edges for each node
+        let mut outgoing = [0usize; 2];
+        let outgoing_slice = collect(edge_node_graph.outgoing_edges(0).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[1]);
+
+        let outgoing_slice = collect(edge_node_graph.outgoing_edges(1).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[2]);
+
+        let outgoing_slice = collect(edge_node_graph.outgoing_edges(2).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[0]);
     }
 }
