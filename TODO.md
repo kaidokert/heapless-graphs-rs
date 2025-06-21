@@ -11,13 +11,13 @@ Readonly graph class
 - [x] Implement Adj list of a HashMap of nodes + Set of edges
 - [x] Topological sort demo
 - [x] Add edges tests
-- [ ] Remove Edges tests
+- [x] Remove Edges tests
 - [x] Access edge values in algorithms
 - [x] Access node values in algorithms
-- [ ] Implement MutableEdges graphs - e.g graphs with edges added / removed
-- [ ] Add / remove Nodes tests - some done
+- [x] Implement MutableEdges graphs - e.g graphs with edges added / removed
+- [x] Add / remove Nodes tests - some done
 - [ ] Implement graph-level operations using MutableNodeValue trait for nodes with values
-- [ ] Implement edgelist with add/remove nodes ( ? ) and edges
+- [x] Implement edgelist with add/remove nodes ( ? ) and edges
 - [x] Make GraphError generic over NI
 - [x] Maybe make GraphError take a lifetime for node refs ? (Not needed - NodeIndex is Copy)
 - [ ] Check duplicate nodes in integrity_check ?
@@ -29,7 +29,7 @@ Readonly graph class
 - [ ] Provide `std` implementations of all the traits as well ?
 - [x] Consolidate error impls for algorithms
 - [x] Implement an adjacency matrix
-- [ ] EdgesOnly is a bit useless abstraction for Adjacency List, this should work directly on the container
+- [x] EdgesOnly is a bit useless abstraction for Adjacency List, this should work directly on the container
 - [ ] Can we turn DFS / BFS into iterators ? That'd be awkward as they need extra storage
 - [x] All struct formats in nodes/ and edges/ are just wrappers for arrays, simplify and implement
       the traits directly on arrays and slices ? (Done - traits implemented on both arrays/slices and wrappers for clarity)
@@ -58,7 +58,8 @@ Graph Manipulation:
 - [x] Node Addition: Adds a new node to the graph. (implemented but lightly tested)
 - [ ] Node Addition with Values: Implement GraphWithMutableNodeValues trait that uses MutableNodeValue for adding nodes with associated values
 - [x] Edge Addition: Adds a new edge to the graph. (implemented but lightly tested)
-- [ ] Edge Removal: Removes a specific edge from the graph - how to refer to it when we have duplicates ?
+- [x] Edge Removal: Removes a specific edge from the graph - how to refer to it when we have duplicates ?
+- [x] Transposing a graph
 
 Graph Measurements:
 - [ ] Degree Calculation: Calculates the in-degree and out-degree of a node.
