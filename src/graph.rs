@@ -207,17 +207,13 @@ pub trait GraphWithMutableEdges<NI: NodeIndex>: Graph<NI> {
     /// - Either source or destination node doesn't exist (`EdgeHasInvalidNode`)
     /// - The graph is at capacity (`OutOfCapacity`)
     /// - The edge already exists (implementation-specific)
-    fn add_edge(&mut self, _source: NI, _destination: NI) -> Result<(), Self::Error> {
-        todo!("add_edge implementation needed")
-    }
+    fn add_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error>;
 
     /// Remove an edge from the graph
     ///
     /// Returns an error if:
     /// - The edge doesn't exist (`EdgeNotFound`)
-    fn remove_edge(&mut self, _source: NI, _destination: NI) -> Result<(), Self::Error> {
-        todo!("remove_edge implementation needed")
-    }
+    fn remove_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error>;
 }
 
 /// Integrity check for graphs - validates that all edges reference valid nodes
