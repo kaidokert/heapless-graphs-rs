@@ -491,11 +491,7 @@ mod tests {
         let result = graph.add_node(0);
 
         // Should return error
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::DuplicateNode(node)) => assert_eq!(node, 0),
-            _ => panic!("Expected DuplicateNode error"),
-        }
+        assert!(matches!(result, Err(GraphError::DuplicateNode(0))));
 
         // Original graph should be unchanged
         assert_eq!(graph.iter_nodes().unwrap().count(), 1);
@@ -514,11 +510,7 @@ mod tests {
         let result = graph.add_node(2);
 
         // Should return capacity error
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::OutOfCapacity) => {}
-            _ => panic!("Expected OutOfCapacity error"),
-        }
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
 
         // Original graph should be unchanged
         assert_eq!(graph.iter_nodes().unwrap().count(), 2);

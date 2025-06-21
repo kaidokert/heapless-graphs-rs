@@ -274,12 +274,8 @@ mod tests {
 
         // Test node iteration
         let mut nodes = ['\0'; 8];
-        let nodes_slice = collect(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
-        assert_eq!(nodes_slice.len(), 2);
-
-        // Check both nodes are present (order may vary)
-        assert!(nodes_slice.contains(&'A'));
-        assert!(nodes_slice.contains(&'B'));
+        let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &['A', 'B']);
 
         // Test contains_node
         assert!(bit_map_matrix.contains_node('A').unwrap());
@@ -366,10 +362,9 @@ mod tests {
 
         // Test incoming edges to A (should be from A and B)
         let mut incoming_a = ['\0'; 8];
-        let incoming_slice = collect(bit_map_matrix.incoming_edges('A').unwrap(), &mut incoming_a);
-        assert_eq!(incoming_slice.len(), 2); // A->A, B->A
-        assert!(incoming_slice.contains(&'A'));
-        assert!(incoming_slice.contains(&'B'));
+        let incoming_slice =
+            collect_sorted(bit_map_matrix.incoming_edges('A').unwrap(), &mut incoming_a);
+        assert_eq!(incoming_slice, &['A', 'B']); // A->A, B->A
 
         // Test incoming edges to B (should be from A only)
         let mut incoming_b = ['\0'; 8];

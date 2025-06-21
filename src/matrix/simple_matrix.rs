@@ -159,7 +159,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::collect;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_matrix() {
@@ -279,17 +279,14 @@ mod tests {
 
         // Try to add edge with invalid source
         let result = matrix.add_edge(3, 1);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(3))));
 
         // Try to add edge with invalid destination
         let result = matrix.add_edge(1, 3);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(3))));
 
         // Try to add edge with both invalid
         let result = matrix.add_edge(5, 4);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(5))));
     }
 
@@ -338,17 +335,14 @@ mod tests {
 
         // Try to remove edge that doesn't exist
         let result = matrix.remove_edge(0, 2);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeNotFound(0, 2))));
 
         // Try to remove edge with invalid source
         let result = matrix.remove_edge(3, 1);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeNotFound(3, 1))));
 
         // Try to remove edge with invalid destination
         let result = matrix.remove_edge(1, 3);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeNotFound(1, 3))));
 
         // Verify original edges are unchanged
@@ -384,7 +378,6 @@ mod tests {
 
         // Try to remove already removed edge
         let result = matrix.remove_edge(0, 1);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeNotFound(0, 1))));
 
         // Add edges back
@@ -394,12 +387,8 @@ mod tests {
 
         // Verify final state
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(matrix.iter_edges().unwrap(), &mut edges);
-        assert!(edges_slice.contains(&(0, 1)));
-        assert!(edges_slice.contains(&(0, 2)));
-        assert!(edges_slice.contains(&(1, 3)));
-        assert!(edges_slice.contains(&(2, 3)));
-        assert!(edges_slice.contains(&(3, 0)));
+        let sorted_edges = collect_sorted(matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(sorted_edges, &[(0, 1), (0, 2), (1, 3), (2, 3), (3, 0)]);
     }
 
     #[test]

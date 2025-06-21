@@ -176,7 +176,7 @@ mod test {
     use crate::edges::EdgeValueStruct;
     use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithNodeValues};
     use crate::nodes::{NodeValueStructOption, NodesValuesIterable};
-    use crate::tests::collect;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_edge_node_list() {
@@ -204,16 +204,14 @@ mod test {
 
         // Test outgoing edge values from node 0
         let mut outgoing = [(0usize, 0i32); 8];
-        let outgoing_slice = collect(
+        let outgoing_slice = collect_sorted(
             graph
                 .outgoing_edge_values(0)
                 .unwrap()
                 .filter_map(|(dst, weight_opt)| weight_opt.map(|w| (dst, *w))),
             &mut outgoing,
         );
-        assert_eq!(outgoing_slice.len(), 2);
-        assert!(outgoing_slice.contains(&(1, 5)));
-        assert!(outgoing_slice.contains(&(2, 8)));
+        assert_eq!(outgoing_slice, &[(1, 5), (2, 8)]);
     }
 
     #[test]
@@ -256,10 +254,9 @@ mod test {
         assert_eq!(graph.node_value(3).unwrap(), Some(&Some("value_3")));
 
         // Non-existent node should return error
-        assert!(graph.node_value(99).is_err());
         assert!(matches!(
-            graph.node_value(99).unwrap_err(),
-            GraphError::NodeNotFound(99)
+            graph.node_value(99),
+            Err(GraphError::NodeNotFound(99))
         ));
     }
 
@@ -324,11 +321,7 @@ mod test {
         let result = graph.add_node(2);
 
         // Should return capacity error
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::OutOfCapacity) => {}
-            _ => panic!("Expected OutOfCapacity error"),
-        }
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
 
         // Original graph should be unchanged
         assert_eq!(graph.iter_nodes().unwrap().count(), 2);
@@ -374,11 +367,7 @@ mod test {
         let result = graph.add_node(0);
 
         // Should return error
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::DuplicateNode(node)) => assert_eq!(node, 0),
-            _ => panic!("Expected DuplicateNode error"),
-        }
+        assert!(matches!(result, Err(GraphError::DuplicateNode(0))));
 
         // Original graph should be unchanged
         assert_eq!(graph.iter_nodes().unwrap().count(), 2);
@@ -406,11 +395,7 @@ mod test {
 
         // Try to add another node when container is full
         let result = graph.add_node(3);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::OutOfCapacity) => {}
-            _ => panic!("Expected OutOfCapacity error"),
-        }
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
     }
 
     #[test]
@@ -432,14 +417,10 @@ mod test {
         let edge_count = graph.iter_edges().unwrap().count();
         assert_eq!(edge_count, 3);
 
-        // TODO: Consolidate test style - prefer assert_eq!(slice, &[...]) over contains() checks
-        // and assert!(matches!(result, Err(...))) over verbose match blocks
         // Verify specific edges exist
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        assert!(edges_slice.contains(&(0, 1)));
-        assert!(edges_slice.contains(&(1, 2)));
-        assert!(edges_slice.contains(&(0, 2)));
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2)]);
     }
 
     #[test]
@@ -454,27 +435,15 @@ mod test {
 
         // Try to add edge with non-existent source node
         let result = graph.add_edge(2, 1);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::EdgeHasInvalidNode(node)) => assert_eq!(node, 2),
-            _ => panic!("Expected EdgeHasInvalidNode error for source"),
-        }
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(2))));
 
         // Try to add edge with non-existent destination node
         let result = graph.add_edge(0, 3);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::EdgeHasInvalidNode(node)) => assert_eq!(node, 3),
-            _ => panic!("Expected EdgeHasInvalidNode error for destination"),
-        }
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(3))));
 
         // Try to add edge with both nodes non-existent
         let result = graph.add_edge(5, 6);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::EdgeHasInvalidNode(node)) => assert_eq!(node, 5), // First node checked
-            _ => panic!("Expected EdgeHasInvalidNode error"),
-        }
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(5))));
     }
 
     #[test]
@@ -493,11 +462,7 @@ mod test {
 
         // Try to add one more edge (should exceed capacity)
         let result = graph.add_edge(0, 2);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::OutOfCapacity) => {}
-            _ => panic!("Expected OutOfCapacity error"),
-        }
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
     }
 
     #[test]
@@ -519,10 +484,8 @@ mod test {
         // Verify edge was removed
         assert_eq!(graph.iter_edges().unwrap().count(), 2);
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        assert!(edges_slice.contains(&(0, 1)));
-        assert!(edges_slice.contains(&(0, 2)));
-        assert!(!edges_slice.contains(&(1, 2))); // Should be removed
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2)]);
     }
 
     #[test]
@@ -537,14 +500,7 @@ mod test {
 
         // Try to remove edge that doesn't exist
         let result = graph.remove_edge(0, 2);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::EdgeNotFound(src, dst)) => {
-                assert_eq!(src, 0);
-                assert_eq!(dst, 2);
-            }
-            _ => panic!("Expected EdgeNotFound error"),
-        }
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(0, 2))));
 
         // Verify original edges are still there
         assert_eq!(graph.iter_edges().unwrap().count(), 2);
@@ -564,14 +520,7 @@ mod test {
         // This should fail with EdgeNotFound (not EdgeHasInvalidNode)
         // because we don't validate node existence in remove_edge
         let result = graph.remove_edge(2, 3);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::EdgeNotFound(src, dst)) => {
-                assert_eq!(src, 2);
-                assert_eq!(dst, 3);
-            }
-            _ => panic!("Expected EdgeNotFound error"),
-        }
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(2, 3))));
 
         // Verify original edge is still there
         assert_eq!(graph.iter_edges().unwrap().count(), 1);
@@ -603,14 +552,7 @@ mod test {
 
         // Try to remove the same edge again (should fail)
         let result = graph.remove_edge(1, 2);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::EdgeNotFound(src, dst)) => {
-                assert_eq!(src, 1);
-                assert_eq!(dst, 2);
-            }
-            _ => panic!("Expected EdgeNotFound error"),
-        }
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(1, 2))));
 
         // Add the edge back
         assert!(graph.add_edge(1, 2).is_ok());
@@ -618,10 +560,7 @@ mod test {
 
         // Verify final edge set
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        assert!(edges_slice.contains(&(0, 1)));
-        assert!(edges_slice.contains(&(1, 2)));
-        assert!(edges_slice.contains(&(2, 3)));
-        assert!(edges_slice.contains(&(0, 3)));
+        let sorted_edges = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(sorted_edges, &[(0, 1), (0, 3), (1, 2), (2, 3)]);
     }
 }

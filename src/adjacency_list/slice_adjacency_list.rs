@@ -131,7 +131,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::collect;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_slice_adjacency_list_new() {
@@ -393,13 +393,8 @@ mod tests {
 
         // Verify edges were added
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice.len(), 5);
-        assert!(edges_slice.contains(&(0, 1))); // Original
-        assert!(edges_slice.contains(&(2, 0))); // Original
-        assert!(edges_slice.contains(&(0, 2))); // Added
-        assert!(edges_slice.contains(&(1, 0))); // Added
-        assert!(edges_slice.contains(&(1, 2))); // Added
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 0), (1, 2), (2, 0)]);
     }
 
     #[test]
@@ -415,17 +410,14 @@ mod tests {
 
         // Try to add edge with non-existent source
         let result = graph.add_edge(99, 1);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(99))));
 
         // Try to add edge with non-existent destination
         let result = graph.add_edge(0, 99);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(99))));
 
         // Try to add edge with both nodes non-existent
         let result = graph.add_edge(98, 99);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(98))));
     }
 
@@ -443,7 +435,6 @@ mod tests {
 
         // Try to add edge when source node's edge container is full
         let result = graph.add_edge(0, 1); // 0 already has [1, 2] - no capacity
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::OutOfCapacity)));
 
         // Should still be able to add edge from node with capacity
@@ -471,13 +462,8 @@ mod tests {
 
         // Verify edges were removed
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice.len(), 3);
-        assert!(edges_slice.contains(&(0, 2))); // Remaining
-        assert!(edges_slice.contains(&(1, 2))); // Remaining
-        assert!(edges_slice.contains(&(2, 0))); // Remaining
-        assert!(!edges_slice.contains(&(0, 1))); // Removed
-        assert!(!edges_slice.contains(&(1, 0))); // Removed
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 2), (1, 2), (2, 0)]);
     }
 
     #[test]
@@ -494,17 +480,14 @@ mod tests {
 
         // Try to remove edge that doesn't exist
         let result = graph.remove_edge(0, 2);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeNotFound(0, 2))));
 
         // Try to remove edge from node with no outgoing edges
         let result = graph.remove_edge(2, 0);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeNotFound(2, 0))));
 
         // Try to remove edge with non-existent source node
         let result = graph.remove_edge(99, 1);
-        assert!(result.is_err());
         assert!(matches!(result, Err(GraphError::EdgeNotFound(99, 1))));
     }
 
@@ -542,10 +525,7 @@ mod tests {
 
         // Verify final state
         let mut edges = [(0usize, 0usize); 8];
-        let edges_slice = collect(graph.iter_edges().unwrap(), &mut edges);
-        assert!(edges_slice.contains(&(0, 2)));
-        assert!(edges_slice.contains(&(2, 0)));
-        assert!(edges_slice.contains(&(0, 1))); // Re-added
-        assert!(edges_slice.contains(&(1, 2))); // Re-added
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (2, 0)]);
     }
 }
