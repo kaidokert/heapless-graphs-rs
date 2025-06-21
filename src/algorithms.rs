@@ -15,6 +15,7 @@ mod kahns;
 mod kruskals;
 mod tarjan_scc;
 mod topological_sort;
+mod transpose;
 mod traversal;
 
 pub use bellman_ford::bellman_ford;
@@ -25,6 +26,7 @@ pub use kahns::kahns;
 pub use kruskals::kruskals;
 pub use tarjan_scc::{count_tarjan_scc, tarjan_scc};
 pub use topological_sort::topological_sort_dfs;
+pub use transpose::{transpose_graph, transpose_graph_inplace};
 pub use traversal::{bfs, bfs_unchecked, dfs_iterative, dfs_recursive, dfs_recursive_unchecked};
 
 use crate::edgelist::edge_list::EdgeListError;
