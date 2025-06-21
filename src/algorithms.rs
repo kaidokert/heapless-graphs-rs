@@ -7,6 +7,7 @@
 //! Note: These are not necessarily efficient implementations,
 //! nor thoroughly tested.
 
+mod astar;
 mod bellman_ford;
 mod connected_components;
 mod dijkstra;
@@ -18,6 +19,7 @@ mod topological_sort;
 mod transpose;
 mod traversal;
 
+pub use astar::{astar, AStarConfig};
 pub use bellman_ford::bellman_ford;
 pub use connected_components::{connected_components, count_connected_components};
 pub use dijkstra::dijkstra;
