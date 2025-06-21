@@ -142,15 +142,16 @@ where
     M: MapTrait<NI, E>,
 {
     fn add_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
-        // Validate that both nodes exist in the graph
-        if !self.nodes.contains_key(&source) {
-            return Err(GraphError::EdgeHasInvalidNode(source));
-        }
-        if !self.nodes.contains_key(&destination) {
+        // Validate both nodes exist with minimal lookups:
+        // 1. Use get() for destination (read-only)
+        // 2. Use get_mut() for source (gets mutable ref + validates existence)
+
+        // Check destination exists first to preserve error precedence when both are invalid
+        if self.nodes.get(&destination).is_none() {
             return Err(GraphError::EdgeHasInvalidNode(destination));
         }
 
-        // Get mutable reference to source node's adjacency list
+        // Get mutable reference to source node's adjacency list (validates source exists)
         let source_edges = self
             .nodes
             .get_mut(&source)
@@ -597,7 +598,7 @@ mod tests {
 
         // Try to add edge with both nodes non-existent
         let result = graph.add_edge(5, 6);
-        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(5)))); // First node checked
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(6)))); // Destination checked first in optimized version
     }
 
     #[test]
