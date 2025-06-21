@@ -1,6 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
-    graph::{Graph, GraphError, GraphWithMutableNodes, NodeIndex},
+    graph::{Graph, GraphError, GraphWithMutableEdges, GraphWithMutableNodes, NodeIndex},
 };
 
 /// A matrix-based graph representation that maps arbitrary node indices to matrix positions
@@ -209,6 +209,75 @@ where
     }
 }
 
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> GraphWithMutableEdges<NI>
+    for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
+where
+    NI: NodeIndex,
+    EDGEVALUE: Default,
+    ROW: AsRef<[Option<EDGEVALUE>]> + AsMut<[Option<EDGEVALUE>]>,
+    COLUMNS: AsRef<[ROW]> + AsMut<[ROW]>,
+    M: MapTrait<NI, usize>,
+{
+    fn add_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
+        // Look up matrix indices for both nodes
+        let source_idx = self
+            .index_map
+            .get(&source)
+            .copied()
+            .ok_or(GraphError::EdgeHasInvalidNode(source))?;
+
+        let destination_idx = self
+            .index_map
+            .get(&destination)
+            .copied()
+            .ok_or(GraphError::EdgeHasInvalidNode(destination))?;
+
+        // Set edge value in the underlying matrix (using default value for edge)
+        let success =
+            self.inner
+                .set_edge_value(source_idx, destination_idx, Some(EDGEVALUE::default()));
+
+        if success {
+            Ok(())
+        } else {
+            Err(GraphError::OutOfCapacity)
+        }
+    }
+
+    fn remove_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
+        // Look up matrix indices for both nodes
+        let source_idx = self
+            .index_map
+            .get(&source)
+            .copied()
+            .ok_or(GraphError::EdgeNotFound(source, destination))?;
+
+        let destination_idx = self
+            .index_map
+            .get(&destination)
+            .copied()
+            .ok_or(GraphError::EdgeNotFound(source, destination))?;
+
+        // Check if edge exists before removing
+        if self
+            .inner
+            .get_edge_value(source_idx, destination_idx)
+            .is_none()
+        {
+            return Err(GraphError::EdgeNotFound(source, destination));
+        }
+
+        // Remove edge by setting value to None
+        let success = self.inner.set_edge_value(source_idx, destination_idx, None);
+
+        if success {
+            Ok(())
+        } else {
+            Err(GraphError::EdgeNotFound(source, destination))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,26 +357,11 @@ mod tests {
 
         // Test Graph iter_edges (returns owned values)
         let mut edges = [(0u32, 0u32); 16];
-        let edges_slice = collect(map_matrix.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice.len(), 6); // 6 Some values in matrix, all mapped
-
-        // Verify expected edges exist
-        let expected_edges = [
-            (10, 10), // (0,0) -> Some(1)
-            (10, 20), // (0,1) -> Some(2)
-            (20, 20), // (1,1) -> Some(5)
-            (20, 30), // (1,2) -> Some(6)
-            (30, 10), // (2,0) -> Some(7)
-            (30, 30), // (2,2) -> Some(9)
-        ];
-
-        for &expected_edge in &expected_edges {
-            assert!(
-                edges_slice.contains(&expected_edge),
-                "Expected edge {:?} not found",
-                expected_edge
-            );
-        }
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(
+            edges_slice,
+            &[(10, 10), (10, 20), (20, 20), (20, 30), (30, 10), (30, 30)]
+        );
     }
 
     #[test]
@@ -497,45 +551,35 @@ mod tests {
 
         // Test iter_edge_values
         let mut edges_with_values = [(0u32, 0u32, 0i32); 16];
-        let edges_slice = collect(
+        let edges_slice = collect_sorted(
             map_matrix
                 .iter_edge_values()
                 .unwrap()
                 .filter_map(|(src, dst, value_opt)| value_opt.map(|v| (src, dst, *v))),
             &mut edges_with_values,
         );
-        assert_eq!(edges_slice.len(), 6); // 6 Some values in matrix
-
-        // Verify expected edges with values exist
-        let expected_edges = [
-            (10, 10, 1), // (0,0) -> Some(1)
-            (10, 20, 2), // (0,1) -> Some(2)
-            (20, 20, 5), // (1,1) -> Some(5)
-            (20, 30, 6), // (1,2) -> Some(6)
-            (30, 10, 7), // (2,0) -> Some(7)
-            (30, 30, 9), // (2,2) -> Some(9)
-        ];
-
-        for &expected_edge in &expected_edges {
-            assert!(
-                edges_slice.contains(&expected_edge),
-                "Expected edge {:?} not found",
-                expected_edge
-            );
-        }
+        assert_eq!(
+            edges_slice,
+            &[
+                (10, 10, 1),
+                (10, 20, 2),
+                (20, 20, 5),
+                (20, 30, 6),
+                (30, 10, 7),
+                (30, 30, 9)
+            ]
+        );
 
         // Test outgoing_edge_values from node 10
         let mut outgoing = [(0u32, 0i32); 8];
-        let outgoing_slice = collect(
+        let outgoing_slice = collect_sorted(
             map_matrix
                 .outgoing_edge_values(10)
                 .unwrap()
                 .filter_map(|(dst, value_opt)| value_opt.map(|v| (dst, *v))),
             &mut outgoing,
         );
-        assert_eq!(outgoing_slice.len(), 2);
-        assert!(outgoing_slice.contains(&(10, 1)));
-        assert!(outgoing_slice.contains(&(20, 2)));
+        assert_eq!(outgoing_slice, &[(10, 1), (20, 2)]);
     }
 
     #[test]
@@ -563,18 +607,13 @@ mod tests {
 
         // Test incoming edges to node 10 (should be from 10, 20, 30)
         let mut sources = [0u32; 8];
-        let sources_slice = collect(map_matrix.incoming_edges(10).unwrap(), &mut sources);
-        assert_eq!(sources_slice.len(), 3);
-        assert!(sources_slice.contains(&10));
-        assert!(sources_slice.contains(&20));
-        assert!(sources_slice.contains(&30));
+        let sources_slice = collect_sorted(map_matrix.incoming_edges(10).unwrap(), &mut sources);
+        assert_eq!(sources_slice, &[10, 20, 30]);
 
         // Test incoming edges to node 20 (should be from 10, 30)
         let mut sources = [0u32; 8];
-        let sources_slice = collect(map_matrix.incoming_edges(20).unwrap(), &mut sources);
-        assert_eq!(sources_slice.len(), 2);
-        assert!(sources_slice.contains(&10));
-        assert!(sources_slice.contains(&30));
+        let sources_slice = collect_sorted(map_matrix.incoming_edges(20).unwrap(), &mut sources);
+        assert_eq!(sources_slice, &[10, 30]);
 
         // Test incoming edges to node 30 (should be empty)
         let incoming_count = map_matrix.incoming_edges(30).unwrap().count();
@@ -762,5 +801,268 @@ mod tests {
         let mut nodes = [0u32; 4];
         let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[10, 20, 30]);
+    }
+
+    #[test]
+    fn test_add_edge_success() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let matrix = [[None, None, None], [None, None, None], [None, None, None]];
+        let mut index_map = Dictionary::<char, usize, 5>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+        index_map.insert('C', 2).unwrap();
+
+        type MutableMatrix = MapMatrix<
+            3,
+            char,
+            i32,
+            Dictionary<char, usize, 5>,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let mut map_matrix = MutableMatrix::new(matrix, index_map).unwrap();
+
+        // Add edges between existing nodes
+        assert!(map_matrix.add_edge('A', 'B').is_ok());
+        assert!(map_matrix.add_edge('B', 'C').is_ok());
+        assert!(map_matrix.add_edge('A', 'C').is_ok());
+
+        // Verify edges were added
+        let edge_count = map_matrix.iter_edges().unwrap().count();
+        assert_eq!(edge_count, 3);
+
+        // Verify specific edges exist
+        let mut edges = [('\0', '\0'); 8];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[('A', 'B'), ('A', 'C'), ('B', 'C')]);
+    }
+
+    #[test]
+    fn test_add_edge_invalid_nodes() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let matrix = [[None, None], [None, None]];
+        let mut index_map = Dictionary::<char, usize, 5>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+
+        type MutableMatrix = MapMatrix<
+            2,
+            char,
+            i32,
+            Dictionary<char, usize, 5>,
+            [[Option<i32>; 2]; 2],
+            [Option<i32>; 2],
+        >;
+        let mut map_matrix = MutableMatrix::new(matrix, index_map).unwrap();
+
+        // Try to add edge with non-existent source node
+        let result = map_matrix.add_edge('X', 'B');
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode('X'))));
+
+        // Try to add edge with non-existent destination node
+        let result = map_matrix.add_edge('A', 'Y');
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode('Y'))));
+
+        // Try to add edge with both nodes non-existent
+        let result = map_matrix.add_edge('X', 'Y');
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode('X'))));
+    }
+
+    #[test]
+    fn test_remove_edge_success() {
+        use crate::graph::GraphWithMutableEdges;
+
+        // Set up matrix with some initial edges
+        let matrix = [
+            [Some(1), Some(2), Some(3)], // A->A, A->B, A->C
+            [None, Some(4), None],       // B->B
+            [None, None, None],          // C has no edges
+        ];
+        let mut index_map = Dictionary::<char, usize, 5>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+        index_map.insert('C', 2).unwrap();
+
+        type MutableMatrix = MapMatrix<
+            3,
+            char,
+            i32,
+            Dictionary<char, usize, 5>,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let mut map_matrix = MutableMatrix::new(matrix, index_map).unwrap();
+
+        // Verify initial state (A->A, A->B, A->C, B->B)
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 4);
+
+        // Remove an edge
+        assert!(map_matrix.remove_edge('A', 'B').is_ok());
+
+        // Verify edge was removed
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 3);
+        let mut edges = [('\0', '\0'); 8];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[('A', 'A'), ('A', 'C'), ('B', 'B')]);
+    }
+
+    #[test]
+    fn test_remove_edge_not_found() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let matrix = [
+            [Some(1), None, None],
+            [None, None, None],
+            [None, None, None],
+        ];
+        let mut index_map = Dictionary::<char, usize, 5>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+        index_map.insert('C', 2).unwrap();
+
+        type MutableMatrix = MapMatrix<
+            3,
+            char,
+            i32,
+            Dictionary<char, usize, 5>,
+            [[Option<i32>; 3]; 3],
+            [Option<i32>; 3],
+        >;
+        let mut map_matrix = MutableMatrix::new(matrix, index_map).unwrap();
+
+        // Try to remove edge that doesn't exist
+        let result = map_matrix.remove_edge('A', 'B');
+        assert!(matches!(result, Err(GraphError::EdgeNotFound('A', 'B'))));
+
+        // Try to remove edge with non-existent nodes
+        let result = map_matrix.remove_edge('X', 'Y');
+        assert!(matches!(result, Err(GraphError::EdgeNotFound('X', 'Y'))));
+
+        // Verify original edge is still there
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_add_remove_edge_comprehensive() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let matrix = [
+            [None, None, None, None],
+            [None, None, None, None],
+            [None, None, None, None],
+            [None, None, None, None],
+        ];
+        let mut index_map = Dictionary::<u32, usize, 10>::new();
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+        index_map.insert(30, 2).unwrap();
+        index_map.insert(40, 3).unwrap();
+
+        type MutableMatrix = MapMatrix<
+            4,
+            u32,
+            i32,
+            Dictionary<u32, usize, 10>,
+            [[Option<i32>; 4]; 4],
+            [Option<i32>; 4],
+        >;
+        let mut map_matrix = MutableMatrix::new(matrix, index_map).unwrap();
+
+        // Start with empty graph
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 0);
+
+        // Add several edges
+        assert!(map_matrix.add_edge(10, 20).is_ok());
+        assert!(map_matrix.add_edge(20, 30).is_ok());
+        assert!(map_matrix.add_edge(30, 40).is_ok());
+        assert!(map_matrix.add_edge(10, 40).is_ok());
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 4);
+
+        // Remove some edges
+        assert!(map_matrix.remove_edge(20, 30).is_ok());
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 3);
+
+        // Try to remove the same edge again (should fail)
+        let result = map_matrix.remove_edge(20, 30);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(20, 30))));
+
+        // Add the edge back
+        assert!(map_matrix.add_edge(20, 30).is_ok());
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 4);
+
+        // Verify final edge set
+        let mut edges = [(0u32, 0u32); 8];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(10, 20), (10, 40), (20, 30), (30, 40)]);
+    }
+
+    #[test]
+    fn test_self_loops() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let matrix = [[None, None], [None, None]];
+        let mut index_map = Dictionary::<char, usize, 5>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+
+        type MutableMatrix = MapMatrix<
+            2,
+            char,
+            i32,
+            Dictionary<char, usize, 5>,
+            [[Option<i32>; 2]; 2],
+            [Option<i32>; 2],
+        >;
+        let mut map_matrix = MutableMatrix::new(matrix, index_map).unwrap();
+
+        // Add self-loops and regular edges
+        assert!(map_matrix.add_edge('A', 'A').is_ok()); // Self-loop
+        assert!(map_matrix.add_edge('A', 'B').is_ok());
+        assert!(map_matrix.add_edge('B', 'B').is_ok()); // Self-loop
+
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 3);
+
+        // Remove self-loop
+        assert!(map_matrix.remove_edge('A', 'A').is_ok());
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 2);
+
+        // Verify remaining edges
+        let mut edges = [('\0', '\0'); 8];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[('A', 'B'), ('B', 'B')]);
+    }
+
+    #[test]
+    fn test_edge_overwrite() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let matrix = [[Some(5), None], [None, None]];
+        let mut index_map = Dictionary::<u32, usize, 5>::new();
+        index_map.insert(1, 0).unwrap();
+        index_map.insert(2, 1).unwrap();
+
+        type MutableMatrix = MapMatrix<
+            2,
+            u32,
+            i32,
+            Dictionary<u32, usize, 5>,
+            [[Option<i32>; 2]; 2],
+            [Option<i32>; 2],
+        >;
+        let mut map_matrix = MutableMatrix::new(matrix, index_map).unwrap();
+
+        // Initial edge exists
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 1);
+
+        // Add edge to same position (should overwrite)
+        assert!(map_matrix.add_edge(1, 1).is_ok());
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 1); // Still one edge, but different target
+
+        // Verify the new edge exists
+        let mut edges = [(0u32, 0u32); 8];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(1, 1)]); // Self-loop now exists
     }
 }

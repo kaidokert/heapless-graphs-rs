@@ -1,4 +1,4 @@
-use crate::graph::{Graph, GraphError};
+use crate::graph::{Graph, GraphError, GraphWithMutableEdges};
 
 /// A space-efficient adjacency matrix implementation using bit-level storage.
 ///
@@ -120,6 +120,39 @@ impl<const C: usize, const R: usize> Graph<usize> for BitMatrix<C, R> {
 
     fn incoming_edges(&self, node: usize) -> Result<impl Iterator<Item = usize>, Self::Error> {
         Ok((0..8 * C).filter(move |&row| self.get(row, node)))
+    }
+}
+
+impl<const C: usize, const R: usize> GraphWithMutableEdges<usize> for BitMatrix<C, R> {
+    fn add_edge(&mut self, source: usize, destination: usize) -> Result<(), Self::Error> {
+        // Validate bounds (nodes must exist in the matrix)
+        if source >= R {
+            return Err(GraphError::EdgeHasInvalidNode(source));
+        }
+        if destination >= 8 * C {
+            return Err(GraphError::EdgeHasInvalidNode(destination));
+        }
+
+        // Set the bit: source -> destination
+        let byte_col = destination / 8;
+        let bit_col = destination % 8;
+        self.bits[source][byte_col] |= 1 << bit_col;
+
+        Ok(())
+    }
+
+    fn remove_edge(&mut self, source: usize, destination: usize) -> Result<(), Self::Error> {
+        // Check bounds and if edge exists
+        if source >= R || destination >= 8 * C || !self.get(source, destination) {
+            return Err(GraphError::EdgeNotFound(source, destination));
+        }
+
+        // Clear the bit: source -> destination
+        let byte_col = destination / 8;
+        let bit_col = destination % 8;
+        self.bits[source][byte_col] &= !(1 << bit_col);
+
+        Ok(())
     }
 }
 
@@ -550,5 +583,202 @@ mod tests {
             [0b00000000u8, 0b10000000u8],
         ];
         assert!(BitMatrix::<2, 16>::new(valid_bits_2).is_ok());
+    }
+
+    #[test]
+    fn test_bit_matrix_add_edge_success() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [
+            [0b00000000u8], // Initially no edges
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+        ];
+        let mut matrix = BitMatrix::new_unchecked(bits);
+
+        // Add edges
+        assert!(matrix.add_edge(0, 1).is_ok());
+        assert!(matrix.add_edge(1, 2).is_ok());
+        assert!(matrix.add_edge(0, 7).is_ok());
+
+        // Verify edges were added
+        assert!(matrix.get(0, 1));
+        assert!(matrix.get(1, 2));
+        assert!(matrix.get(0, 7));
+        assert!(!matrix.get(0, 2)); // Should not exist
+
+        // Verify edge count
+        assert_eq!(matrix.iter_edges().unwrap().count(), 3);
+
+        // Verify specific edges exist
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 7), (1, 2)]);
+    }
+
+    #[test]
+    fn test_bit_matrix_add_edge_invalid_nodes() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0b00000000u8]; 8];
+        let mut matrix = BitMatrix::new_unchecked(bits);
+
+        // Try to add edge with invalid source (row >= R)
+        let result = matrix.add_edge(8, 1);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(8))));
+
+        // Try to add edge with invalid destination (col >= 8*C)
+        let result = matrix.add_edge(0, 8);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(8))));
+
+        // Try with way out of bounds
+        let result = matrix.add_edge(100, 200);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(100))));
+    }
+
+    #[test]
+    fn test_bit_matrix_remove_edge_success() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [
+            [0b00001010u8], // 0->1, 0->3
+            [0b00000100u8], // 1->2
+            [0b00000001u8], // 2->0
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+        ];
+        let mut matrix = BitMatrix::new_unchecked(bits);
+
+        // Verify initial state
+        assert_eq!(matrix.iter_edges().unwrap().count(), 4);
+        assert!(matrix.get(0, 1));
+        assert!(matrix.get(0, 3));
+
+        // Remove an edge
+        assert!(matrix.remove_edge(0, 1).is_ok());
+
+        // Verify edge was removed
+        assert!(!matrix.get(0, 1));
+        assert!(matrix.get(0, 3)); // Other edge should remain
+        assert_eq!(matrix.iter_edges().unwrap().count(), 3);
+
+        // Verify remaining edges
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 3), (1, 2), (2, 0)]);
+    }
+
+    #[test]
+    fn test_bit_matrix_remove_edge_not_found() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [
+            [0b00000010u8], // 0->1
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+        ];
+        let mut matrix = BitMatrix::new_unchecked(bits);
+
+        // Try to remove edge that doesn't exist
+        let result = matrix.remove_edge(0, 2);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(0, 2))));
+
+        // Try to remove edge with invalid bounds
+        let result = matrix.remove_edge(8, 1);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(8, 1))));
+
+        // Verify original edge is still there
+        assert_eq!(matrix.iter_edges().unwrap().count(), 1);
+        assert!(matrix.get(0, 1));
+    }
+
+    #[test]
+    fn test_bit_matrix_add_remove_edge_comprehensive() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0b00000000u8]; 8];
+        let mut matrix = BitMatrix::new_unchecked(bits);
+
+        // Start with empty matrix
+        assert_eq!(matrix.iter_edges().unwrap().count(), 0);
+
+        // Add several edges
+        assert!(matrix.add_edge(0, 1).is_ok());
+        assert!(matrix.add_edge(1, 2).is_ok());
+        assert!(matrix.add_edge(2, 3).is_ok());
+        assert!(matrix.add_edge(0, 3).is_ok());
+        assert_eq!(matrix.iter_edges().unwrap().count(), 4);
+
+        // Remove some edges
+        assert!(matrix.remove_edge(1, 2).is_ok());
+        assert_eq!(matrix.iter_edges().unwrap().count(), 3);
+
+        // Try to remove the same edge again (should fail)
+        let result = matrix.remove_edge(1, 2);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(1, 2))));
+
+        // Add the edge back
+        assert!(matrix.add_edge(1, 2).is_ok());
+        assert_eq!(matrix.iter_edges().unwrap().count(), 4);
+
+        // Verify final edge set
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 3), (1, 2), (2, 3)]);
+    }
+
+    #[test]
+    fn test_bit_matrix_self_loops() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0b00000000u8]; 8];
+        let mut matrix = BitMatrix::new_unchecked(bits);
+
+        // Add self-loops and regular edges
+        assert!(matrix.add_edge(0, 0).is_ok()); // Self-loop
+        assert!(matrix.add_edge(0, 1).is_ok());
+        assert!(matrix.add_edge(2, 2).is_ok()); // Self-loop
+
+        assert_eq!(matrix.iter_edges().unwrap().count(), 3);
+        assert!(matrix.get(0, 0));
+        assert!(matrix.get(0, 1));
+        assert!(matrix.get(2, 2));
+
+        // Remove self-loop
+        assert!(matrix.remove_edge(0, 0).is_ok());
+        assert_eq!(matrix.iter_edges().unwrap().count(), 2);
+        assert!(!matrix.get(0, 0));
+        assert!(matrix.get(0, 1)); // Regular edge should remain
+    }
+
+    #[test]
+    fn test_bit_matrix_edge_overwrite() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0b00000000u8]; 8];
+        let mut matrix = BitMatrix::new_unchecked(bits);
+
+        // Add edge
+        assert!(matrix.add_edge(0, 1).is_ok());
+        assert!(matrix.get(0, 1));
+        assert_eq!(matrix.iter_edges().unwrap().count(), 1);
+
+        // Add same edge again (should be idempotent)
+        assert!(matrix.add_edge(0, 1).is_ok());
+        assert!(matrix.get(0, 1));
+        assert_eq!(matrix.iter_edges().unwrap().count(), 1); // Still just one edge
     }
 }

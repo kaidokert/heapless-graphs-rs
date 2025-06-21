@@ -470,15 +470,12 @@ mod tests {
 
         // This should return an error instead of panicking
         let result = count_tarjan_scc(&graph, &mut state, stack);
-        assert!(result.is_err());
-
-        // Verify it's the expected error type
-        match result {
-            Err(AlgorithmError::GraphError(crate::graph::GraphError::NodeNotFound(node))) => {
-                assert_eq!(node, 10);
-            }
-            _ => panic!("Expected NodeNotFound error"),
-        }
+        assert!(matches!(
+            result,
+            Err(AlgorithmError::GraphError(
+                crate::graph::GraphError::NodeNotFound(10)
+            ))
+        ));
     }
 
     #[test]

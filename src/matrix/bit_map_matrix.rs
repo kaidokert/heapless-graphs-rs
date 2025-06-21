@@ -1,6 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
-    graph::{Graph, GraphError, GraphWithMutableNodes, NodeIndex},
+    graph::{Graph, GraphError, GraphWithMutableEdges, GraphWithMutableNodes, NodeIndex},
 };
 
 /// A bit-packed adjacency matrix with arbitrary node indices
@@ -184,6 +184,66 @@ where
     }
 }
 
+impl<const N: usize, const R: usize, NI, M> GraphWithMutableEdges<NI> for BitMapMatrix<N, R, NI, M>
+where
+    NI: NodeIndex,
+    M: MapTrait<NI, usize>,
+{
+    fn add_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
+        // Translate node indices to matrix indices
+        let source_idx = self
+            .index_map
+            .get(&source)
+            .copied()
+            .ok_or(GraphError::EdgeHasInvalidNode(source))?;
+
+        let destination_idx = self
+            .index_map
+            .get(&destination)
+            .copied()
+            .ok_or(GraphError::EdgeHasInvalidNode(destination))?;
+
+        // Delegate to underlying BitMatrix implementation
+        self.bitmap
+            .add_edge(source_idx, destination_idx)
+            .map_err(|err| match err {
+                GraphError::EdgeHasInvalidNode(_) => {
+                    // This shouldn't happen since we validated indices above,
+                    // but if it does, convert to source node error
+                    GraphError::EdgeHasInvalidNode(source)
+                }
+                GraphError::OutOfCapacity => GraphError::OutOfCapacity,
+                _ => GraphError::EdgeHasInvalidNode(source), // Fallback
+            })
+    }
+
+    fn remove_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
+        // Translate node indices to matrix indices
+        let source_idx = self
+            .index_map
+            .get(&source)
+            .copied()
+            .ok_or(GraphError::EdgeNotFound(source, destination))?;
+
+        let destination_idx = self
+            .index_map
+            .get(&destination)
+            .copied()
+            .ok_or(GraphError::EdgeNotFound(source, destination))?;
+
+        // Delegate to underlying BitMatrix implementation
+        self.bitmap
+            .remove_edge(source_idx, destination_idx)
+            .map_err(|err| match err {
+                GraphError::EdgeNotFound(_, _) => {
+                    // Convert matrix indices back to node indices for error
+                    GraphError::EdgeNotFound(source, destination)
+                }
+                _ => GraphError::EdgeNotFound(source, destination), // Fallback
+            })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,12 +274,8 @@ mod tests {
 
         // Test node iteration
         let mut nodes = ['\0'; 8];
-        let nodes_slice = collect(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
-        assert_eq!(nodes_slice.len(), 2);
-
-        // Check both nodes are present (order may vary)
-        assert!(nodes_slice.contains(&'A'));
-        assert!(nodes_slice.contains(&'B'));
+        let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &['A', 'B']);
 
         // Test contains_node
         assert!(bit_map_matrix.contains_node('A').unwrap());
@@ -306,10 +362,9 @@ mod tests {
 
         // Test incoming edges to A (should be from A and B)
         let mut incoming_a = ['\0'; 8];
-        let incoming_slice = collect(bit_map_matrix.incoming_edges('A').unwrap(), &mut incoming_a);
-        assert_eq!(incoming_slice.len(), 2); // A->A, B->A
-        assert!(incoming_slice.contains(&'A'));
-        assert!(incoming_slice.contains(&'B'));
+        let incoming_slice =
+            collect_sorted(bit_map_matrix.incoming_edges('A').unwrap(), &mut incoming_a);
+        assert_eq!(incoming_slice, &['A', 'B']); // A->A, B->A
 
         // Test incoming edges to B (should be from A only)
         let mut incoming_b = ['\0'; 8];
@@ -461,5 +516,220 @@ mod tests {
         let mut nodes = [0u32; 6];
         let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
         assert_eq!(nodes_slice, &[10, 20, 30, 50]);
+    }
+
+    #[test]
+    fn test_add_edge_success() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0u8]; 8];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<char, usize, 10>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+        index_map.insert('C', 2).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        // Add edges between existing nodes
+        assert!(bit_map_matrix.add_edge('A', 'B').is_ok());
+        assert!(bit_map_matrix.add_edge('B', 'C').is_ok());
+        assert!(bit_map_matrix.add_edge('A', 'C').is_ok());
+
+        // Verify edges were added
+        let edge_count = bit_map_matrix.iter_edges().unwrap().count();
+        assert_eq!(edge_count, 3);
+
+        // Verify specific edges exist
+        let mut edges = [('\0', '\0'); 8];
+        let edges_slice = collect_sorted(bit_map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[('A', 'B'), ('A', 'C'), ('B', 'C')]);
+    }
+
+    #[test]
+    fn test_add_edge_invalid_nodes() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0u8]; 8];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<char, usize, 10>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        // Try to add edge with non-existent source node
+        let result = bit_map_matrix.add_edge('X', 'B');
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode('X'))));
+
+        // Try to add edge with non-existent destination node
+        let result = bit_map_matrix.add_edge('A', 'Y');
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode('Y'))));
+
+        // Try to add edge with both nodes non-existent
+        let result = bit_map_matrix.add_edge('X', 'Y');
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode('X'))));
+    }
+
+    #[test]
+    fn test_remove_edge_success() {
+        use crate::graph::GraphWithMutableEdges;
+
+        // Set up matrix with some initial edges
+        let bits = [
+            [0b00000110u8], // A->B, A->C
+            [0b00000100u8], // B->C
+            [0b00000000u8], // C->nothing
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+        ];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<char, usize, 10>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+        index_map.insert('C', 2).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        // Verify initial state
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 3);
+
+        // Remove an edge
+        assert!(bit_map_matrix.remove_edge('A', 'B').is_ok());
+
+        // Verify edge was removed
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 2);
+        let mut edges = [('\0', '\0'); 8];
+        let edges_slice = collect_sorted(bit_map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[('A', 'C'), ('B', 'C')]);
+    }
+
+    #[test]
+    fn test_remove_edge_not_found() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [
+            [0b00000010u8], // A->B
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+            [0b00000000u8],
+        ];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<char, usize, 10>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+        index_map.insert('C', 2).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        // Try to remove edge that doesn't exist
+        let result = bit_map_matrix.remove_edge('A', 'C');
+        assert!(matches!(result, Err(GraphError::EdgeNotFound('A', 'C'))));
+
+        // Try to remove edge with non-existent nodes
+        let result = bit_map_matrix.remove_edge('X', 'Y');
+        assert!(matches!(result, Err(GraphError::EdgeNotFound('X', 'Y'))));
+
+        // Verify original edge is still there
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_add_remove_edge_comprehensive() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0u8]; 8];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<u32, usize, 10>::new();
+        index_map.insert(10, 0).unwrap();
+        index_map.insert(20, 1).unwrap();
+        index_map.insert(30, 2).unwrap();
+        index_map.insert(40, 3).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        // Start with empty graph
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 0);
+
+        // Add several edges
+        assert!(bit_map_matrix.add_edge(10, 20).is_ok());
+        assert!(bit_map_matrix.add_edge(20, 30).is_ok());
+        assert!(bit_map_matrix.add_edge(30, 40).is_ok());
+        assert!(bit_map_matrix.add_edge(10, 40).is_ok());
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 4);
+
+        // Remove some edges
+        assert!(bit_map_matrix.remove_edge(20, 30).is_ok());
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 3);
+
+        // Try to remove the same edge again (should fail)
+        let result = bit_map_matrix.remove_edge(20, 30);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(20, 30))));
+
+        // Add the edge back
+        assert!(bit_map_matrix.add_edge(20, 30).is_ok());
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 4);
+
+        // Verify final edge set
+        let mut edges = [(0u32, 0u32); 8];
+        let edges_slice = collect_sorted(bit_map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(10, 20), (10, 40), (20, 30), (30, 40)]);
+    }
+
+    #[test]
+    fn test_self_loops() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0u8]; 8];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<char, usize, 10>::new();
+        index_map.insert('A', 0).unwrap();
+        index_map.insert('B', 1).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        // Add self-loops and regular edges
+        assert!(bit_map_matrix.add_edge('A', 'A').is_ok()); // Self-loop
+        assert!(bit_map_matrix.add_edge('A', 'B').is_ok());
+        assert!(bit_map_matrix.add_edge('B', 'B').is_ok()); // Self-loop
+
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 3);
+
+        // Remove self-loop
+        assert!(bit_map_matrix.remove_edge('A', 'A').is_ok());
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 2);
+
+        // Verify remaining edges
+        let mut edges = [('\0', '\0'); 8];
+        let edges_slice = collect_sorted(bit_map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[('A', 'B'), ('B', 'B')]);
+    }
+
+    #[test]
+    fn test_edge_idempotency() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let bits = [[0u8]; 8];
+        let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
+        let mut index_map = Dictionary::<u32, usize, 10>::new();
+        index_map.insert(1, 0).unwrap();
+        index_map.insert(2, 1).unwrap();
+
+        let mut bit_map_matrix = BitMapMatrix::new(bitmap, index_map).unwrap();
+
+        // Add edge
+        assert!(bit_map_matrix.add_edge(1, 2).is_ok());
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 1);
+
+        // Add same edge again (should be idempotent)
+        assert!(bit_map_matrix.add_edge(1, 2).is_ok());
+        assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 1);
     }
 }

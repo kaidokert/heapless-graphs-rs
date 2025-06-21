@@ -1,5 +1,7 @@
 use crate::containers::maps::MapTrait;
-use crate::graph::{integrity_check, Graph, GraphError, GraphWithMutableNodes, NodeIndex};
+use crate::graph::{
+    integrity_check, Graph, GraphError, GraphWithMutableEdges, GraphWithMutableNodes, NodeIndex,
+};
 use crate::nodes::{MutableNodes, NodesIterable};
 
 pub struct MapAdjacencyList<NI, E, M>
@@ -129,6 +131,52 @@ where
 
         // Remove the node (this automatically removes all its outgoing edges)
         self.nodes.remove(&node);
+        Ok(())
+    }
+}
+
+impl<NI, E, M> GraphWithMutableEdges<NI> for MapAdjacencyList<NI, E, M>
+where
+    NI: NodeIndex + Eq + core::hash::Hash + Copy + PartialEq,
+    E: NodesIterable<Node = NI> + MutableNodes<NI>,
+    M: MapTrait<NI, E>,
+{
+    fn add_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
+        // Validate both nodes exist with minimal lookups:
+        // 1. Use get() for destination (read-only)
+        // 2. Use get_mut() for source (gets mutable ref + validates existence)
+
+        // Check destination exists first to preserve error precedence when both are invalid
+        if self.nodes.get(&destination).is_none() {
+            return Err(GraphError::EdgeHasInvalidNode(destination));
+        }
+
+        // Get mutable reference to source node's adjacency list (validates source exists)
+        let source_edges = self
+            .nodes
+            .get_mut(&source)
+            .ok_or(GraphError::EdgeHasInvalidNode(source))?;
+
+        // Add the destination to the source's adjacency list
+        source_edges
+            .add(destination)
+            .ok_or(GraphError::OutOfCapacity)?;
+
+        Ok(())
+    }
+
+    fn remove_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
+        // Get mutable reference to source node's adjacency list
+        let source_edges = self
+            .nodes
+            .get_mut(&source)
+            .ok_or(GraphError::EdgeNotFound(source, destination))?;
+
+        // Remove the destination from the source's adjacency list
+        source_edges
+            .remove(destination)
+            .ok_or(GraphError::EdgeNotFound(source, destination))?;
+
         Ok(())
     }
 }
@@ -443,11 +491,7 @@ mod tests {
         let result = graph.add_node(0);
 
         // Should return error
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::DuplicateNode(node)) => assert_eq!(node, 0),
-            _ => panic!("Expected DuplicateNode error"),
-        }
+        assert!(matches!(result, Err(GraphError::DuplicateNode(0))));
 
         // Original graph should be unchanged
         assert_eq!(graph.iter_nodes().unwrap().count(), 1);
@@ -466,11 +510,7 @@ mod tests {
         let result = graph.add_node(2);
 
         // Should return capacity error
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::OutOfCapacity) => {}
-            _ => panic!("Expected OutOfCapacity error"),
-        }
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
 
         // Original graph should be unchanged
         assert_eq!(graph.iter_nodes().unwrap().count(), 2);
@@ -499,5 +539,185 @@ mod tests {
         assert_eq!(graph.outgoing_edges(10).unwrap().count(), 0);
         assert_eq!(graph.outgoing_edges(20).unwrap().count(), 0);
         assert_eq!(graph.outgoing_edges(30).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_add_edge_success() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let mut dict = Dictionary::<usize, NodeStructOption<3, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([None, None, None]))
+            .unwrap(); // Empty adjacency list
+        dict.insert(1, NodeStructOption([None, None, None]))
+            .unwrap();
+        dict.insert(2, NodeStructOption([None, None, None]))
+            .unwrap();
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Add edges between existing nodes
+        assert!(graph.add_edge(0, 1).is_ok());
+        assert!(graph.add_edge(1, 2).is_ok());
+        assert!(graph.add_edge(0, 2).is_ok());
+
+        // Verify edges were added by checking edge iteration
+        let edge_count = graph.iter_edges().unwrap().count();
+        assert_eq!(edge_count, 3);
+
+        // Verify specific edges exist
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2)]);
+    }
+
+    #[test]
+    fn test_add_edge_invalid_nodes() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([None, None])).unwrap();
+        dict.insert(1, NodeStructOption([None, None])).unwrap(); // Only nodes 0, 1
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Try to add edge with non-existent source node
+        let result = graph.add_edge(2, 1);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(2))));
+
+        // Try to add edge with non-existent destination node
+        let result = graph.add_edge(0, 3);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(3))));
+
+        // Try to add edge with both nodes non-existent
+        let result = graph.add_edge(5, 6);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(6)))); // Destination checked first in optimized version
+    }
+
+    #[test]
+    fn test_add_edge_capacity_exceeded() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([None, None])).unwrap(); // Capacity for only 2 edges
+        dict.insert(1, NodeStructOption([None, None])).unwrap();
+        dict.insert(2, NodeStructOption([None, None])).unwrap();
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Add edges up to capacity for node 0
+        assert!(graph.add_edge(0, 1).is_ok());
+        assert!(graph.add_edge(0, 2).is_ok());
+
+        // Try to add one more edge from node 0 (should exceed capacity)
+        let result = graph.add_edge(0, 1); // Try to add duplicate or different edge
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_remove_edge_success() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let mut dict = Dictionary::<usize, NodeStructOption<3, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([Some(1), Some(2), None]))
+            .unwrap();
+        dict.insert(1, NodeStructOption([Some(2), None, None]))
+            .unwrap();
+        dict.insert(2, NodeStructOption([None, None, None]))
+            .unwrap();
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Verify initial edge count
+        assert_eq!(graph.iter_edges().unwrap().count(), 3);
+
+        // Remove an edge
+        assert!(graph.remove_edge(0, 1).is_ok());
+
+        // Verify edge was removed
+        assert_eq!(graph.iter_edges().unwrap().count(), 2);
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 2), (1, 2)]);
+    }
+
+    #[test]
+    fn test_remove_edge_not_found() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([Some(1), None])).unwrap();
+        dict.insert(1, NodeStructOption([None, None])).unwrap();
+        dict.insert(2, NodeStructOption([None, None])).unwrap();
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Try to remove edge that doesn't exist
+        let result = graph.remove_edge(0, 2);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(0, 2))));
+
+        // Verify original edges are still there
+        assert_eq!(graph.iter_edges().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_remove_edge_with_nonexistent_nodes() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let mut dict = Dictionary::<usize, NodeStructOption<1, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([Some(1)])).unwrap();
+        dict.insert(1, NodeStructOption([None])).unwrap(); // Only nodes 0, 1
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Try to remove edge involving non-existent source node
+        let result = graph.remove_edge(2, 3);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(2, 3))));
+
+        // Verify original edge is still there
+        assert_eq!(graph.iter_edges().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_add_remove_edge_comprehensive() {
+        use crate::graph::GraphWithMutableEdges;
+
+        let mut dict = Dictionary::<usize, NodeStructOption<5, usize>, 5>::new();
+        dict.insert(0, NodeStructOption([None, None, None, None, None]))
+            .unwrap();
+        dict.insert(1, NodeStructOption([None, None, None, None, None]))
+            .unwrap();
+        dict.insert(2, NodeStructOption([None, None, None, None, None]))
+            .unwrap();
+        dict.insert(3, NodeStructOption([None, None, None, None, None]))
+            .unwrap();
+
+        let mut graph = MapAdjacencyList::new(dict).unwrap();
+
+        // Start with empty graph
+        assert_eq!(graph.iter_edges().unwrap().count(), 0);
+
+        // Add several edges
+        assert!(graph.add_edge(0, 1).is_ok());
+        assert!(graph.add_edge(1, 2).is_ok());
+        assert!(graph.add_edge(2, 3).is_ok());
+        assert!(graph.add_edge(0, 3).is_ok());
+        assert_eq!(graph.iter_edges().unwrap().count(), 4);
+
+        // Remove some edges
+        assert!(graph.remove_edge(1, 2).is_ok());
+        assert_eq!(graph.iter_edges().unwrap().count(), 3);
+
+        // Try to remove the same edge again (should fail)
+        let result = graph.remove_edge(1, 2);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(1, 2))));
+
+        // Add the edge back
+        assert!(graph.add_edge(1, 2).is_ok());
+        assert_eq!(graph.iter_edges().unwrap().count(), 4);
+
+        // Verify final edge set
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 3), (1, 2), (2, 3)]);
     }
 }

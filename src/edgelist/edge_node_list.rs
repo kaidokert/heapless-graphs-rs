@@ -136,13 +136,47 @@ where
     }
 }
 
+impl<NI, E, N> crate::graph::GraphWithMutableEdges<NI> for EdgeNodeList<NI, E, N>
+where
+    NI: NodeIndex + PartialEq,
+    N: crate::nodes::NodesIterable<Node = NI>,
+    E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI>,
+{
+    fn add_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
+        // Validate that both nodes exist in the graph
+        if !self.contains_node(source)? {
+            return Err(GraphError::EdgeHasInvalidNode(source));
+        }
+        if !self.contains_node(destination)? {
+            return Err(GraphError::EdgeHasInvalidNode(destination));
+        }
+
+        // Add the edge to the edge container
+        self.edges
+            .add_edge((source, destination))
+            .ok_or(GraphError::OutOfCapacity)?;
+
+        Ok(())
+    }
+
+    fn remove_edge(&mut self, source: NI, destination: NI) -> Result<(), Self::Error> {
+        // Remove the edge from the edge container
+        // If nodes don't exist, the edge won't be found anyway
+        self.edges
+            .remove_edge((source, destination))
+            .ok_or(GraphError::EdgeNotFound(source, destination))?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::edges::EdgeValueStruct;
     use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithNodeValues};
     use crate::nodes::{NodeValueStructOption, NodesValuesIterable};
-    use crate::tests::collect;
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_edge_node_list() {
@@ -170,16 +204,14 @@ mod test {
 
         // Test outgoing edge values from node 0
         let mut outgoing = [(0usize, 0i32); 8];
-        let outgoing_slice = collect(
+        let outgoing_slice = collect_sorted(
             graph
                 .outgoing_edge_values(0)
                 .unwrap()
                 .filter_map(|(dst, weight_opt)| weight_opt.map(|w| (dst, *w))),
             &mut outgoing,
         );
-        assert_eq!(outgoing_slice.len(), 2);
-        assert!(outgoing_slice.contains(&(1, 5)));
-        assert!(outgoing_slice.contains(&(2, 8)));
+        assert_eq!(outgoing_slice, &[(1, 5), (2, 8)]);
     }
 
     #[test]
@@ -222,10 +254,9 @@ mod test {
         assert_eq!(graph.node_value(3).unwrap(), Some(&Some("value_3")));
 
         // Non-existent node should return error
-        assert!(graph.node_value(99).is_err());
         assert!(matches!(
-            graph.node_value(99).unwrap_err(),
-            GraphError::NodeNotFound(99)
+            graph.node_value(99),
+            Err(GraphError::NodeNotFound(99))
         ));
     }
 
@@ -290,11 +321,7 @@ mod test {
         let result = graph.add_node(2);
 
         // Should return capacity error
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::OutOfCapacity) => {}
-            _ => panic!("Expected OutOfCapacity error"),
-        }
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
 
         // Original graph should be unchanged
         assert_eq!(graph.iter_nodes().unwrap().count(), 2);
@@ -340,11 +367,7 @@ mod test {
         let result = graph.add_node(0);
 
         // Should return error
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::DuplicateNode(node)) => assert_eq!(node, 0),
-            _ => panic!("Expected DuplicateNode error"),
-        }
+        assert!(matches!(result, Err(GraphError::DuplicateNode(0))));
 
         // Original graph should be unchanged
         assert_eq!(graph.iter_nodes().unwrap().count(), 2);
@@ -372,10 +395,172 @@ mod test {
 
         // Try to add another node when container is full
         let result = graph.add_node(3);
-        assert!(result.is_err());
-        match result {
-            Err(GraphError::OutOfCapacity) => {}
-            _ => panic!("Expected OutOfCapacity error"),
-        }
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_add_edge_success() {
+        use crate::edges::EdgeStructOption;
+        use crate::graph::GraphWithMutableEdges;
+        use crate::nodes::NodeStructOption;
+
+        let edges = EdgeStructOption([None, None, None, None, None]); // Capacity for 5 edges
+        let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]); // 3 nodes
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Add edges between existing nodes
+        assert!(graph.add_edge(0, 1).is_ok());
+        assert!(graph.add_edge(1, 2).is_ok());
+        assert!(graph.add_edge(0, 2).is_ok());
+
+        // Verify edges were added by checking edge iteration
+        let edge_count = graph.iter_edges().unwrap().count();
+        assert_eq!(edge_count, 3);
+
+        // Verify specific edges exist
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2)]);
+    }
+
+    #[test]
+    fn test_add_edge_invalid_nodes() {
+        use crate::edges::EdgeStructOption;
+        use crate::graph::GraphWithMutableEdges;
+        use crate::nodes::NodeStructOption;
+
+        let edges = EdgeStructOption([None, None, None, None, None]);
+        let nodes = NodeStructOption([Some(0), Some(1), None, None, None]); // Only nodes 0, 1
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Try to add edge with non-existent source node
+        let result = graph.add_edge(2, 1);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(2))));
+
+        // Try to add edge with non-existent destination node
+        let result = graph.add_edge(0, 3);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(3))));
+
+        // Try to add edge with both nodes non-existent
+        let result = graph.add_edge(5, 6);
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(5))));
+    }
+
+    #[test]
+    fn test_add_edge_capacity_exceeded() {
+        use crate::edges::EdgeStructOption;
+        use crate::graph::GraphWithMutableEdges;
+        use crate::nodes::NodeStructOption;
+
+        let edges = EdgeStructOption([None, None]); // Capacity for only 2 edges
+        let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Add edges up to capacity
+        assert!(graph.add_edge(0, 1).is_ok());
+        assert!(graph.add_edge(1, 2).is_ok());
+
+        // Try to add one more edge (should exceed capacity)
+        let result = graph.add_edge(0, 2);
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_remove_edge_success() {
+        use crate::edges::EdgeStructOption;
+        use crate::graph::GraphWithMutableEdges;
+        use crate::nodes::NodeStructOption;
+
+        let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None, None]);
+        let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Verify initial edge count
+        assert_eq!(graph.iter_edges().unwrap().count(), 3);
+
+        // Remove an edge
+        assert!(graph.remove_edge(1, 2).is_ok());
+
+        // Verify edge was removed
+        assert_eq!(graph.iter_edges().unwrap().count(), 2);
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2)]);
+    }
+
+    #[test]
+    fn test_remove_edge_not_found() {
+        use crate::edges::EdgeStructOption;
+        use crate::graph::GraphWithMutableEdges;
+        use crate::nodes::NodeStructOption;
+
+        let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None, None, None]);
+        let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Try to remove edge that doesn't exist
+        let result = graph.remove_edge(0, 2);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(0, 2))));
+
+        // Verify original edges are still there
+        assert_eq!(graph.iter_edges().unwrap().count(), 2);
+    }
+
+    #[test]
+    fn test_remove_edge_with_nonexistent_nodes() {
+        use crate::edges::EdgeStructOption;
+        use crate::graph::GraphWithMutableEdges;
+        use crate::nodes::NodeStructOption;
+
+        let edges = EdgeStructOption([Some((0, 1)), None, None, None, None]);
+        let nodes = NodeStructOption([Some(0), Some(1), None, None, None]); // Only nodes 0, 1
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Try to remove edge involving non-existent nodes
+        // This should fail with EdgeNotFound (not EdgeHasInvalidNode)
+        // because we don't validate node existence in remove_edge
+        let result = graph.remove_edge(2, 3);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(2, 3))));
+
+        // Verify original edge is still there
+        assert_eq!(graph.iter_edges().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_add_remove_edge_comprehensive() {
+        use crate::edges::EdgeStructOption;
+        use crate::graph::GraphWithMutableEdges;
+        use crate::nodes::NodeStructOption;
+
+        let edges = EdgeStructOption([None, None, None, None, None]);
+        let nodes = NodeStructOption([Some(0), Some(1), Some(2), Some(3), None]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Start with empty graph
+        assert_eq!(graph.iter_edges().unwrap().count(), 0);
+
+        // Add several edges
+        assert!(graph.add_edge(0, 1).is_ok());
+        assert!(graph.add_edge(1, 2).is_ok());
+        assert!(graph.add_edge(2, 3).is_ok());
+        assert!(graph.add_edge(0, 3).is_ok());
+        assert_eq!(graph.iter_edges().unwrap().count(), 4);
+
+        // Remove some edges
+        assert!(graph.remove_edge(1, 2).is_ok());
+        assert_eq!(graph.iter_edges().unwrap().count(), 3);
+
+        // Try to remove the same edge again (should fail)
+        let result = graph.remove_edge(1, 2);
+        assert!(matches!(result, Err(GraphError::EdgeNotFound(1, 2))));
+
+        // Add the edge back
+        assert!(graph.add_edge(1, 2).is_ok());
+        assert_eq!(graph.iter_edges().unwrap().count(), 4);
+
+        // Verify final edge set
+        let mut edges = [(0usize, 0usize); 8];
+        let sorted_edges = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(sorted_edges, &[(0, 1), (0, 3), (1, 2), (2, 3)]);
     }
 }
