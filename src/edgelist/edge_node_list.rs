@@ -1,4 +1,5 @@
 use crate::graph::{integrity_check, Graph, GraphError, GraphWithMutableNodes, NodeIndex};
+use crate::nodes::MutableNodes;
 
 /// Edge list graph that stores both edges and nodes.
 ///
@@ -104,8 +105,8 @@ where
 
 impl<NI, E, N> GraphWithMutableNodes<NI> for EdgeNodeList<NI, E, N>
 where
-    NI: NodeIndex,
-    N: crate::nodes::NodesIterable<Node = NI> + crate::nodes::AddNode<NI>,
+    NI: NodeIndex + PartialEq,
+    N: crate::nodes::NodesIterable<Node = NI> + MutableNodes<NI>,
     E: crate::edges::EdgesIterable<Node = NI>,
 {
     fn add_node(&mut self, node: NI) -> Result<(), Self::Error> {
@@ -113,6 +114,24 @@ where
             return Err(GraphError::DuplicateNode(node));
         }
         self.nodes.add(node).ok_or(GraphError::OutOfCapacity)?;
+        Ok(())
+    }
+
+    fn remove_node(&mut self, node: NI) -> Result<(), Self::Error> {
+        // Check if node exists
+        if !self.contains_node(node)? {
+            return Err(GraphError::NodeNotFound(node));
+        }
+
+        // Check if node has incoming edges
+        if self.incoming_edges(node)?.next().is_some() {
+            return Err(GraphError::NodeHasIncomingEdges(node));
+        }
+
+        // Remove the node from the nodes container
+        self.nodes
+            .remove(node)
+            .ok_or(GraphError::NodeNotFound(node))?;
         Ok(())
     }
 }

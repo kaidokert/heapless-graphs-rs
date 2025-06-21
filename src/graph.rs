@@ -34,6 +34,8 @@ pub enum GraphError<NI: NodeIndex> {
     OutOfCapacity,
     /// Duplicate node
     DuplicateNode(NI),
+    /// Node cannot be removed because it still has incoming edges
+    NodeHasIncomingEdges(NI),
     /// Unexpected condition occurred
     Unexpected,
 }
@@ -168,9 +170,27 @@ where
     }
 }
 
-// TODO: WIP
+/// Extension of [`Graph`] that supports adding and removing nodes
+///
+/// This trait extends basic graph functionality with the ability to dynamically
+/// add and remove nodes from the graph. Implementations must ensure graph
+/// integrity by preventing removal of nodes that still have incoming edges.
 pub trait GraphWithMutableNodes<NI: NodeIndex>: Graph<NI> {
+    /// Add a new node to the graph
+    ///
+    /// Returns an error if:
+    /// - The node already exists (`DuplicateNode`)
+    /// - The graph is at capacity (`OutOfCapacity`)
     fn add_node(&mut self, node: NI) -> Result<(), Self::Error>;
+
+    /// Remove a node from the graph
+    ///
+    /// Returns an error if:
+    /// - The node doesn't exist (`NodeNotFound`)
+    /// - The node still has incoming edges (`NodeHasIncomingEdges`)
+    ///
+    /// Note: Outgoing edges from the node are automatically removed.
+    fn remove_node(&mut self, node: NI) -> Result<(), Self::Error>;
 }
 
 /// Integrity check for graphs - validates that all edges reference valid nodes
