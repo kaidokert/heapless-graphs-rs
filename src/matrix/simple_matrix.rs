@@ -133,12 +133,12 @@ where
     }
 
     fn remove_edge(&mut self, source: usize, destination: usize) -> Result<(), Self::Error> {
-        // Validate node indices and check if edge exists
+        // Validate node indices
         if source >= N {
-            return Err(GraphError::EdgeNotFound(source, destination));
+            return Err(GraphError::EdgeHasInvalidNode(source));
         }
         if destination >= N {
-            return Err(GraphError::EdgeNotFound(source, destination));
+            return Err(GraphError::EdgeHasInvalidNode(destination));
         }
 
         // Check if edge exists before removing
@@ -339,11 +339,11 @@ mod tests {
 
         // Try to remove edge with invalid source
         let result = matrix.remove_edge(3, 1);
-        assert!(matches!(result, Err(GraphError::EdgeNotFound(3, 1))));
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(3))));
 
         // Try to remove edge with invalid destination
         let result = matrix.remove_edge(1, 3);
-        assert!(matches!(result, Err(GraphError::EdgeNotFound(1, 3))));
+        assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(3))));
 
         // Verify original edges are unchanged
         assert_eq!(matrix.iter_edges().unwrap().count(), 3);
