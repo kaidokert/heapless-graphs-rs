@@ -24,6 +24,25 @@ where
     pub(crate) fn get_edge_value(&self, row: usize, col: usize) -> Option<&EDGEVALUE> {
         self.matrix.as_ref().get(row)?.as_ref().get(col)?.as_ref()
     }
+
+    pub(crate) fn set_edge_value(
+        &mut self,
+        row: usize,
+        col: usize,
+        value: Option<EDGEVALUE>,
+    ) -> bool
+    where
+        ROW: AsMut<[Option<EDGEVALUE>]>,
+        COLUMNS: AsMut<[ROW]>,
+    {
+        if let Some(matrix_row) = self.matrix.as_mut().get_mut(row) {
+            if let Some(cell) = matrix_row.as_mut().get_mut(col) {
+                *cell = value;
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl<const N: usize, EDGEVALUE, ROW, COLUMNS> Graph<usize> for Matrix<N, EDGEVALUE, COLUMNS, ROW>
