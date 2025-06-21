@@ -1,6 +1,6 @@
 use crate::containers::maps::MapTrait;
 use crate::graph::{integrity_check, Graph, GraphError, GraphWithMutableNodes, NodeIndex};
-use crate::nodes::{AddNode, NodesIterable};
+use crate::nodes::{MutableNodes, NodesIterable};
 
 pub struct MapAdjacencyList<NI, E, M>
 where
@@ -43,7 +43,7 @@ where
 impl<NI, E, M> MapAdjacencyList<NI, E, M>
 where
     NI: NodeIndex,
-    E: NodesIterable<Node = NI> + AddNode<NI> + Default,
+    E: NodesIterable<Node = NI> + MutableNodes<NI> + Default,
     M: MapTrait<NI, E>,
 {
     pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, G::Error>
@@ -113,6 +113,22 @@ where
         self.nodes
             .insert(node, outbound)
             .map_err(|_| GraphError::OutOfCapacity)?;
+        Ok(())
+    }
+
+    fn remove_node(&mut self, node: NI) -> Result<(), Self::Error> {
+        // Check if node exists
+        if !self.nodes.contains_key(&node) {
+            return Err(GraphError::NodeNotFound(node));
+        }
+
+        // Check if node has incoming edges
+        if self.incoming_edges(node)?.next().is_some() {
+            return Err(GraphError::NodeHasIncomingEdges(node));
+        }
+
+        // Remove the node (this automatically removes all its outgoing edges)
+        self.nodes.remove(&node);
         Ok(())
     }
 }

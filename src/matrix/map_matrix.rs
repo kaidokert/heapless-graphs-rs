@@ -191,6 +191,22 @@ where
 
         Ok(())
     }
+
+    fn remove_node(&mut self, node: NI) -> Result<(), Self::Error> {
+        // Check if node exists
+        if !self.index_map.contains_key(&node) {
+            return Err(GraphError::NodeNotFound(node));
+        }
+
+        // Check if node has incoming edges
+        if self.incoming_edges(node)?.next().is_some() {
+            return Err(GraphError::NodeHasIncomingEdges(node));
+        }
+
+        // Remove the node mapping (matrix position becomes available for reuse)
+        self.index_map.remove(&node);
+        Ok(())
+    }
 }
 
 #[cfg(test)]

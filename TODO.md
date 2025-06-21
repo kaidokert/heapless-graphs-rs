@@ -16,6 +16,7 @@ Readonly graph class
 - [x] Access node values in algorithms
 - [ ] Implement MutableEdges graphs - e.g graphs with edges added / removed
 - [ ] Add / remove Nodes tests - some done
+- [ ] Implement graph-level operations using MutableNodeValue trait for nodes with values
 - [ ] Implement edgelist with add/remove nodes ( ? ) and edges
 - [x] Make GraphError generic over NI
 - [x] Maybe make GraphError take a lifetime for node refs ? (Not needed - NodeIndex is Copy)
@@ -55,6 +56,7 @@ Graph Properties:
 Graph Manipulation:
 - [x] Node Removal: Removes a specific node and its associated edges from the graph. (implemented but lightly tested)
 - [x] Node Addition: Adds a new node to the graph. (implemented but lightly tested)
+- [ ] Node Addition with Values: Implement GraphWithMutableNodeValues trait that uses MutableNodeValue for adding nodes with associated values
 - [x] Edge Addition: Adds a new edge to the graph. (implemented but lightly tested)
 - [ ] Edge Removal: Removes a specific edge from the graph - how to refer to it when we have duplicates ?
 
