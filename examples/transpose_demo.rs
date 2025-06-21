@@ -68,8 +68,8 @@ fn main() {
         println!("  {} is followed by {}", followed_name, follower_name);
     }
 
-    // Example 3: In-place transposition
-    println!("\n3. In-place Transposition");
+    // Example 3: In-place transposition (atomic)
+    println!("\n3. In-place Transposition (Atomic)");
     let mut graph = EdgeList::<8, usize, [Option<(usize, usize)>; 8]>::new([
         Some((0, 1)),
         Some((1, 2)),
@@ -87,9 +87,37 @@ fn main() {
         println!("  {} -> {}", from, to);
     }
 
-    transpose_graph_inplace(&mut graph, &mut buffer).unwrap();
+    // Safe version with validation (atomic) - either all changes succeed or graph remains unchanged
+    transpose_graph_inplace(&mut graph, &mut buffer, true).unwrap();
 
     println!("After transpose:");
+    for (from, to) in graph.iter_edges().unwrap() {
+        println!("  {} -> {}", from, to);
+    }
+
+    // Example 4: Fast in-place transposition (no validation)
+    println!("\n4. Fast In-place Transposition (No Validation)");
+    let mut graph = EdgeList::<8, usize, [Option<(usize, usize)>; 8]>::new([
+        Some((0, 1)),
+        Some((1, 2)),
+        Some((2, 0)),
+        None,
+        None,
+        None,
+        None,
+        None,
+    ]);
+    let mut buffer = [(0usize, 0usize); 8];
+
+    println!("Before fast transpose:");
+    for (from, to) in graph.iter_edges().unwrap() {
+        println!("  {} -> {}", from, to);
+    }
+
+    // Fast version without validation - maximum performance but no atomicity guarantee
+    transpose_graph_inplace(&mut graph, &mut buffer, false).unwrap();
+
+    println!("After fast transpose:");
     for (from, to) in graph.iter_edges().unwrap() {
         println!("  {} -> {}", from, to);
     }

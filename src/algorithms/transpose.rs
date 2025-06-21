@@ -65,13 +65,24 @@ where
 /// This function creates a temporary copy of all edges, clears the graph,
 /// and then adds all edges back in reverse order.
 ///
+/// # Atomicity
+/// When `validate` is `true`, the operation is atomic - either all changes succeed,
+/// or no changes are made to the graph. When `false`, the operation may leave the
+/// graph in an inconsistent state if any edge operation fails partway through.
+///
 /// # Arguments
 /// * `graph` - The graph to transpose in-place
 /// * `edge_buffer` - Temporary buffer to store edges during transposition
+/// * `validate` - Whether to validate all operations before making changes (atomic)
 ///
 /// # Returns
 /// * `Ok(())` if successful
 /// * `Err(AlgorithmError)` if the operation fails or buffer is too small
+///
+/// # Performance Note
+/// When `validate` is `true`, this performs O(E) validation calls to `contains_node()`,
+/// which can be expensive for some graph implementations (e.g., EdgeList is O(n) per call).
+/// Set to `false` for maximum performance if you're confident the operations will succeed.
 ///
 /// # Example
 /// ```
@@ -84,7 +95,11 @@ where
 /// ]);
 /// let mut buffer = [(0usize, 0usize); 8];
 ///
-/// transpose_graph_inplace(&mut graph, &mut buffer).unwrap();
+/// // Safe (atomic) version - validates before making changes
+/// transpose_graph_inplace(&mut graph, &mut buffer, true).unwrap();
+///
+/// // Fast version - no validation (use when you're confident operations will succeed)
+/// // transpose_graph_inplace(&mut graph, &mut buffer, false).unwrap();
 ///
 /// // Edges are now reversed
 /// let edges: Vec<_> = graph.iter_edges().unwrap().collect();
@@ -95,6 +110,7 @@ where
 pub fn transpose_graph_inplace<NI, G>(
     graph: &mut G,
     edge_buffer: &mut [(NI, NI)],
+    validate: bool,
 ) -> Result<(), AlgorithmError<NI>>
 where
     NI: NodeIndex + Copy,
@@ -111,6 +127,25 @@ where
         edge_count += 1;
     }
 
+    // Optionally validate that all reverse edges can be added
+    // Check for capacity and validity before making any changes
+    if validate {
+        for &(source, destination) in edge_buffer.iter().take(edge_count) {
+            // Validate the reverse edge would be valid
+            if graph.contains_node(destination).is_err() {
+                return Err(AlgorithmError::GraphError(
+                    crate::graph::GraphError::EdgeHasInvalidNode(destination),
+                ));
+            }
+            if graph.contains_node(source).is_err() {
+                return Err(AlgorithmError::GraphError(
+                    crate::graph::GraphError::EdgeHasInvalidNode(source),
+                ));
+            }
+        }
+    }
+
+    // Now perform the actual transposition - since we validated, this should succeed
     // Remove all existing edges
     for &(source, destination) in edge_buffer.iter().take(edge_count) {
         graph.remove_edge(source, destination)?;
@@ -200,7 +235,7 @@ mod tests {
         ]);
         let mut buffer = [(0usize, 0usize); 8];
 
-        transpose_graph_inplace(&mut graph, &mut buffer).unwrap();
+        transpose_graph_inplace(&mut graph, &mut buffer, true).unwrap();
 
         let mut edges = [(0usize, 0usize); 8];
         let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
@@ -221,7 +256,7 @@ mod tests {
         ]);
         let mut buffer = [(0usize, 0usize); 2]; // Too small for 3 edges
 
-        let result = transpose_graph_inplace(&mut graph, &mut buffer);
+        let result = transpose_graph_inplace(&mut graph, &mut buffer, true);
         assert!(matches!(
             result,
             Err(AlgorithmError::ResultCapacityExceeded)
@@ -249,6 +284,58 @@ mod tests {
         let target_nodes_slice = collect_sorted(target.iter_nodes().unwrap(), &mut target_nodes);
 
         assert_eq!(source_nodes_slice, target_nodes_slice);
+    }
+
+    #[test]
+    fn test_transpose_graph_inplace_no_validation() {
+        // Test the fast path without validation
+        let mut graph = EdgeList::<8, usize, [Option<(usize, usize)>; 8]>::new([
+            Some((0, 1)),
+            Some((1, 2)),
+            Some((0, 2)),
+            None,
+            None,
+            None,
+            None,
+            None,
+        ]);
+        let mut buffer = [(0usize, 0usize); 8];
+
+        transpose_graph_inplace(&mut graph, &mut buffer, false).unwrap();
+
+        let mut edges = [(0usize, 0usize); 8];
+        let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(1, 0), (2, 0), (2, 1)]);
+    }
+
+    #[test]
+    fn test_transpose_graph_inplace_validate_vs_no_validate() {
+        // Test that both validation modes produce the same result
+        let original_edges = [
+            Some((0, 1)),
+            Some((1, 2)),
+            Some((0, 3)),
+            None,
+            None,
+            None,
+            None,
+            None,
+        ];
+
+        let mut graph1 = EdgeList::<8, usize, [Option<(usize, usize)>; 8]>::new(original_edges);
+        let mut graph2 = EdgeList::<8, usize, [Option<(usize, usize)>; 8]>::new(original_edges);
+        let mut buffer = [(0usize, 0usize); 8];
+
+        transpose_graph_inplace(&mut graph1, &mut buffer, true).unwrap(); // With validation
+        transpose_graph_inplace(&mut graph2, &mut buffer, false).unwrap(); // Without validation
+
+        let mut edges1 = [(0usize, 0usize); 8];
+        let edges1_slice = collect_sorted(graph1.iter_edges().unwrap(), &mut edges1);
+
+        let mut edges2 = [(0usize, 0usize); 8];
+        let edges2_slice = collect_sorted(graph2.iter_edges().unwrap(), &mut edges2);
+
+        assert_eq!(edges1_slice, edges2_slice);
     }
 
     #[test]
