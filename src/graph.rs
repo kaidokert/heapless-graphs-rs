@@ -26,6 +26,8 @@ pub enum GraphError<NI: NodeIndex> {
     EdgeHasInvalidNode(NI),
     /// Given node wasn't found in the graph
     NodeNotFound(NI),
+    /// Given edge wasn't found in the graph
+    EdgeNotFound(NI, NI),
     /// Index is out of bounds
     IndexOutOfBounds(usize, NI),
     /// Matrix size is invalid
@@ -191,6 +193,31 @@ pub trait GraphWithMutableNodes<NI: NodeIndex>: Graph<NI> {
     ///
     /// Note: Outgoing edges from the node are automatically removed.
     fn remove_node(&mut self, node: NI) -> Result<(), Self::Error>;
+}
+
+/// Extension of [`Graph`] that supports adding and removing edges
+///
+/// This trait extends basic graph functionality with the ability to dynamically
+/// add and remove edges from the graph. Implementations must ensure graph
+/// integrity by only allowing edges between existing nodes.
+pub trait GraphWithMutableEdges<NI: NodeIndex>: Graph<NI> {
+    /// Add a new edge to the graph
+    ///
+    /// Returns an error if:
+    /// - Either source or destination node doesn't exist (`EdgeHasInvalidNode`)
+    /// - The graph is at capacity (`OutOfCapacity`)
+    /// - The edge already exists (implementation-specific)
+    fn add_edge(&mut self, _source: NI, _destination: NI) -> Result<(), Self::Error> {
+        todo!("add_edge implementation needed")
+    }
+
+    /// Remove an edge from the graph
+    ///
+    /// Returns an error if:
+    /// - The edge doesn't exist (`EdgeNotFound`)
+    fn remove_edge(&mut self, _source: NI, _destination: NI) -> Result<(), Self::Error> {
+        todo!("remove_edge implementation needed")
+    }
 }
 
 /// Integrity check for graphs - validates that all edges reference valid nodes

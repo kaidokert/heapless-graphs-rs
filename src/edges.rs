@@ -699,17 +699,25 @@ where
     }
 }
 
-/// Trait for edge collections that support adding new edges
+/// Trait for edge collections that support adding and removing edges
 ///
-/// This trait allows dynamic addition of edges to an edge collection,
-/// returning the index where the edge was inserted if successful.
-pub trait AddEdge {
-    type Edge;
-    fn add_edge(&mut self, edge: Self::Edge) -> Option<usize>;
+/// This trait allows dynamic addition and removal of edges to/from an edge collection,
+/// returning the index where the edge was inserted/removed if successful.
+pub trait MutableEdges<NI: PartialEq> {
+    fn add_edge(&mut self, edge: (NI, NI)) -> Option<usize>;
+    fn remove_edge(&mut self, edge: (NI, NI)) -> Option<usize>;
 }
 
-impl<const E: usize, NI> AddEdge for EdgeStructOption<E, NI> {
-    type Edge = (NI, NI);
+/// Trait for edge collections that support adding and removing edges with associated values
+///
+/// This trait allows dynamic addition and removal of edges along with their values to/from an
+/// edge collection, returning the index where the edge was inserted/removed if successful.
+pub trait MutableEdgeValue<NI: PartialEq, V> {
+    fn add_edge_value(&mut self, edge: (NI, NI, V)) -> Option<usize>;
+    fn remove_edge_value(&mut self, edge: (NI, NI, V)) -> Option<usize>;
+}
+
+impl<const E: usize, NI: PartialEq> MutableEdges<NI> for EdgeStructOption<E, NI> {
     fn add_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
         if let Some(index) = self.0.iter().position(|x| x.is_none()) {
             self.0[index] = Some(edge);
@@ -718,9 +726,17 @@ impl<const E: usize, NI> AddEdge for EdgeStructOption<E, NI> {
             None
         }
     }
+
+    fn remove_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
+        if let Some(index) = self.0.iter().position(|x| x.as_ref() == Some(&edge)) {
+            self.0[index] = None;
+            Some(index)
+        } else {
+            None
+        }
+    }
 }
-impl<const E: usize, NI> AddEdge for [Option<(NI, NI)>; E] {
-    type Edge = (NI, NI);
+impl<const E: usize, NI: PartialEq> MutableEdges<NI> for [Option<(NI, NI)>; E] {
     fn add_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
         if let Some(index) = self.iter().position(|x| x.is_none()) {
             self[index] = Some(edge);
@@ -729,9 +745,17 @@ impl<const E: usize, NI> AddEdge for [Option<(NI, NI)>; E] {
             None
         }
     }
+
+    fn remove_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
+        if let Some(index) = self.iter().position(|x| x.as_ref() == Some(&edge)) {
+            self[index] = None;
+            Some(index)
+        } else {
+            None
+        }
+    }
 }
-impl<NI> AddEdge for &mut [Option<(NI, NI)>] {
-    type Edge = (NI, NI);
+impl<NI: PartialEq> MutableEdges<NI> for &mut [Option<(NI, NI)>] {
     fn add_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
         if let Some(index) = self.iter().position(|x| x.is_none()) {
             self[index] = Some(edge);
@@ -740,10 +764,20 @@ impl<NI> AddEdge for &mut [Option<(NI, NI)>] {
             None
         }
     }
+
+    fn remove_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
+        if let Some(index) = self.iter().position(|x| x.as_ref() == Some(&edge)) {
+            self[index] = None;
+            Some(index)
+        } else {
+            None
+        }
+    }
 }
-impl<const E: usize, NI, V> AddEdge for EdgeValueStructOption<E, NI, V> {
-    type Edge = (NI, NI, V);
-    fn add_edge(&mut self, edge: Self::Edge) -> Option<usize> {
+impl<const E: usize, NI: PartialEq, V: PartialEq> MutableEdgeValue<NI, V>
+    for EdgeValueStructOption<E, NI, V>
+{
+    fn add_edge_value(&mut self, edge: (NI, NI, V)) -> Option<usize> {
         if let Some(index) = self.0.iter().position(|x| x.is_none()) {
             self.0[index] = Some(edge);
             Some(index)
@@ -751,19 +785,95 @@ impl<const E: usize, NI, V> AddEdge for EdgeValueStructOption<E, NI, V> {
             None
         }
     }
+
+    fn remove_edge_value(&mut self, edge: (NI, NI, V)) -> Option<usize> {
+        if let Some(index) = self.0.iter().position(|x| x.as_ref() == Some(&edge)) {
+            self.0[index] = None;
+            Some(index)
+        } else {
+            None
+        }
+    }
 }
-#[cfg(feature = "heapless")]
-impl<const E: usize, NI> AddEdge for EdgeVec<E, NI> {
-    type Edge = (NI, NI);
-    fn add_edge(&mut self, edge: Self::Edge) -> Option<usize> {
-        self.0.push(edge).ok().map(|_| self.0.len() - 1)
+
+// Dual implementation: EdgeValueStructOption can also implement MutableEdges
+// by using Default values when no explicit value is provided
+impl<const E: usize, NI: PartialEq, V: PartialEq + Default> MutableEdges<NI>
+    for EdgeValueStructOption<E, NI, V>
+{
+    fn add_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
+        // Add with default value
+        self.add_edge_value((edge.0, edge.1, V::default()))
+    }
+
+    fn remove_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
+        // Find and remove edge by source/destination only, ignoring value
+        if let Some(index) = self.0.iter().position(|x| {
+            if let Some((src, dst, _)) = x.as_ref() {
+                *src == edge.0 && *dst == edge.1
+            } else {
+                false
+            }
+        }) {
+            self.0[index] = None;
+            Some(index)
+        } else {
+            None
+        }
     }
 }
 #[cfg(feature = "heapless")]
-impl<const E: usize, NI, V> AddEdge for EdgeVecValue<E, NI, V> {
-    type Edge = (NI, NI, V);
-    fn add_edge(&mut self, edge: Self::Edge) -> Option<usize> {
+impl<const E: usize, NI: PartialEq> MutableEdges<NI> for EdgeVec<E, NI> {
+    fn add_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
         self.0.push(edge).ok().map(|_| self.0.len() - 1)
+    }
+
+    fn remove_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
+        if let Some(index) = self.0.iter().position(|x| *x == edge) {
+            self.0.remove(index);
+            Some(index)
+        } else {
+            None
+        }
+    }
+}
+#[cfg(feature = "heapless")]
+impl<const E: usize, NI: PartialEq, V: PartialEq> MutableEdgeValue<NI, V>
+    for EdgeVecValue<E, NI, V>
+{
+    fn add_edge_value(&mut self, edge: (NI, NI, V)) -> Option<usize> {
+        self.0.push(edge).ok().map(|_| self.0.len() - 1)
+    }
+
+    fn remove_edge_value(&mut self, edge: (NI, NI, V)) -> Option<usize> {
+        if let Some(index) = self.0.iter().position(|x| *x == edge) {
+            self.0.remove(index);
+            Some(index)
+        } else {
+            None
+        }
+    }
+}
+
+// Dual implementation: EdgeVecValue can also implement MutableEdges
+// by using Default values when no explicit value is provided
+#[cfg(feature = "heapless")]
+impl<const E: usize, NI: PartialEq, V: PartialEq + Default> MutableEdges<NI>
+    for EdgeVecValue<E, NI, V>
+{
+    fn add_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
+        // Add with default value
+        self.add_edge_value((edge.0, edge.1, V::default()))
+    }
+
+    fn remove_edge(&mut self, edge: (NI, NI)) -> Option<usize> {
+        // Find and remove edge by source/destination only, ignoring value
+        if let Some(index) = self.0.iter().position(|x| x.0 == edge.0 && x.1 == edge.1) {
+            self.0.remove(index);
+            Some(index)
+        } else {
+            None
+        }
     }
 }
 
@@ -985,5 +1095,277 @@ mod tests {
         let mut mut_value_array = [(0, 1, 'x'), (1, 20, 'y'), (2, 3, 'z')];
         let value_mut_slice = mut_value_array.as_mut_slice();
         test(&value_mut_slice, &['x', 'y', 'z']);
+    }
+
+    #[test]
+    fn test_mutable_edges_trait() {
+        // Test adding edges using the renamed trait
+        let mut edges = EdgeStructOption::<5, u32>([None, None, None, None, None]);
+
+        // Test add_edge
+        assert_eq!(edges.add_edge((1, 2)), Some(0));
+        assert_eq!(edges.add_edge((3, 4)), Some(1));
+        assert_eq!(edges.add_edge((5, 6)), Some(2));
+
+        // Verify edges were added
+        assert_eq!(edges.0[0], Some((1, 2)));
+        assert_eq!(edges.0[1], Some((3, 4)));
+        assert_eq!(edges.0[2], Some((5, 6)));
+
+        // Test that remove_edge now works
+        assert_eq!(edges.remove_edge((1, 2)), Some(0));
+        assert_eq!(edges.0[0], None);
+
+        // Test removing non-existent edge
+        assert_eq!(edges.remove_edge((99, 100)), None);
+    }
+
+    #[test]
+    fn test_mutable_edges_with_values() {
+        // Test with edge values
+        let mut edges = EdgeValueStructOption::<3, u32, &str>([None, None, None]);
+
+        // Test add_edge_value with values
+        assert_eq!(edges.add_edge_value((1, 2, "first")), Some(0));
+        assert_eq!(edges.add_edge_value((3, 4, "second")), Some(1));
+
+        // Verify edges were added
+        assert_eq!(edges.0[0], Some((1, 2, "first")));
+        assert_eq!(edges.0[1], Some((3, 4, "second")));
+
+        // Test capacity limit
+        assert_eq!(edges.add_edge_value((5, 6, "third")), Some(2));
+        assert_eq!(edges.add_edge_value((7, 8, "fourth")), None); // Should fail
+    }
+
+    #[test]
+    fn test_remove_edge_edgestruct_option() {
+        let mut edges =
+            EdgeStructOption::<5, u32>([Some((1, 2)), Some((3, 4)), None, Some((5, 6)), None]);
+
+        // Test removing existing edge
+        assert_eq!(edges.remove_edge((3, 4)), Some(1));
+        assert_eq!(edges.0[1], None);
+
+        // Test removing edge from middle
+        assert_eq!(edges.remove_edge((1, 2)), Some(0));
+        assert_eq!(edges.0[0], None);
+
+        // Test removing non-existent edge
+        assert_eq!(edges.remove_edge((99, 100)), None);
+
+        // Verify remaining edge is intact
+        assert_eq!(edges.0[3], Some((5, 6)));
+        assert_eq!(edges.remove_edge((5, 6)), Some(3));
+        assert_eq!(edges.0[3], None);
+    }
+
+    #[test]
+    fn test_remove_edge_option_array() {
+        let mut edges: [Option<(u32, u32)>; 4] =
+            [Some((10, 20)), None, Some((30, 40)), Some((50, 60))];
+
+        // Test removing existing edge
+        assert_eq!(edges.remove_edge((30, 40)), Some(2));
+        assert_eq!(edges[2], None);
+
+        // Test removing first edge
+        assert_eq!(edges.remove_edge((10, 20)), Some(0));
+        assert_eq!(edges[0], None);
+
+        // Test removing non-existent edge
+        assert_eq!(edges.remove_edge((99, 100)), None);
+
+        // Verify last edge is intact
+        assert_eq!(edges[3], Some((50, 60)));
+    }
+
+    #[test]
+    fn test_remove_edge_option_slice() {
+        let mut array = [Some((1, 2)), Some((3, 4)), None, Some((5, 6))];
+        let mut edges = array.as_mut_slice();
+
+        // Test removing existing edge
+        assert_eq!(edges.remove_edge((3, 4)), Some(1));
+        assert_eq!(edges[1], None);
+
+        // Test removing edge that doesn't exist
+        assert_eq!(edges.remove_edge((99, 100)), None);
+
+        // Verify other edges are intact
+        assert_eq!(edges[0], Some((1, 2)));
+        assert_eq!(edges[3], Some((5, 6)));
+    }
+
+    #[test]
+    fn test_remove_edge_with_values() {
+        let mut edges = EdgeValueStructOption::<4, u32, &str>([
+            Some((1, 2, "first")),
+            Some((3, 4, "second")),
+            None,
+            Some((5, 6, "third")),
+        ]);
+
+        // Test removing edge with value
+        assert_eq!(edges.remove_edge_value((3, 4, "second")), Some(1));
+        assert_eq!(edges.0[1], None);
+
+        // Test removing with wrong value (should not match)
+        assert_eq!(edges.remove_edge_value((1, 2, "wrong")), None);
+        assert_eq!(edges.0[0], Some((1, 2, "first"))); // Should still be there
+
+        // Test removing with correct value
+        assert_eq!(edges.remove_edge_value((1, 2, "first")), Some(0));
+        assert_eq!(edges.0[0], None);
+
+        // Verify remaining edge
+        assert_eq!(edges.0[3], Some((5, 6, "third")));
+    }
+
+    #[cfg(feature = "heapless")]
+    #[test]
+    fn test_remove_edge_vec() {
+        let mut edges = EdgeVec::<10, u32>(heapless::Vec::new());
+
+        // Add some edges
+        edges.add_edge((1, 2));
+        edges.add_edge((3, 4));
+        edges.add_edge((5, 6));
+
+        assert_eq!(edges.0.len(), 3);
+
+        // Test removing middle edge (should shift elements)
+        assert_eq!(edges.remove_edge((3, 4)), Some(1));
+        assert_eq!(edges.0.len(), 2);
+        assert_eq!(edges.0[0], (1, 2));
+        assert_eq!(edges.0[1], (5, 6)); // Should have shifted
+
+        // Test removing non-existent edge
+        assert_eq!(edges.remove_edge((99, 100)), None);
+        assert_eq!(edges.0.len(), 2);
+
+        // Test removing first edge
+        assert_eq!(edges.remove_edge((1, 2)), Some(0));
+        assert_eq!(edges.0.len(), 1);
+        assert_eq!(edges.0[0], (5, 6));
+    }
+
+    #[cfg(feature = "heapless")]
+    #[test]
+    fn test_remove_edge_vec_with_values() {
+        let mut edges = EdgeVecValue::<10, u32, &str>(heapless::Vec::new());
+
+        // Add some edges
+        edges.add_edge_value((1, 2, "first"));
+        edges.add_edge_value((3, 4, "second"));
+        edges.add_edge_value((5, 6, "third"));
+
+        assert_eq!(edges.0.len(), 3);
+
+        // Test removing edge with value
+        assert_eq!(edges.remove_edge_value((3, 4, "second")), Some(1));
+        assert_eq!(edges.0.len(), 2);
+        assert_eq!(edges.0[0], (1, 2, "first"));
+        assert_eq!(edges.0[1], (5, 6, "third")); // Should have shifted
+
+        // Test removing with wrong value
+        assert_eq!(edges.remove_edge_value((1, 2, "wrong")), None);
+        assert_eq!(edges.0.len(), 2);
+
+        // Test removing with correct value
+        assert_eq!(edges.remove_edge_value((1, 2, "first")), Some(0));
+        assert_eq!(edges.0.len(), 1);
+        assert_eq!(edges.0[0], (5, 6, "third"));
+    }
+
+    #[test]
+    fn test_remove_edge_comprehensive() {
+        // Test edge case: empty container
+        let mut edges = EdgeStructOption::<3, u32>([None, None, None]);
+        assert_eq!(edges.remove_edge((1, 2)), None);
+
+        // Test edge case: single edge
+        edges.add_edge((1, 2));
+        assert_eq!(edges.remove_edge((1, 2)), Some(0));
+        assert_eq!(edges.0[0], None);
+
+        // Test edge case: duplicate edges
+        let mut edges = EdgeStructOption::<5, u32>([
+            Some((1, 2)),
+            Some((1, 2)), // Duplicate
+            Some((3, 4)),
+            None,
+            None,
+        ]);
+
+        // Should remove first occurrence
+        assert_eq!(edges.remove_edge((1, 2)), Some(0));
+        assert_eq!(edges.0[0], None);
+        assert_eq!(edges.0[1], Some((1, 2))); // Duplicate should remain
+
+        // Remove the duplicate
+        assert_eq!(edges.remove_edge((1, 2)), Some(1));
+        assert_eq!(edges.0[1], None);
+
+        // Now it should not find any more
+        assert_eq!(edges.remove_edge((1, 2)), None);
+    }
+
+    #[test]
+    fn test_dual_implementation_edge_value_struct() {
+        // Test that EdgeValueStructOption can implement both traits
+        let mut edges = EdgeValueStructOption::<5, u32, i32>([None, None, None, None, None]);
+
+        // Test using MutableEdgeValue trait
+        assert_eq!(edges.add_edge_value((1, 2, 100)), Some(0));
+        assert_eq!(edges.add_edge_value((3, 4, 200)), Some(1));
+
+        // Test using MutableEdges trait (should use default value)
+        assert_eq!(edges.add_edge((5, 6)), Some(2));
+
+        // Verify what was stored
+        assert_eq!(edges.0[0], Some((1, 2, 100)));
+        assert_eq!(edges.0[1], Some((3, 4, 200)));
+        assert_eq!(edges.0[2], Some((5, 6, 0))); // Default value for i32 is 0
+
+        // Test removing with MutableEdges (ignores value)
+        assert_eq!(edges.remove_edge((1, 2)), Some(0)); // Should remove by source/dest only
+        assert_eq!(edges.0[0], None);
+
+        // Test removing with MutableEdgeValue (exact match required)
+        assert_eq!(edges.remove_edge_value((3, 4, 200)), Some(1));
+        assert_eq!(edges.0[1], None);
+
+        // Verify remaining edge
+        assert_eq!(edges.0[2], Some((5, 6, 0)));
+    }
+
+    #[cfg(feature = "heapless")]
+    #[test]
+    fn test_dual_implementation_edge_vec_value() {
+        // Test that EdgeVecValue can implement both traits
+        let mut edges = EdgeVecValue::<10, u32, i32>(heapless::Vec::new());
+
+        // Test using MutableEdgeValue trait
+        edges.add_edge_value((1, 2, 100));
+        edges.add_edge_value((3, 4, 200));
+
+        // Test using MutableEdges trait (should use default value)
+        edges.add_edge((5, 6));
+
+        assert_eq!(edges.0.len(), 3);
+        assert_eq!(edges.0[0], (1, 2, 100));
+        assert_eq!(edges.0[1], (3, 4, 200));
+        assert_eq!(edges.0[2], (5, 6, 0)); // Default value for i32 is 0
+
+        // Test removing with MutableEdges (ignores value, matches by source/dest)
+        assert_eq!(edges.remove_edge((1, 2)), Some(0)); // Should remove by source/dest only
+        assert_eq!(edges.0.len(), 2);
+        assert_eq!(edges.0[0], (3, 4, 200)); // Should have shifted
+
+        // Test removing with MutableEdgeValue (exact match required)
+        assert_eq!(edges.remove_edge_value((3, 4, 200)), Some(0));
+        assert_eq!(edges.0.len(), 1);
+        assert_eq!(edges.0[0], (5, 6, 0));
     }
 }
