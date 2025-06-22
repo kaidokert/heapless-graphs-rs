@@ -47,23 +47,17 @@ where
     /// * Matrix must have mutable storage (AsMut traits)
     ///
     /// # Example
-    /// ```
-    /// use heapless_graphs::matrix::simple_matrix::Matrix;
-    /// use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
-    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
-    /// use heapless_graphs::containers::maps::MapTrait;
+    /// # use heapless_graphs::matrix::simple_matrix::Matrix;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::edges::EdgeStructOption;
     ///
-    /// // Create a source graph (adjacency list)
-    /// let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
-    /// dict.insert(0, [1, 2]).unwrap();
-    /// dict.insert(1, [2, 0]).unwrap();
-    /// dict.insert(2, [0, 1]).unwrap();
-    /// let source = MapAdjacencyList::new_unchecked(dict);
+    /// // Create a source graph (edge list)
+    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
+    /// let source = EdgeList::<4, usize, _>::new(edges);
     ///
     /// // Convert to Matrix (3x3 matrix to fit nodes 0, 1, 2)
-    /// let matrix: Matrix<3, (), [[Option<()>; 3]; 3], [Option<()>; 3]> =
+    /// let matrix: Matrix<3, (), [[Option<()>; 3]; 3], _> =
     ///     Matrix::from_graph(&source).unwrap();
-    /// ```
     pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<usize>>
     where
         G: Graph<usize>,
@@ -566,7 +560,6 @@ mod tests {
     fn test_matrix_from_graph_empty() {
         use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
         use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
 
         // Create an empty source graph
         let dict = Dictionary::<usize, [usize; 2], 8>::default();

@@ -80,20 +80,18 @@ where
     /// * Map M must have sufficient capacity for all nodes
     ///
     /// # Example
-    /// ```
-    /// use heapless_graphs::matrix::bit_map_matrix::BitMapMatrix;
-    /// use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// use heapless_graphs::edges::EdgeStructOption;
-    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
+    /// # use heapless_graphs::matrix::bit_map_matrix::BitMapMatrix;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::edges::EdgeStructOption;
+    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
     ///
     /// // Create a source graph (edge list)
     /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
     /// let source = EdgeList::<4, usize, _>::new(edges);
     ///
     /// // Convert to BitMapMatrix (8 nodes capacity)
-    /// let bit_map_matrix: BitMapMatrix<1, 8, usize, Dictionary<usize, usize, 8>> =
+    /// let bit_map_matrix: BitMapMatrix<1, 8, usize, Dictionary<_, _, 8>> =
     ///     BitMapMatrix::from_graph(&source).unwrap();
-    /// ```
     pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
     where
         G: Graph<NI>,
@@ -132,9 +130,12 @@ where
         if let Ok(edges_iter) = source_graph.iter_edges() {
             for (src, dst) in edges_iter {
                 // Look up matrix indices for both source and destination
-                if let (Some(&src_idx), Some(&dst_idx)) = (index_map.get(&src), index_map.get(&dst)) {
+                if let (Some(&src_idx), Some(&dst_idx)) = (index_map.get(&src), index_map.get(&dst))
+                {
                     // Add edge using matrix indices
-                    bitmap.add_edge(src_idx, dst_idx).map_err(|_| GraphError::OutOfCapacity)?;
+                    bitmap
+                        .add_edge(src_idx, dst_idx)
+                        .map_err(|_| GraphError::OutOfCapacity)?;
                 }
                 // If we can't find indices for either node, skip the edge
             }
@@ -143,7 +144,6 @@ where
         Ok(Self::new_unchecked(bitmap, index_map))
     }
 }
-
 
 impl<const N: usize, const R: usize, NI, M> Graph<NI> for BitMapMatrix<N, R, NI, M>
 where

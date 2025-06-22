@@ -19,6 +19,15 @@ impl<NI: NodeIndex> From<GraphError<NI>> for EdgeListError<NI> {
     }
 }
 
+impl<NI: NodeIndex> From<EdgeListError<NI>> for GraphError<NI> {
+    fn from(e: EdgeListError<NI>) -> Self {
+        match e {
+            EdgeListError::EdgeNodeError(_) => GraphError::OutOfCapacity,
+            EdgeListError::GraphError(ge) => ge,
+        }
+    }
+}
+
 /// Edge list graph that stores only edges
 ///
 /// This struct represents a graph using an edge list. It is optimized for
@@ -85,7 +94,7 @@ where
     /// let source = MapAdjacencyList::new_unchecked(dict);
     ///
     /// // Convert to EdgeList
-    /// let edge_list: EdgeList<8, usize, EdgeStructOption<16, usize>> =
+    /// let edge_list: EdgeList<8, usize, EdgeStructOption<16, _>> =
     ///     EdgeList::from_graph(&source).unwrap();
     /// ```
     pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, EdgeListError<NI>>
@@ -233,6 +242,24 @@ mod tests {
         assert!(matches!(
             edge_list_error,
             EdgeListError::GraphError(GraphError::NodeNotFound(0))
+        ));
+    }
+
+    #[test]
+    fn test_graph_error_from_edge_list_error() {
+        // Test EdgeNodeError variant
+        let edge_node_error =
+            EdgeListError::<usize>::EdgeNodeError(EdgeNodeError::NotEnoughCapacity);
+        let graph_error = GraphError::<usize>::from(edge_node_error);
+        assert!(matches!(graph_error, GraphError::OutOfCapacity));
+
+        // Test GraphError variant
+        let original_graph_error = GraphError::<usize>::NodeNotFound(42);
+        let edge_list_error = EdgeListError::<usize>::GraphError(original_graph_error);
+        let converted_graph_error = GraphError::<usize>::from(edge_list_error);
+        assert!(matches!(
+            converted_graph_error,
+            GraphError::NodeNotFound(42)
         ));
     }
 

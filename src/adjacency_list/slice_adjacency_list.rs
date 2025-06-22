@@ -154,21 +154,16 @@ where
     ///
     /// # Example
     /// ```
-    /// use heapless_graphs::adjacency_list::slice_adjacency_list::SliceAdjacencyList;
-    /// use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
-    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
-    /// use heapless_graphs::containers::maps::MapTrait;
-    /// use heapless_graphs::nodes::NodeStructOption;
+    /// # use heapless_graphs::adjacency_list::slice_adjacency_list::SliceAdjacencyList;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::containers::maps::MapTrait;
+    /// # use heapless_graphs::nodes::NodeStructOption;
     ///
-    /// // Create a source graph (adjacency list)
-    /// let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
-    /// dict.insert(0, [1, 2]).unwrap();
-    /// dict.insert(1, [2, 0]).unwrap();
-    /// dict.insert(2, [0, 1]).unwrap();
-    /// let source = MapAdjacencyList::new_unchecked(dict);
+    /// // Create a source graph (edge list)
+    /// let source = EdgeList::<5, _,_>::new([(0, 1), (0, 2), (1, 2), (2, 0)]);
     ///
     /// // Convert to SliceAdjacencyList with exactly 3 nodes and capacity for edges
-    /// let slice_graph: SliceAdjacencyList<usize, NodeStructOption<4, usize>, [(usize, NodeStructOption<4, usize>); 3]> =
+    /// let slice_graph: SliceAdjacencyList<usize, NodeStructOption<4, _>, [(_, _); 3]> =
     ///     SliceAdjacencyList::from_graph(&source).unwrap();
     /// ```
     pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>

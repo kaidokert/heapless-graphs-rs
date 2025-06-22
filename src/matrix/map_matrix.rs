@@ -81,20 +81,18 @@ where
     /// * Map M must have sufficient capacity for all nodes
     ///
     /// # Example
-    /// ```
-    /// use heapless_graphs::matrix::map_matrix::MapMatrix;
-    /// use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// use heapless_graphs::edges::EdgeStructOption;
-    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
+    /// # use heapless_graphs::matrix::map_matrix::MapMatrix;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::edges::EdgeStructOption;
+    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
     ///
     /// // Create a source graph (edge list)
     /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
     /// let source = EdgeList::<4, usize, _>::new(edges);
     ///
     /// // Convert to MapMatrix (3x3 matrix to fit nodes 0, 1, 2)
-    /// let map_matrix: MapMatrix<3, usize, (), Dictionary<usize, usize, 8>, [[Option<()>; 3]; 3], [Option<()>; 3]> =
+    /// let map_matrix: MapMatrix<3, usize, (), Dictionary<_, _, 8>, [[Option<()>; 3]; 3], _> =
     ///     MapMatrix::from_graph(&source).unwrap();
-    /// ```
     pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
     where
         G: Graph<NI>,
@@ -124,15 +122,19 @@ where
         }
 
         // Create empty matrix and populate it with mapped edges
-        let mut inner_matrix = super::simple_matrix::Matrix::<N, EDGEVALUE, COLUMNS, ROW>::new(COLUMNS::default());
+        let mut inner_matrix =
+            super::simple_matrix::Matrix::<N, EDGEVALUE, COLUMNS, ROW>::new(COLUMNS::default());
 
         // Add all edges using mapped indices
         if let Ok(edges_iter) = source_graph.iter_edges() {
             for (src, dst) in edges_iter {
                 // Look up matrix indices for both source and destination
-                if let (Some(&src_idx), Some(&dst_idx)) = (index_map.get(&src), index_map.get(&dst)) {
+                if let (Some(&src_idx), Some(&dst_idx)) = (index_map.get(&src), index_map.get(&dst))
+                {
                     // Add edge using matrix indices
-                    inner_matrix.add_edge(src_idx, dst_idx).map_err(|_| GraphError::OutOfCapacity)?;
+                    inner_matrix
+                        .add_edge(src_idx, dst_idx)
+                        .map_err(|_| GraphError::OutOfCapacity)?;
                 }
                 // If we can't find indices for either node, skip the edge
             }
@@ -145,7 +147,6 @@ where
         })
     }
 }
-
 
 impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> Graph<NI>
     for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>

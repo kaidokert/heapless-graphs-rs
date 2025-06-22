@@ -48,6 +48,32 @@ where
     E: NodesIterable<Node = NI> + MutableNodes<NI> + Default,
     M: MapTrait<NI, E>,
 {
+    /// Creates a MapAdjacencyList from any graph by copying all nodes and edges
+    ///
+    /// This function creates a mapping from node indices to edge containers and populates
+    /// each node's adjacency list with its outgoing edges.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy nodes and edges from
+    ///
+    /// # Returns
+    /// * `Ok(MapAdjacencyList)` if successful
+    /// * `Err(G::Error)` if iteration over the source graph fails
+    ///
+    /// # Example
+    /// # use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::edges::EdgeStructOption;
+    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
+    /// # use heapless_graphs::nodes::NodeStructOption;
+    ///
+    /// // Create a source graph (edge list)
+    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
+    /// let source = EdgeList::<4, usize, _>::new(edges);
+    ///
+    /// // Convert to MapAdjacencyList
+    /// let map_adj_list: MapAdjacencyList<usize, NodeStructOption<4, _>, Dictionary<_, _, 8>> =
+    ///     MapAdjacencyList::from_graph(&source).unwrap();
     pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, G::Error>
     where
         G::Error: core::fmt::Debug,

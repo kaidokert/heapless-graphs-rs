@@ -108,19 +108,15 @@ impl<const C: usize, const R: usize> BitMatrix<C, R> {
     ///
     /// # Example
     /// ```
-    /// use heapless_graphs::matrix::bit_matrix::BitMatrix;
-    /// use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
-    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
-    /// use heapless_graphs::containers::maps::MapTrait;
+    /// # use heapless_graphs::matrix::bit_matrix::BitMatrix;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::edges::EdgeStructOption;
     ///
-    /// // Create a source graph (adjacency list)
-    /// let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
-    /// dict.insert(0, [1, 2]).unwrap();
-    /// dict.insert(1, [2, 0]).unwrap();
-    /// dict.insert(2, [0, 1]).unwrap();
-    /// let source = MapAdjacencyList::new_unchecked(dict);
+    /// // Create a source graph (edge list)
+    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
+    /// let source = EdgeList::<4, usize, _>::new(edges);
     ///
-    /// // Convert to BitMatrix (1 column for 8 nodes: 8 = 8*1)
+    /// // Convert to BitMatrix (8 nodes capacity)
     /// let matrix: BitMatrix<1, 8> = BitMatrix::from_graph(&source).unwrap();
     /// ```
     pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<usize>>
