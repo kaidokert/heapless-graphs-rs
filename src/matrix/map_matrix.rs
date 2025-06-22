@@ -96,12 +96,13 @@ where
     pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
     where
         G: Graph<NI>,
+        GraphError<NI>: From<G::Error>,
     {
         // Create default storage for matrix and index map
         let mut index_map = M::default();
 
         // Collect all nodes and assign matrix indices
-        // Handle the case where iter_nodes() fails (e.g., empty EdgeList)
+        // Properly handle errors from iter_nodes() while supporting empty graphs
         match source_graph.iter_nodes() {
             Ok(nodes_iter) => {
                 for (matrix_index, node) in nodes_iter.enumerate() {
@@ -115,9 +116,19 @@ where
                         .map_err(|_| GraphError::OutOfCapacity)?;
                 }
             }
-            Err(_) => {
-                // If iter_nodes() fails (e.g., empty EdgeList), we'll create an empty matrix
-                // This is valid - the matrix will have no nodes mapped
+            Err(err) => {
+                // Convert error to our error type to examine it
+                let graph_error = GraphError::from(err);
+                match graph_error {
+                    GraphError::OutOfCapacity => {
+                        // This is likely an EmptyEdges error from EdgeList - treat as empty graph
+                        // Creating an empty matrix with no nodes mapped is valid for empty graphs
+                    }
+                    other_error => {
+                        // Propagate genuine errors (invalid state, iteration failures, etc.)
+                        return Err(other_error);
+                    }
+                }
             }
         }
 
