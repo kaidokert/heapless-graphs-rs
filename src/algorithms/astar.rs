@@ -192,27 +192,27 @@ where
     // First pass: count the path length
     let mut path_len = 1; // Start with 1 for the goal node
     let mut temp_current = current;
-    
+
     while let Some(&parent) = came_from.get(&temp_current) {
         path_len += 1;
         temp_current = parent;
     }
-    
+
     // Check if path fits in buffer
     if path_len > path_buffer.len() {
         return Err(AlgorithmError::ResultCapacityExceeded);
     }
-    
+
     // Second pass: fill the buffer backwards
     let mut index = path_len - 1;
     path_buffer[index] = current;
-    
+
     while let Some(&parent) = came_from.get(&current) {
         index -= 1;
         path_buffer[index] = parent;
         current = parent;
     }
-    
+
     Ok(&path_buffer[..path_len])
 }
 
