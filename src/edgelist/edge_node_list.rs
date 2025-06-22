@@ -238,9 +238,15 @@ where
 mod test {
     use super::*;
     use crate::edges::EdgeValueStruct;
-    use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithNodeValues};
+    use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithNodeValues, GraphWithMutableEdges};
     use crate::nodes::{NodeValueStructOption, NodesValuesIterable};
     use crate::tests::{collect, collect_sorted};
+    use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::containers::maps::MapTrait;
+    use crate::edges::EdgeStructOption;
+    use crate::nodes::NodeStructOption;
+
 
     #[test]
     fn test_edge_node_list() {
@@ -326,8 +332,6 @@ mod test {
 
     #[test]
     fn test_add_node_to_empty_graph() {
-        use crate::nodes::NodeStructOption;
-
         let edges: [(usize, usize); 0] = [];
         let nodes = NodeStructOption([None, None, None]); // Capacity for 3 nodes
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -343,8 +347,6 @@ mod test {
 
     #[test]
     fn test_add_node_to_existing_graph() {
-        use crate::nodes::NodeStructOption;
-
         let edges = [(0usize, 1usize), (1, 2)];
         let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]); // Room to add more
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -374,8 +376,6 @@ mod test {
 
     #[test]
     fn test_add_node_capacity_exceeded() {
-        use crate::nodes::NodeStructOption;
-
         // Create a NodeStructOption that's already at full capacity
         let edges = [(0usize, 1usize)];
         let nodes = NodeStructOption([Some(0), Some(1)]); // Full capacity, no None slots
@@ -393,8 +393,6 @@ mod test {
 
     #[test]
     fn test_add_multiple_nodes() {
-        use crate::nodes::NodeStructOption;
-
         let edges: [(usize, usize); 0] = [];
         let nodes = NodeStructOption([None, None, None, None, None]); // Capacity for 5 nodes
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -421,8 +419,6 @@ mod test {
 
     #[test]
     fn test_add_duplicate_node() {
-        use crate::nodes::NodeStructOption;
-
         let edges = [(0usize, 1usize)];
         let nodes = NodeStructOption([Some(0), Some(1), None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -439,8 +435,6 @@ mod test {
 
     #[test]
     fn test_add_node_with_option_container() {
-        use crate::nodes::NodeStructOption;
-
         let edges = [(0usize, 1usize)];
         let nodes = NodeStructOption([Some(0), Some(1), None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -464,10 +458,6 @@ mod test {
 
     #[test]
     fn test_add_edge_success() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let edges = EdgeStructOption([None, None, None, None, None]); // Capacity for 5 edges
         let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]); // 3 nodes
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -489,10 +479,6 @@ mod test {
 
     #[test]
     fn test_add_edge_invalid_nodes() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let edges = EdgeStructOption([None, None, None, None, None]);
         let nodes = NodeStructOption([Some(0), Some(1), None, None, None]); // Only nodes 0, 1
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -512,10 +498,6 @@ mod test {
 
     #[test]
     fn test_add_edge_capacity_exceeded() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let edges = EdgeStructOption([None, None]); // Capacity for only 2 edges
         let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -531,10 +513,6 @@ mod test {
 
     #[test]
     fn test_remove_edge_success() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None, None]);
         let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -554,10 +532,6 @@ mod test {
 
     #[test]
     fn test_remove_edge_not_found() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None, None, None]);
         let nodes = NodeStructOption([Some(0), Some(1), Some(2), None, None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -572,10 +546,6 @@ mod test {
 
     #[test]
     fn test_remove_edge_with_nonexistent_nodes() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let edges = EdgeStructOption([Some((0, 1)), None, None, None, None]);
         let nodes = NodeStructOption([Some(0), Some(1), None, None, None]); // Only nodes 0, 1
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -592,10 +562,6 @@ mod test {
 
     #[test]
     fn test_add_remove_edge_comprehensive() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let edges = EdgeStructOption([None, None, None, None, None]);
         let nodes = NodeStructOption([Some(0), Some(1), Some(2), Some(3), None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
@@ -630,12 +596,6 @@ mod test {
 
     #[test]
     fn test_edge_node_list_from_graph() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-        use crate::edges::EdgeStructOption;
-        use crate::nodes::NodeStructOption;
-
         // Create a source graph (map adjacency list with nodes 0, 1, 2)
         let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
         dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2
@@ -653,32 +613,16 @@ mod test {
         // Verify nodes were copied correctly
         let mut nodes = [0usize; 8];
         let nodes_slice = collect_sorted(edge_node_graph.iter_nodes().unwrap(), &mut nodes);
-        assert_eq!(nodes_slice.len(), 3); // Should have 3 nodes
-        assert!(nodes_slice.contains(&0));
-        assert!(nodes_slice.contains(&1));
-        assert!(nodes_slice.contains(&2));
+        assert_eq!(nodes_slice, &[0, 1, 2]);
 
         // Verify edges were copied correctly
         let mut edges = [(0usize, 0usize); 16];
         let edges_slice = collect(edge_node_graph.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice.len(), 6); // Should have 6 edges total
-
-        // Check that all expected edges are present
-        assert!(edges_slice.contains(&(0, 1)));
-        assert!(edges_slice.contains(&(0, 2)));
-        assert!(edges_slice.contains(&(1, 2)));
-        assert!(edges_slice.contains(&(1, 0)));
-        assert!(edges_slice.contains(&(2, 0)));
-        assert!(edges_slice.contains(&(2, 1)));
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 1)]);
     }
 
     #[test]
     fn test_edge_node_list_from_graph_empty() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::edges::EdgeStructOption;
-        use crate::nodes::NodeStructOption;
-
         // Create an empty source graph
         let dict = Dictionary::<usize, [usize; 2], 8>::default();
         let source = MapAdjacencyList::new_unchecked(dict);
@@ -697,12 +641,6 @@ mod test {
 
     #[test]
     fn test_edge_node_list_from_graph_node_capacity_exceeded() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-        use crate::edges::EdgeStructOption;
-        use crate::nodes::NodeStructOption;
-
         // Create a source graph with 4 nodes but target has capacity for only 2
         let mut dict = Dictionary::<usize, [usize; 1], 8>::new();
         dict.insert(0, [1]).unwrap();
@@ -723,12 +661,6 @@ mod test {
 
     #[test]
     fn test_edge_node_list_from_graph_edge_capacity_exceeded() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-        use crate::edges::EdgeStructOption;
-        use crate::nodes::NodeStructOption;
-
         // Create a source graph with 6 edges but target has capacity for only 4
         let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
         dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2 (2 edges)
@@ -748,12 +680,6 @@ mod test {
 
     #[test]
     fn test_edge_node_list_from_graph_single_node() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-        use crate::edges::EdgeStructOption;
-        use crate::nodes::NodeStructOption;
-
         // Create a source graph with a single node and self-loop
         let mut dict = Dictionary::<usize, [usize; 1], 8>::new();
         dict.insert(42, [42]).unwrap(); // Node 42 -> 42 (self-loop)
@@ -779,12 +705,6 @@ mod test {
 
     #[test]
     fn test_edge_node_list_from_graph_chain() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-        use crate::edges::EdgeStructOption;
-        use crate::nodes::NodeStructOption;
-
         // Create a source graph forming a partial chain: 0 -> 1 -> 2
         // Node 3 will have a self-loop
         let mut dict = Dictionary::<usize, [usize; 1], 8>::new();

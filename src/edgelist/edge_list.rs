@@ -174,8 +174,13 @@ where
 mod tests {
     use super::*;
     use crate::edges::EdgeNodeError;
-    use crate::graph::{GraphError, GraphWithEdgeValues};
+    use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithMutableEdges};
     use crate::tests::{collect, collect_sorted};
+    use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::containers::maps::MapTrait;
+    use crate::edges::EdgeStructOption;
+
 
     #[test]
     fn test_edge_list_new() {
@@ -410,9 +415,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_add_edge_success() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([None, None, None, None, None]); // Capacity for 5 edges
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -442,9 +444,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_add_edge_capacity_exceeded() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([None, None]); // Capacity for only 2 edges
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -462,9 +461,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_remove_edge_success() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -487,9 +483,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_remove_edge_isolates_node() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None, None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -507,9 +500,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_remove_edge_not_found() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None, None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -590,11 +580,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_from_graph() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-        use crate::edges::EdgeStructOption;
-
         // Create a source graph (adjacency list)
         let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
         dict.insert(0, [1, 2]).unwrap();
@@ -608,22 +593,11 @@ mod tests {
         // Verify edges were copied correctly - use collect to slice
         let mut edges = [(0usize, 0usize); 16];
         let edges_slice = collect(edge_list.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice.len(), 4); // Should have 4 edges total
-
-        // Check that all expected edges are present
-        assert!(edges_slice.contains(&(0, 1)));
-        assert!(edges_slice.contains(&(0, 2)));
-        assert!(edges_slice.contains(&(1, 2)));
-        assert!(edges_slice.contains(&(1, 0)));
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (1, 0)]);
     }
 
     #[test]
     fn test_edge_list_from_empty_graph() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-        use crate::edges::EdgeStructOption;
-
         // Create an empty source graph
         let dict = Dictionary::<usize, [usize; 2], 8>::new();
         let source = MapAdjacencyList::new_unchecked(dict);
