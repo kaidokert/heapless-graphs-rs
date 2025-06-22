@@ -19,6 +19,15 @@ impl<NI: NodeIndex> From<GraphError<NI>> for EdgeListError<NI> {
     }
 }
 
+impl<NI: NodeIndex> From<EdgeListError<NI>> for GraphError<NI> {
+    fn from(e: EdgeListError<NI>) -> Self {
+        match e {
+            EdgeListError::EdgeNodeError(_) => GraphError::OutOfCapacity,
+            EdgeListError::GraphError(ge) => ge,
+        }
+    }
+}
+
 /// Edge list graph that stores only edges
 ///
 /// This struct represents a graph using an edge list. It is optimized for
@@ -49,6 +58,62 @@ impl<const N: usize, NI, E> EdgeList<N, NI, E> {
             edges,
             _phantom: Default::default(),
         }
+    }
+}
+
+impl<const N: usize, NI, E> EdgeList<N, NI, E>
+where
+    NI: NodeIndex + Ord + PartialEq,
+    E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI> + Default,
+{
+    /// Creates an EdgeList from any graph by copying all edges
+    ///
+    /// This function iterates over all edges in the source graph and adds them
+    /// to a new EdgeList. The edge container must support mutation and have
+    /// default initialization.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy edges from
+    ///
+    /// # Returns
+    /// * `Ok(EdgeList)` if successful
+    /// * `Err(G::Error)` if iteration over the source graph fails
+    ///
+    /// # Example
+    /// ```
+    /// use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// use heapless_graphs::edges::EdgeStructOption;
+    /// use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
+    /// use heapless_graphs::containers::maps::MapTrait;
+    ///
+    /// // Create a source graph (adjacency list)
+    /// let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+    /// dict.insert(0, [1, 2]).unwrap();
+    /// dict.insert(1, [2, 0]).unwrap();
+    /// let source = MapAdjacencyList::new_unchecked(dict);
+    ///
+    /// // Convert to EdgeList
+    /// let edge_list: EdgeList<8, usize, EdgeStructOption<16, _>> =
+    ///     EdgeList::from_graph(&source).unwrap();
+    /// ```
+    pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, EdgeListError<NI>>
+    where
+        EdgeListError<NI>: From<G::Error>,
+    {
+        let mut edges = E::default();
+
+        for (source, destination) in source_graph.iter_edges()? {
+            if edges.add_edge((source, destination)).is_none() {
+                // Edge container is full, return capacity error
+                return Err(EdgeListError::GraphError(GraphError::OutOfCapacity));
+            }
+        }
+
+        Ok(Self {
+            edges,
+            _phantom: Default::default(),
+        })
     }
 }
 
@@ -108,8 +173,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::containers::maps::MapTrait;
     use crate::edges::EdgeNodeError;
-    use crate::graph::{GraphError, GraphWithEdgeValues};
+    use crate::edges::EdgeStructOption;
+    use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithMutableEdges};
     use crate::tests::{collect, collect_sorted};
 
     #[test]
@@ -177,6 +246,24 @@ mod tests {
         assert!(matches!(
             edge_list_error,
             EdgeListError::GraphError(GraphError::NodeNotFound(0))
+        ));
+    }
+
+    #[test]
+    fn test_graph_error_from_edge_list_error() {
+        // Test EdgeNodeError variant
+        let edge_node_error =
+            EdgeListError::<usize>::EdgeNodeError(EdgeNodeError::NotEnoughCapacity);
+        let graph_error = GraphError::<usize>::from(edge_node_error);
+        assert!(matches!(graph_error, GraphError::OutOfCapacity));
+
+        // Test GraphError variant
+        let original_graph_error = GraphError::<usize>::NodeNotFound(42);
+        let edge_list_error = EdgeListError::<usize>::GraphError(original_graph_error);
+        let converted_graph_error = GraphError::<usize>::from(edge_list_error);
+        assert!(matches!(
+            converted_graph_error,
+            GraphError::NodeNotFound(42)
         ));
     }
 
@@ -327,9 +414,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_add_edge_success() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([None, None, None, None, None]); // Capacity for 5 edges
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -359,9 +443,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_add_edge_capacity_exceeded() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([None, None]); // Capacity for only 2 edges
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -379,9 +460,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_remove_edge_success() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -404,9 +482,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_remove_edge_isolates_node() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None, None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -424,9 +499,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_remove_edge_not_found() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None, None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -443,9 +515,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_add_remove_edge_comprehensive() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([None, None, None, None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -485,9 +554,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_self_loops() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([None, None, None, None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -503,5 +569,39 @@ mod tests {
         assert!(graph.remove_edge(0, 0).is_ok());
         assert_eq!(graph.iter_edges().unwrap().count(), 2);
         assert_eq!(graph.iter_nodes().unwrap().count(), 2); // Still nodes 0, 1
+    }
+
+    #[test]
+    fn test_edge_list_from_graph() {
+        // Create a source graph (adjacency list)
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap();
+        dict.insert(1, [2, 0]).unwrap();
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to EdgeList
+        let edge_list: EdgeList<8, usize, EdgeStructOption<16, usize>> =
+            EdgeList::from_graph(&source).unwrap();
+
+        // Verify edges were copied correctly - use collect to slice
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect(edge_list.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (1, 0)]);
+    }
+
+    #[test]
+    fn test_edge_list_from_empty_graph() {
+        // Create an empty source graph
+        let dict = Dictionary::<usize, [usize; 2], 8>::new();
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to EdgeList
+        let edge_list: EdgeList<8, usize, EdgeStructOption<16, usize>> =
+            EdgeList::from_graph(&source).unwrap();
+
+        // Verify no edges
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect(edge_list.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice.len(), 0);
     }
 }

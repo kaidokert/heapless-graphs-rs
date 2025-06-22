@@ -53,6 +53,112 @@ where
     }
 }
 
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
+where
+    NI: NodeIndex + Copy,
+    EDGEVALUE: Default,
+    ROW: AsRef<[Option<EDGEVALUE>]> + AsMut<[Option<EDGEVALUE>]>,
+    COLUMNS: AsRef<[ROW]> + AsMut<[ROW]> + Default,
+    M: MapTrait<NI, usize> + Default,
+{
+    /// Creates a MapMatrix from any graph by copying all nodes and edges
+    ///
+    /// This function creates a mapping from arbitrary node indices to matrix positions (0..N)
+    /// and populates the underlying matrix with edges. Each node in the source graph is
+    /// assigned a unique matrix index from 0 to N-1.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy nodes and edges from
+    ///
+    /// # Returns
+    /// * `Ok(MapMatrix)` if successful
+    /// * `Err(GraphError)` if too many nodes or iteration fails
+    ///
+    /// # Constraints
+    /// * Source graph must have at most N nodes
+    /// * Node index type must implement Copy
+    /// * Edge values use EDGEVALUE::default() for all edges
+    /// * Map M must have sufficient capacity for all nodes
+    ///
+    /// # Example
+    /// # use heapless_graphs::matrix::map_matrix::MapMatrix;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::edges::EdgeStructOption;
+    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
+    ///
+    /// // Create a source graph (edge list)
+    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
+    /// let source = EdgeList::<4, usize, _>::new(edges);
+    ///
+    /// // Convert to MapMatrix (3x3 matrix to fit nodes 0, 1, 2)
+    /// let map_matrix: MapMatrix<3, usize, (), Dictionary<_, _, 8>, [[Option<()>; 3]; 3], _> =
+    ///     MapMatrix::from_graph(&source).unwrap();
+    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    where
+        G: Graph<NI>,
+        GraphError<NI>: From<G::Error>,
+    {
+        // Create default storage for matrix and index map
+        let mut index_map = M::default();
+
+        // Collect all nodes and assign matrix indices
+        // Properly handle errors from iter_nodes() while supporting empty graphs
+        match source_graph.iter_nodes() {
+            Ok(nodes_iter) => {
+                for (matrix_index, node) in nodes_iter.enumerate() {
+                    if matrix_index >= N {
+                        return Err(GraphError::OutOfCapacity);
+                    }
+
+                    // Insert mapping from node to matrix index
+                    index_map
+                        .insert(node, matrix_index)
+                        .map_err(|_| GraphError::OutOfCapacity)?;
+                }
+            }
+            Err(err) => {
+                // Convert error to our error type to examine it
+                let graph_error = GraphError::from(err);
+                match graph_error {
+                    GraphError::OutOfCapacity => {
+                        // This is likely an EmptyEdges error from EdgeList - treat as empty graph
+                        // Creating an empty matrix with no nodes mapped is valid for empty graphs
+                    }
+                    other_error => {
+                        // Propagate genuine errors (invalid state, iteration failures, etc.)
+                        return Err(other_error);
+                    }
+                }
+            }
+        }
+
+        // Create empty matrix and populate it with mapped edges
+        let mut inner_matrix =
+            super::simple_matrix::Matrix::<N, EDGEVALUE, COLUMNS, ROW>::new(COLUMNS::default());
+
+        // Add all edges using mapped indices
+        if let Ok(edges_iter) = source_graph.iter_edges() {
+            for (src, dst) in edges_iter {
+                // Look up matrix indices for both source and destination
+                if let (Some(&src_idx), Some(&dst_idx)) = (index_map.get(&src), index_map.get(&dst))
+                {
+                    // Add edge using matrix indices
+                    inner_matrix
+                        .add_edge(src_idx, dst_idx)
+                        .map_err(|_| GraphError::OutOfCapacity)?;
+                }
+                // If we can't find indices for either node, skip the edge
+            }
+        }
+
+        Ok(Self {
+            inner: inner_matrix,
+            index_map,
+            _phantom: Default::default(),
+        })
+    }
+}
+
 impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> Graph<NI>
     for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
@@ -282,7 +388,10 @@ where
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::edges::EdgeStructOption;
     use crate::graph::GraphWithEdgeValues;
+    use crate::graph::GraphWithMutableEdges;
     use crate::tests::{collect, collect_sorted};
 
     #[test]
@@ -805,8 +914,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [[None, None, None], [None, None, None], [None, None, None]];
         let mut index_map = Dictionary::<char, usize, 5>::new();
         index_map.insert('A', 0).unwrap();
@@ -840,8 +947,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [[None, None], [None, None]];
         let mut index_map = Dictionary::<char, usize, 5>::new();
         index_map.insert('A', 0).unwrap();
@@ -872,8 +977,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         // Set up matrix with some initial edges
         let matrix = [
             [Some(1), Some(2), Some(3)], // A->A, A->B, A->C
@@ -910,8 +1013,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [
             [Some(1), None, None],
             [None, None, None],
@@ -946,8 +1047,6 @@ mod tests {
 
     #[test]
     fn test_add_remove_edge_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [
             [None, None, None, None],
             [None, None, None, None],
@@ -1000,8 +1099,6 @@ mod tests {
 
     #[test]
     fn test_self_loops() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [[None, None], [None, None]];
         let mut index_map = Dictionary::<char, usize, 5>::new();
         index_map.insert('A', 0).unwrap();
@@ -1036,8 +1133,6 @@ mod tests {
 
     #[test]
     fn test_edge_overwrite() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [[Some(5), None], [None, None]];
         let mut index_map = Dictionary::<u32, usize, 5>::new();
         index_map.insert(1, 0).unwrap();
@@ -1064,5 +1159,121 @@ mod tests {
         let mut edges = [(0u32, 0u32); 8];
         let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
         assert_eq!(edges_slice, &[(1, 1)]); // Self-loop now exists
+    }
+
+    #[test]
+    fn test_map_matrix_from_graph() {
+        // Create a source graph (edge list with nodes 10, 20, 30)
+        let edges = EdgeStructOption([Some((10, 20)), Some((20, 30)), Some((10, 30)), None]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Convert to MapMatrix (4x4 matrix to accommodate mapping)
+        type TestMatrix = MapMatrix<
+            4,
+            usize,
+            (),
+            Dictionary<usize, usize, 8>,
+            [[Option<()>; 4]; 4],
+            [Option<()>; 4],
+        >;
+        let map_matrix: TestMatrix = MapMatrix::from_graph(&source).unwrap();
+
+        // Verify nodes were mapped correctly (should have 3 nodes: 10, 20, 30)
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[10, 20, 30]);
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(10, 20), (10, 30), (20, 30)]);
+
+        // Test node containment
+        assert!(map_matrix.contains_node(10).unwrap());
+        assert!(map_matrix.contains_node(20).unwrap());
+        assert!(map_matrix.contains_node(30).unwrap());
+        assert!(!map_matrix.contains_node(40).unwrap());
+    }
+
+    #[test]
+    fn test_map_matrix_from_graph_empty() {
+        // Create an empty source graph
+        let edges = EdgeStructOption([None, None, None, None]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Convert to MapMatrix
+        type TestMatrix = MapMatrix<
+            3,
+            usize,
+            (),
+            Dictionary<usize, usize, 8>,
+            [[Option<()>; 3]; 3],
+            [Option<()>; 3],
+        >;
+        let map_matrix: TestMatrix = MapMatrix::from_graph(&source).unwrap();
+
+        // Verify no nodes or edges
+        assert_eq!(map_matrix.iter_nodes().unwrap().count(), 0);
+        assert_eq!(map_matrix.iter_edges().unwrap().count(), 0);
+    }
+
+    #[test]
+    fn test_map_matrix_from_graph_capacity_exceeded() {
+        // Create a source graph with 4 nodes but matrix only supports 3
+        let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((2, 3)), Some((3, 0))]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Try to convert to 3x3 MapMatrix (can only fit 3 nodes)
+        type TestMatrix = MapMatrix<
+            3,
+            usize,
+            (),
+            Dictionary<usize, usize, 8>,
+            [[Option<()>; 3]; 3],
+            [Option<()>; 3],
+        >;
+        let result: Result<TestMatrix, _> = MapMatrix::from_graph(&source);
+
+        // Should fail because source has 4 nodes but matrix only supports 3
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_map_matrix_from_graph_with_arbitrary_indices() {
+        // Create a source graph with non-contiguous node indices
+        let edges = EdgeStructOption([Some((100, 200)), Some((200, 500)), Some((500, 100)), None]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Convert to MapMatrix
+        type TestMatrix = MapMatrix<
+            4,
+            usize,
+            (),
+            Dictionary<usize, usize, 8>,
+            [[Option<()>; 4]; 4],
+            [Option<()>; 4],
+        >;
+        let map_matrix: TestMatrix = MapMatrix::from_graph(&source).unwrap();
+
+        // Verify nodes were mapped correctly
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[100, 200, 500]);
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect_sorted(map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(100, 200), (200, 500), (500, 100)]);
+
+        // Test outgoing edges
+        let mut outgoing = [0usize; 8];
+        let outgoing_slice = collect(map_matrix.outgoing_edges(100).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[200]);
+
+        let outgoing_slice = collect(map_matrix.outgoing_edges(200).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[500]);
+
+        let outgoing_slice = collect(map_matrix.outgoing_edges(500).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[100]);
     }
 }

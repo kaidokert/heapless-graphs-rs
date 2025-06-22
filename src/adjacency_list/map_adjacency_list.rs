@@ -48,6 +48,32 @@ where
     E: NodesIterable<Node = NI> + MutableNodes<NI> + Default,
     M: MapTrait<NI, E>,
 {
+    /// Creates a MapAdjacencyList from any graph by copying all nodes and edges
+    ///
+    /// This function creates a mapping from node indices to edge containers and populates
+    /// each node's adjacency list with its outgoing edges.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy nodes and edges from
+    ///
+    /// # Returns
+    /// * `Ok(MapAdjacencyList)` if successful
+    /// * `Err(G::Error)` if iteration over the source graph fails
+    ///
+    /// # Example
+    /// # use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::edges::EdgeStructOption;
+    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
+    /// # use heapless_graphs::nodes::NodeStructOption;
+    ///
+    /// // Create a source graph (edge list)
+    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
+    /// let source = EdgeList::<4, usize, _>::new(edges);
+    ///
+    /// // Convert to MapAdjacencyList
+    /// let map_adj_list: MapAdjacencyList<usize, NodeStructOption<4, _>, Dictionary<_, _, 8>> =
+    ///     MapAdjacencyList::from_graph(&source).unwrap();
     pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, G::Error>
     where
         G::Error: core::fmt::Debug,
@@ -186,6 +212,7 @@ mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
     use crate::edgelist::edge_list::EdgeList;
+    use crate::graph::GraphWithMutableEdges;
     use crate::nodes::NodeStructOption;
     use crate::tests::{collect, collect_sorted};
 
@@ -543,8 +570,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<3, usize>, 5>::new();
         dict.insert(0, NodeStructOption([None, None, None]))
             .unwrap(); // Empty adjacency list
@@ -572,8 +597,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
         dict.insert(0, NodeStructOption([None, None])).unwrap();
         dict.insert(1, NodeStructOption([None, None])).unwrap(); // Only nodes 0, 1
@@ -595,8 +618,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_capacity_exceeded() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
         dict.insert(0, NodeStructOption([None, None])).unwrap(); // Capacity for only 2 edges
         dict.insert(1, NodeStructOption([None, None])).unwrap();
@@ -615,8 +636,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<3, usize>, 5>::new();
         dict.insert(0, NodeStructOption([Some(1), Some(2), None]))
             .unwrap();
@@ -642,8 +661,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
         dict.insert(0, NodeStructOption([Some(1), None])).unwrap();
         dict.insert(1, NodeStructOption([None, None])).unwrap();
@@ -661,8 +678,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_with_nonexistent_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<1, usize>, 5>::new();
         dict.insert(0, NodeStructOption([Some(1)])).unwrap();
         dict.insert(1, NodeStructOption([None])).unwrap(); // Only nodes 0, 1
@@ -679,8 +694,6 @@ mod tests {
 
     #[test]
     fn test_add_remove_edge_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<5, usize>, 5>::new();
         dict.insert(0, NodeStructOption([None, None, None, None, None]))
             .unwrap();

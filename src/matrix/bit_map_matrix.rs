@@ -55,6 +55,108 @@ where
     }
 }
 
+impl<const N: usize, const R: usize, NI, M> BitMapMatrix<N, R, NI, M>
+where
+    NI: NodeIndex + Copy,
+    M: MapTrait<NI, usize> + Default,
+{
+    /// Creates a BitMapMatrix from any graph by copying all nodes and edges
+    ///
+    /// This function creates a mapping from arbitrary node indices to bit matrix positions (0..8*N)
+    /// and populates the underlying bit matrix with edges. Each node in the source graph is
+    /// assigned a unique matrix index from 0 to 8*N-1.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy nodes and edges from
+    ///
+    /// # Returns
+    /// * `Ok(BitMapMatrix)` if successful
+    /// * `Err(GraphError)` if too many nodes or iteration fails
+    ///
+    /// # Constraints
+    /// * Source graph must have at most 8*N nodes (BitMatrix capacity)
+    /// * Node index type must implement Copy
+    /// * Requires R = 8*N for valid BitMatrix dimensions
+    /// * Map M must have sufficient capacity for all nodes
+    ///
+    /// # Example
+    /// # use heapless_graphs::matrix::bit_map_matrix::BitMapMatrix;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::edges::EdgeStructOption;
+    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
+    ///
+    /// // Create a source graph (edge list)
+    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
+    /// let source = EdgeList::<4, usize, _>::new(edges);
+    ///
+    /// // Convert to BitMapMatrix (8 nodes capacity)
+    /// let bit_map_matrix: BitMapMatrix<1, 8, usize, Dictionary<_, _, 8>> =
+    ///     BitMapMatrix::from_graph(&source).unwrap();
+    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    where
+        G: Graph<NI>,
+        GraphError<NI>: From<G::Error>,
+    {
+        // Create default storage for index map
+        let mut index_map = M::default();
+
+        // Collect all nodes and assign bit matrix indices
+        let max_index = 8 * N; // BitMatrix supports 0..8*N
+
+        // Collect all nodes and assign bit matrix indices
+        // Properly handle errors from iter_nodes() while supporting empty graphs
+        match source_graph.iter_nodes() {
+            Ok(nodes_iter) => {
+                for (matrix_index, node) in nodes_iter.enumerate() {
+                    if matrix_index >= max_index {
+                        return Err(GraphError::OutOfCapacity);
+                    }
+
+                    // Insert mapping from node to matrix index
+                    index_map
+                        .insert(node, matrix_index)
+                        .map_err(|_| GraphError::OutOfCapacity)?;
+                }
+            }
+            Err(err) => {
+                // Convert error to our error type to examine it
+                let graph_error = GraphError::from(err);
+                match graph_error {
+                    GraphError::OutOfCapacity => {
+                        // This is likely an EmptyEdges error from EdgeList - treat as empty graph
+                        // Creating an empty matrix with no nodes mapped is valid for empty graphs
+                    }
+                    other_error => {
+                        // Propagate genuine errors (invalid state, iteration failures, etc.)
+                        return Err(other_error);
+                    }
+                }
+            }
+        }
+
+        // Create empty BitMatrix and populate it with mapped edges
+        let mut bitmap = super::bit_matrix::BitMatrix::<N, R>::new([[0u8; N]; R])
+            .map_err(|_| GraphError::InvalidMatrixSize)?;
+
+        // Add all edges using mapped indices
+        if let Ok(edges_iter) = source_graph.iter_edges() {
+            for (src, dst) in edges_iter {
+                // Look up matrix indices for both source and destination
+                if let (Some(&src_idx), Some(&dst_idx)) = (index_map.get(&src), index_map.get(&dst))
+                {
+                    // Add edge using matrix indices
+                    bitmap
+                        .add_edge(src_idx, dst_idx)
+                        .map_err(|_| GraphError::OutOfCapacity)?;
+                }
+                // If we can't find indices for either node, skip the edge
+            }
+        }
+
+        Ok(Self::new_unchecked(bitmap, index_map))
+    }
+}
+
 impl<const N: usize, const R: usize, NI, M> Graph<NI> for BitMapMatrix<N, R, NI, M>
 where
     NI: NodeIndex,
@@ -248,6 +350,9 @@ where
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::edges::EdgeStructOption;
+    use crate::graph::GraphWithMutableEdges;
     use crate::tests::{collect, collect_sorted};
 
     #[test]
@@ -520,8 +625,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<char, usize, 10>::new();
@@ -548,8 +651,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<char, usize, 10>::new();
@@ -573,8 +674,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         // Set up matrix with some initial edges
         let bits = [
             [0b00000110u8], // A->B, A->C
@@ -609,8 +708,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [
             [0b00000010u8], // A->B
             [0b00000000u8],
@@ -643,8 +740,6 @@ mod tests {
 
     #[test]
     fn test_add_remove_edge_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<u32, usize, 10>::new();
@@ -685,8 +780,6 @@ mod tests {
 
     #[test]
     fn test_self_loops() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<char, usize, 10>::new();
@@ -714,8 +807,6 @@ mod tests {
 
     #[test]
     fn test_edge_idempotency() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<u32, usize, 10>::new();
@@ -731,5 +822,102 @@ mod tests {
         // Add same edge again (should be idempotent)
         assert!(bit_map_matrix.add_edge(1, 2).is_ok());
         assert_eq!(bit_map_matrix.iter_edges().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_bit_map_matrix_from_graph() {
+        // Create a source graph (edge list with nodes 10, 20, 30)
+        let edges = EdgeStructOption([Some((10, 20)), Some((20, 30)), Some((10, 30)), None]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Convert to BitMapMatrix (1 byte = 8 nodes capacity)
+        type TestMatrix = BitMapMatrix<1, 8, usize, Dictionary<usize, usize, 8>>;
+        let bit_map_matrix: TestMatrix = BitMapMatrix::from_graph(&source).unwrap();
+
+        // Verify nodes were mapped correctly (should have 3 nodes: 10, 20, 30)
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[10, 20, 30]);
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect_sorted(bit_map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(10, 20), (10, 30), (20, 30)]);
+
+        // Test node containment
+        assert!(bit_map_matrix.contains_node(10).unwrap());
+        assert!(bit_map_matrix.contains_node(20).unwrap());
+        assert!(bit_map_matrix.contains_node(30).unwrap());
+        assert!(!bit_map_matrix.contains_node(40).unwrap());
+    }
+
+    #[test]
+    fn test_bit_map_matrix_from_graph_capacity_exceeded() {
+        // Create a source graph with 9 nodes but BitMatrix<1,8> only supports 8
+        let edges = EdgeStructOption([
+            Some((0, 1)),
+            Some((1, 2)),
+            Some((2, 3)),
+            Some((3, 4)),
+            Some((4, 5)),
+            Some((5, 6)),
+            Some((6, 7)),
+            Some((7, 8)),
+        ]);
+        let source = EdgeList::<8, usize, _>::new(edges);
+
+        // Try to convert to BitMapMatrix<1,8> (can only fit 8 nodes)
+        type TestMatrix = BitMapMatrix<1, 8, usize, Dictionary<usize, usize, 10>>;
+        let result: Result<TestMatrix, _> = BitMapMatrix::from_graph(&source);
+
+        // Should fail because source has 9 nodes but BitMatrix only supports 8
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_bit_map_matrix_from_graph_with_arbitrary_indices() {
+        // Create a source graph with non-contiguous node indices
+        let edges = EdgeStructOption([Some((100, 200)), Some((200, 500)), Some((500, 100)), None]);
+        let source = EdgeList::<4, usize, _>::new(edges);
+
+        // Convert to BitMapMatrix
+        type TestMatrix = BitMapMatrix<1, 8, usize, Dictionary<usize, usize, 8>>;
+        let bit_map_matrix: TestMatrix = BitMapMatrix::from_graph(&source).unwrap();
+
+        // Verify nodes were mapped correctly
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(bit_map_matrix.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[100, 200, 500]);
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect_sorted(bit_map_matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(100, 200), (200, 500), (500, 100)]);
+
+        // Test outgoing edges
+        let mut outgoing = [0usize; 8];
+        let outgoing_slice = collect(bit_map_matrix.outgoing_edges(100).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[200]);
+
+        let outgoing_slice = collect(bit_map_matrix.outgoing_edges(200).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[500]);
+
+        let outgoing_slice = collect(bit_map_matrix.outgoing_edges(500).unwrap(), &mut outgoing);
+        assert_eq!(outgoing_slice, &[100]);
+    }
+
+    #[test]
+    fn test_bit_map_matrix_from_graph_invalid_dimensions() {
+        // Create a source graph
+        let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None]);
+        let source = EdgeList::<3, usize, _>::new(edges);
+
+        // Try to create BitMapMatrix with invalid dimensions (R ≠ 8*N)
+        // N=1, R=4, but 4 ≠ 8*1
+        type InvalidMatrix = BitMapMatrix<1, 4, usize, Dictionary<usize, usize, 8>>;
+        let result: Result<InvalidMatrix, _> = BitMapMatrix::from_graph(&source);
+
+        // Should fail with InvalidMatrixSize because R ≠ 8*N
+        assert!(matches!(result, Err(GraphError::InvalidMatrixSize)));
     }
 }

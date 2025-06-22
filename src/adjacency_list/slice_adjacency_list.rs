@@ -128,9 +128,88 @@ where
     }
 }
 
+impl<NI, E, const N: usize> SliceAdjacencyList<NI, E, [(NI, E); N]>
+where
+    NI: NodeIndex + Copy + Default,
+    E: NodesIterable<Node = NI> + crate::nodes::MutableNodes<NI> + Default,
+{
+    /// Creates a SliceAdjacencyList from any graph by copying all nodes and edges
+    ///
+    /// This function works with fixed-size arrays and creates exactly N entries,
+    /// one for each node in the source graph. The source graph must have exactly
+    /// N nodes, otherwise the conversion will fail.
+    ///
+    /// # Arguments
+    /// * `source_graph` - The graph to copy nodes and edges from
+    ///
+    /// # Returns
+    /// * `Ok(SliceAdjacencyList)` if successful
+    /// * `Err(GraphError)` if node count doesn't match N or capacity is exceeded
+    ///
+    /// # Constraints
+    /// * Source graph must have exactly N nodes
+    /// * Node index type must implement Copy and Default
+    /// * Edge container E must implement Default and MutableNodes
+    /// * Requires sufficient capacity in E for all outgoing edges per node
+    ///
+    /// # Example
+    /// ```
+    /// # use heapless_graphs::adjacency_list::slice_adjacency_list::SliceAdjacencyList;
+    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
+    /// # use heapless_graphs::containers::maps::MapTrait;
+    /// # use heapless_graphs::nodes::NodeStructOption;
+    ///
+    /// // Create a source graph (edge list)
+    /// let source = EdgeList::<5, _,_>::new([(0, 1), (0, 2), (1, 2), (2, 0)]);
+    ///
+    /// // Convert to SliceAdjacencyList with exactly 3 nodes and capacity for edges
+    /// let slice_graph: SliceAdjacencyList<usize, NodeStructOption<4, _>, [(_, _); 3]> =
+    ///     SliceAdjacencyList::from_graph(&source).unwrap();
+    /// ```
+    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    where
+        G: Graph<NI>,
+        GraphError<NI>: From<G::Error>,
+    {
+        // Check if we have exactly the right number of nodes
+        let node_count = source_graph.iter_nodes()?.count();
+        if node_count != N {
+            return Err(GraphError::OutOfCapacity);
+        }
+
+        // Create an array with exactly N entries using from_fn to avoid Copy requirement
+        let mut container =
+            core::array::from_fn::<(NI, E), N, _>(|_| (NI::default(), E::default()));
+
+        // Collect nodes and initialize each with an empty edge container
+        for (i, node) in source_graph.iter_nodes()?.enumerate() {
+            container[i] = (node, E::default());
+        }
+
+        // Now populate edges for each node
+        for (node, edge_container) in container.iter_mut().take(N) {
+            // Collect outgoing edges for this node
+            let outgoing_iter = source_graph.outgoing_edges(*node)?;
+            for target in outgoing_iter {
+                if edge_container.add(target).is_none() {
+                    return Err(GraphError::OutOfCapacity);
+                }
+            }
+        }
+
+        Ok(Self::new_unchecked(container))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::containers::maps::MapTrait;
+    use crate::edges::EdgeStructOption;
+    use crate::graph::GraphWithMutableEdges;
+    use crate::nodes::NodeStructOption;
     use crate::tests::{collect, collect_sorted};
 
     #[test]
@@ -305,8 +384,6 @@ mod tests {
 
     #[test]
     fn test_slice_adjacency_list_with_node_struct_option() {
-        use crate::nodes::NodeStructOption;
-
         // Create adjacency list with NodeStructOption as edge containers
         let adj_list_data = [
             (0, NodeStructOption([Some(1), Some(2), None])), // Node 0 -> [1, 2]
@@ -341,9 +418,6 @@ mod tests {
 
     #[test]
     fn test_slice_adjacency_list_option_based_edges() {
-        use crate::edges::EdgeStructOption;
-        use crate::nodes::NodeStructOption;
-
         // Test if SliceAdjacencyList can work with Option-based edge structures
         // This explores current capabilities before implementing GraphWithMutableEdges
         let _edge_data =
@@ -376,9 +450,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let adj_list_data = [
             (0, NodeStructOption([Some(1), None, None, None])), // Node 0 -> [1], capacity for 3 more
             (1, NodeStructOption([None, None, None, None])),    // Node 1 -> [], capacity for 4
@@ -399,9 +470,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let adj_list_data = [
             (0, NodeStructOption([Some(1), None, None])),
             (1, NodeStructOption([None, None, None])),
@@ -423,9 +491,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_add_edge_capacity_exceeded() {
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let adj_list_data = [
             (0, NodeStructOption([Some(1), Some(2)])), // Node 0 at full capacity
             (1, NodeStructOption([None, None])),
@@ -443,9 +508,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let adj_list_data = [
             (0, NodeStructOption([Some(1), Some(2), None])), // Node 0 -> [1, 2]
             (1, NodeStructOption([Some(2), Some(0), None])), // Node 1 -> [2, 0]
@@ -468,9 +530,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let adj_list_data = [
             (0, NodeStructOption([Some(1), None, None])), // Node 0 -> [1]
             (1, NodeStructOption([Some(2), None, None])), // Node 1 -> [2]
@@ -493,9 +552,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_add_remove_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-        use crate::nodes::NodeStructOption;
-
         let adj_list_data = [
             (0, NodeStructOption([None, None, None, None])), // Empty with capacity
             (1, NodeStructOption([None, None, None, None])), // Empty with capacity
@@ -527,5 +583,58 @@ mod tests {
         let mut edges = [(0usize, 0usize); 8];
         let edges_slice = collect_sorted(graph.iter_edges().unwrap(), &mut edges);
         assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (2, 0)]);
+    }
+
+    #[test]
+    fn test_slice_adjacency_list_from_graph_exact_size() {
+        // Create a source graph with exactly 3 nodes: 0, 1, 2
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2
+        dict.insert(1, [2, 0]).unwrap(); // 1 -> 2, 0
+        dict.insert(2, [0, 1]).unwrap(); // 2 -> 0, 1
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Convert to SliceAdjacencyList with exactly 3 nodes
+        let slice_graph: SliceAdjacencyList<
+            usize,
+            NodeStructOption<4, usize>,
+            [(usize, NodeStructOption<4, usize>); 3],
+        > = SliceAdjacencyList::from_graph(&source).unwrap();
+
+        // Verify nodes were copied correctly (exactly 3)
+        let mut nodes = [0usize; 8];
+        let nodes_slice = collect_sorted(slice_graph.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(nodes_slice, &[0, 1, 2]);
+
+        // Verify edges were copied correctly
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect_sorted(slice_graph.iter_edges().unwrap(), &mut edges);
+        assert_eq!(
+            edges_slice,
+            &[(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]
+        );
+    }
+
+    #[test]
+    fn test_slice_adjacency_list_from_graph_wrong_node_count() {
+        // Create a source graph with 3 nodes
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap();
+        dict.insert(1, [2, 0]).unwrap();
+        dict.insert(2, [0, 1]).unwrap();
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Try to convert to SliceAdjacencyList with 4 nodes (wrong size)
+        let result: Result<
+            SliceAdjacencyList<
+                usize,
+                NodeStructOption<4, usize>,
+                [(usize, NodeStructOption<4, usize>); 4],
+            >,
+            _,
+        > = SliceAdjacencyList::from_graph(&source);
+
+        // Should fail because source has 3 nodes but target expects exactly 4
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
     }
 }
