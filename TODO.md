@@ -39,7 +39,7 @@ Readonly graph class
 
 Path Finding Algorithms:
 - [x] Dijkstra's Algorithm: Finds the shortest path from a source node to all other nodes in a graph with non-negative edge weights.
-- [ ] A Algorithm*: An extension of Dijkstra's, optimized with heuristics for pathfinding, especially useful in AI and games.
+- [x] A* Algorithm: An extension of Dijkstra's, optimized with heuristics for pathfinding, especially useful in AI and games.
 - [x] Bellman-Ford Algorithm: Finds shortest paths from a source node to all other nodes, handling graphs with negative edge weights.
 
 Graph Traversal:
