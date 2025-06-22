@@ -1,3 +1,4 @@
+use crate::conversions::FromGraph;
 use crate::graph::{Graph, GraphError, GraphWithMutableEdges};
 
 pub struct Matrix<const N: usize, EDGEVALUE, COLUMNS, ROW>
@@ -22,43 +23,14 @@ where
     }
 }
 
-impl<const N: usize, EDGEVALUE, ROW, COLUMNS> Matrix<N, EDGEVALUE, COLUMNS, ROW>
+impl<const N: usize, EDGEVALUE, COLUMNS, ROW> FromGraph<usize, GraphError<usize>>
+    for Matrix<N, EDGEVALUE, COLUMNS, ROW>
 where
     EDGEVALUE: Default,
     ROW: AsRef<[Option<EDGEVALUE>]> + AsMut<[Option<EDGEVALUE>]>,
     COLUMNS: AsRef<[ROW]> + AsMut<[ROW]> + Default,
 {
-    /// Creates a Matrix from any graph by copying all edges
-    ///
-    /// This function iterates over all edges in the source graph and adds them
-    /// to a new Matrix. The source graph must have usize node indices in the
-    /// range 0..N, where N is the matrix size.
-    ///
-    /// # Arguments
-    /// * `source_graph` - The graph to copy edges from
-    ///
-    /// # Returns
-    /// * `Ok(Matrix)` if successful
-    /// * `Err(GraphError)` if any node indices are out of range or iteration fails
-    ///
-    /// # Constraints
-    /// * Source graph nodes must be usize indices from 0 to N-1
-    /// * Edge values use EDGEVALUE::default() for all edges
-    /// * Matrix must have mutable storage (AsMut traits)
-    ///
-    /// # Example
-    /// # use heapless_graphs::matrix::simple_matrix::Matrix;
-    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// # use heapless_graphs::edges::EdgeStructOption;
-    ///
-    /// // Create a source graph (edge list)
-    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
-    /// let source = EdgeList::<4, usize, _>::new(edges);
-    ///
-    /// // Convert to Matrix (3x3 matrix to fit nodes 0, 1, 2)
-    /// let matrix: Matrix<3, (), [[Option<()>; 3]; 3], _> =
-    ///     Matrix::from_graph(&source).unwrap();
-    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<usize>>
+    fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<usize>>
     where
         G: Graph<usize>,
         GraphError<usize>: From<G::Error>,
@@ -568,5 +540,27 @@ mod tests {
 
         // Should fail because node 2 is out of range
         assert!(matches!(result, Err(GraphError::EdgeHasInvalidNode(2))));
+    }
+
+    #[test]
+    fn test_matrix_from_graph_trait() {
+        // Create a source graph (adjacency list with nodes 0, 1, 2)
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2
+        dict.insert(1, [2, 0]).unwrap(); // 1 -> 2, 0
+        dict.insert(2, [0, 1]).unwrap(); // 2 -> 0, 1
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Use the trait method instead of the direct method
+        let matrix: Matrix<4, (), [[Option<()>; 4]; 4], [Option<()>; 4]> =
+            Matrix::from_graph(&source).unwrap();
+
+        // Verify it works the same as from_graph
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect_sorted(matrix.iter_edges().unwrap(), &mut edges);
+        assert_eq!(
+            edges_slice,
+            &[(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]
+        );
     }
 }

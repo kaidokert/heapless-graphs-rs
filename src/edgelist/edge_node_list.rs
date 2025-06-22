@@ -1,3 +1,4 @@
+use crate::conversions::FromGraph;
 use crate::graph::{integrity_check, Graph, GraphError, GraphWithMutableNodes, NodeIndex};
 use crate::nodes::MutableNodes;
 
@@ -46,44 +47,13 @@ impl<NI, E, N> EdgeNodeList<NI, E, N> {
     }
 }
 
-impl<NI, E, N> EdgeNodeList<NI, E, N>
+impl<NI, E, N> FromGraph<NI, GraphError<NI>> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndex + Copy + Default,
     E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI> + Default,
     N: crate::nodes::NodesIterable<Node = NI> + crate::nodes::MutableNodes<NI> + Default,
 {
-    /// Creates an EdgeNodeList from any graph by copying all nodes and edges
-    ///
-    /// This function iterates over all nodes and edges in the source graph and creates
-    /// an EdgeNodeList representation. Both nodes and edges are stored explicitly.
-    ///
-    /// # Arguments
-    /// * `source_graph` - The graph to copy nodes and edges from
-    ///
-    /// # Returns
-    /// * `Ok(EdgeNodeList)` if successful
-    /// * `Err(GraphError)` if iteration fails or capacity is exceeded
-    ///
-    /// # Constraints
-    /// * Node index type must implement Copy
-    /// * Edge container E must implement Default and MutableEdges
-    /// * Node container N must implement Default and MutableNodes
-    /// * Requires sufficient capacity in both E and N for all edges and nodes
-    ///
-    /// # Example
-    /// # use heapless_graphs::edgelist::edge_node_list::EdgeNodeList;
-    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// # use heapless_graphs::edges::EdgeStructOption;
-    /// # use heapless_graphs::nodes::NodeStructOption;
-    ///
-    /// // Create a source graph (edge list)
-    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
-    /// let source = EdgeList::<4, usize, _>::new(edges);
-    ///
-    /// // Convert to EdgeNodeList with capacity for nodes and edges
-    /// let edge_node_graph: EdgeNodeList<usize, EdgeStructOption<8, _>, NodeStructOption<4, _>> =
-    ///     EdgeNodeList::from_graph(&source).unwrap();
-    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
     where
         G: Graph<NI>,
         GraphError<NI>: From<G::Error>,

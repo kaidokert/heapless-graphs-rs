@@ -74,6 +74,7 @@
 pub mod adjacency_list;
 pub mod algorithms;
 pub mod containers;
+pub mod conversions;
 pub mod edgelist;
 pub mod edges;
 pub mod graph;

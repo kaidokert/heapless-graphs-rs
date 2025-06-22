@@ -8,6 +8,7 @@
 use heapless_graphs::{
     adjacency_list::map_adjacency_list::MapAdjacencyList,
     containers::maps::{staticdict::Dictionary, MapTrait},
+    conversions::FromGraph,
     edgelist::edge_list::EdgeList,
     edges::EdgeStructOption,
     graph::Graph,
