@@ -127,13 +127,6 @@ where
     }
 }
 
-impl<const N: usize, const R: usize, NI, M> BitMapMatrix<N, R, NI, M>
-where
-    NI: NodeIndex + Copy,
-    M: MapTrait<NI, usize> + Default,
-{
-}
-
 impl<const N: usize, const R: usize, NI, M> Graph<NI> for BitMapMatrix<N, R, NI, M>
 where
     NI: NodeIndex,

@@ -170,13 +170,6 @@ where
     }
 }
 
-impl<NI, E, const N: usize> SliceAdjacencyList<NI, E, [(NI, E); N]>
-where
-    NI: NodeIndex + Copy + Default,
-    E: NodesIterable<Node = NI> + crate::nodes::MutableNodes<NI> + Default,
-{
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

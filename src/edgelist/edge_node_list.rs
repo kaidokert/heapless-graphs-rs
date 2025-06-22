@@ -80,14 +80,6 @@ where
     }
 }
 
-impl<NI, E, N> EdgeNodeList<NI, E, N>
-where
-    NI: NodeIndex + Copy + Default,
-    E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI> + Default,
-    N: crate::nodes::NodesIterable<Node = NI> + crate::nodes::MutableNodes<NI> + Default,
-{
-}
-
 impl<NI, E, N> Graph<NI> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndex,

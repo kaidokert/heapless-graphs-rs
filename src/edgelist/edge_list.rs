@@ -87,13 +87,6 @@ where
     }
 }
 
-impl<const N: usize, NI, E> EdgeList<N, NI, E>
-where
-    NI: NodeIndex + Ord + PartialEq,
-    E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI> + Default,
-{
-}
-
 impl<const N: usize, NI, E> Graph<NI> for EdgeList<N, NI, E>
 where
     E: crate::edges::EdgesIterable<Node = NI>,

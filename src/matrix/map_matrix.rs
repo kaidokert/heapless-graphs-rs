@@ -129,15 +129,6 @@ where
     }
 }
 
-impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
-where
-    NI: NodeIndex + Copy,
-    EDGEVALUE: Default,
-    ROW: AsRef<[Option<EDGEVALUE>]> + AsMut<[Option<EDGEVALUE>]>,
-    COLUMNS: AsRef<[ROW]> + AsMut<[ROW]> + Default,
-    M: MapTrait<NI, usize> + Default,
-{
-}
 
 impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> Graph<NI>
     for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>

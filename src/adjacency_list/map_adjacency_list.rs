@@ -71,14 +71,6 @@ where
     }
 }
 
-impl<NI, E, M> MapAdjacencyList<NI, E, M>
-where
-    NI: NodeIndex,
-    E: NodesIterable<Node = NI> + MutableNodes<NI> + Default,
-    M: MapTrait<NI, E>,
-{
-}
-
 impl<NI, E, M> Graph<NI> for MapAdjacencyList<NI, E, M>
 where
     M: MapTrait<NI, E>,

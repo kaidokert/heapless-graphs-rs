@@ -23,14 +23,6 @@ where
     }
 }
 
-impl<const N: usize, EDGEVALUE, ROW, COLUMNS> Matrix<N, EDGEVALUE, COLUMNS, ROW>
-where
-    EDGEVALUE: Default,
-    ROW: AsRef<[Option<EDGEVALUE>]> + AsMut<[Option<EDGEVALUE>]>,
-    COLUMNS: AsRef<[ROW]> + AsMut<[ROW]> + Default,
-{
-}
-
 impl<const N: usize, EDGEVALUE, COLUMNS, ROW> FromGraph<usize, GraphError<usize>>
     for Matrix<N, EDGEVALUE, COLUMNS, ROW>
 where

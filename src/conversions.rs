@@ -33,7 +33,7 @@ use crate::graph::{Graph, NodeIndex};
 /// use heapless_graphs::matrix::simple_matrix::Matrix;
 /// use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
 /// // ... (setup source graph)
-/// // let target_matrix = Matrix::from_graph2(&source_graph)?;
+/// // let target_matrix = Matrix::from_graph(&source_graph)?;
 /// ```
 pub trait FromGraph<NI, E>
 where
