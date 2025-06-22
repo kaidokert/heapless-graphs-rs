@@ -1,4 +1,5 @@
 use crate::containers::maps::MapTrait;
+use crate::conversions::FromGraph;
 use crate::graph::{
     integrity_check, Graph, GraphError, GraphWithMutableEdges, GraphWithMutableNodes, NodeIndex,
 };
@@ -42,41 +43,16 @@ where
     }
 }
 
-impl<NI, E, M> MapAdjacencyList<NI, E, M>
+impl<NI, E, M> FromGraph<NI, GraphError<NI>> for MapAdjacencyList<NI, E, M>
 where
     NI: NodeIndex,
     E: NodesIterable<Node = NI> + MutableNodes<NI> + Default,
-    M: MapTrait<NI, E>,
+    M: MapTrait<NI, E> + Default,
 {
-    /// Creates a MapAdjacencyList from any graph by copying all nodes and edges
-    ///
-    /// This function creates a mapping from node indices to edge containers and populates
-    /// each node's adjacency list with its outgoing edges.
-    ///
-    /// # Arguments
-    /// * `source_graph` - The graph to copy nodes and edges from
-    ///
-    /// # Returns
-    /// * `Ok(MapAdjacencyList)` if successful
-    /// * `Err(G::Error)` if iteration over the source graph fails
-    ///
-    /// # Example
-    /// # use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
-    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// # use heapless_graphs::edges::EdgeStructOption;
-    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
-    /// # use heapless_graphs::nodes::NodeStructOption;
-    ///
-    /// // Create a source graph (edge list)
-    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
-    /// let source = EdgeList::<4, usize, _>::new(edges);
-    ///
-    /// // Convert to MapAdjacencyList
-    /// let map_adj_list: MapAdjacencyList<usize, NodeStructOption<4, _>, Dictionary<_, _, 8>> =
-    ///     MapAdjacencyList::from_graph(&source).unwrap();
-    pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, G::Error>
+    fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
     where
-        G::Error: core::fmt::Debug,
+        G: Graph<NI>,
+        GraphError<NI>: From<G::Error>,
     {
         let mut nodes = M::new();
         for node in source_graph.iter_nodes()? {
@@ -93,6 +69,14 @@ where
             _phantom: Default::default(),
         })
     }
+}
+
+impl<NI, E, M> MapAdjacencyList<NI, E, M>
+where
+    NI: NodeIndex,
+    E: NodesIterable<Node = NI> + MutableNodes<NI> + Default,
+    M: MapTrait<NI, E>,
+{
 }
 
 impl<NI, E, M> Graph<NI> for MapAdjacencyList<NI, E, M>
@@ -690,6 +674,41 @@ mod tests {
 
         // Verify original edge is still there
         assert_eq!(graph.iter_edges().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_map_adjacency_list_from_graph_trait() {
+        let src_graph = EdgeList::<8, _, _>::new([(0, 1), (0, 2), (1, 3), (2, 3)]);
+        let adjlist =
+            MapAdjacencyList::<_, _, Dictionary<_, NodeStructOption<5, _>, 5>>::from_graph(
+                &src_graph,
+            )
+            .unwrap();
+
+        let mut nodes = [0usize; 8];
+        let node_slice = collect_sorted(adjlist.iter_nodes().unwrap(), &mut nodes);
+        assert_eq!(node_slice, &[0usize, 1, 2, 3]);
+
+        let mut edges = [(0usize, 0usize); 8];
+        let edge_slice = collect_sorted(adjlist.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edge_slice, &[(0, 1), (0, 2), (1, 3), (2, 3)]);
+
+        assert_eq!(
+            collect_sorted(adjlist.outgoing_edges(0).unwrap(), &mut nodes),
+            &[1, 2]
+        );
+        assert_eq!(
+            collect_sorted(adjlist.outgoing_edges(1).unwrap(), &mut nodes),
+            &[3]
+        );
+        assert_eq!(
+            collect_sorted(adjlist.outgoing_edges(2).unwrap(), &mut nodes),
+            &[3]
+        );
+        assert_eq!(
+            collect_sorted(adjlist.outgoing_edges(3).unwrap(), &mut nodes),
+            &[]
+        );
     }
 
     #[test]

@@ -1,5 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
+    conversions::FromGraph,
     graph::{Graph, GraphError, GraphWithMutableEdges, GraphWithMutableNodes, NodeIndex},
 };
 
@@ -53,7 +54,8 @@ where
     }
 }
 
-impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> FromGraph<NI, GraphError<NI>>
+    for MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
 where
     NI: NodeIndex + Copy,
     EDGEVALUE: Default,
@@ -61,39 +63,7 @@ where
     COLUMNS: AsRef<[ROW]> + AsMut<[ROW]> + Default,
     M: MapTrait<NI, usize> + Default,
 {
-    /// Creates a MapMatrix from any graph by copying all nodes and edges
-    ///
-    /// This function creates a mapping from arbitrary node indices to matrix positions (0..N)
-    /// and populates the underlying matrix with edges. Each node in the source graph is
-    /// assigned a unique matrix index from 0 to N-1.
-    ///
-    /// # Arguments
-    /// * `source_graph` - The graph to copy nodes and edges from
-    ///
-    /// # Returns
-    /// * `Ok(MapMatrix)` if successful
-    /// * `Err(GraphError)` if too many nodes or iteration fails
-    ///
-    /// # Constraints
-    /// * Source graph must have at most N nodes
-    /// * Node index type must implement Copy
-    /// * Edge values use EDGEVALUE::default() for all edges
-    /// * Map M must have sufficient capacity for all nodes
-    ///
-    /// # Example
-    /// # use heapless_graphs::matrix::map_matrix::MapMatrix;
-    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// # use heapless_graphs::edges::EdgeStructOption;
-    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
-    ///
-    /// // Create a source graph (edge list)
-    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
-    /// let source = EdgeList::<4, usize, _>::new(edges);
-    ///
-    /// // Convert to MapMatrix (3x3 matrix to fit nodes 0, 1, 2)
-    /// let map_matrix: MapMatrix<3, usize, (), Dictionary<_, _, 8>, [[Option<()>; 3]; 3], _> =
-    ///     MapMatrix::from_graph(&source).unwrap();
-    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
     where
         G: Graph<NI>,
         GraphError<NI>: From<G::Error>,
@@ -157,6 +127,16 @@ where
             _phantom: Default::default(),
         })
     }
+}
+
+impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> MapMatrix<N, NI, EDGEVALUE, M, COLUMNS, ROW>
+where
+    NI: NodeIndex + Copy,
+    EDGEVALUE: Default,
+    ROW: AsRef<[Option<EDGEVALUE>]> + AsMut<[Option<EDGEVALUE>]>,
+    COLUMNS: AsRef<[ROW]> + AsMut<[ROW]> + Default,
+    M: MapTrait<NI, usize> + Default,
+{
 }
 
 impl<const N: usize, NI, EDGEVALUE, M, COLUMNS, ROW> Graph<NI>

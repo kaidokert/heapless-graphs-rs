@@ -648,8 +648,6 @@ mod tests {
 
     #[test]
     fn test_bfs_unchecked() {
-        use crate::containers::queues::CircularQueue;
-
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 3), (2, 3)]);
         let mut visited = [false; 16];
         let mut collector = Collector::<usize, 16>::new();
@@ -666,8 +664,6 @@ mod tests {
 
     #[test]
     fn test_dfs_iterative_unchecked() {
-        use crate::containers::queues::CircularQueue;
-
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 3), (2, 3)]);
         let mut visited = [false; 16];
         let mut collector = Collector::<usize, 16>::new();
@@ -684,8 +680,6 @@ mod tests {
 
     #[test]
     fn test_bfs_with_owned_and_borrowed_graphs() {
-        use crate::containers::queues::CircularQueue;
-
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 3)]);
 
         // Test with borrowed graph (&graph)
@@ -717,8 +711,6 @@ mod tests {
 
     #[test]
     fn test_dfs_iterative_with_owned_and_borrowed_graphs() {
-        use crate::containers::queues::CircularQueue;
-
         let graph = EdgeList::<8, _, _>::new([(0usize, 1usize), (0, 2), (1, 3)]);
 
         // Test with borrowed graph (&graph)

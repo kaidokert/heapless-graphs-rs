@@ -1,3 +1,4 @@
+use crate::conversions::FromGraph;
 use crate::graph::{integrity_check, Graph, GraphError, GraphWithMutableEdges, NodeIndex};
 use crate::nodes::{MutableNodes, NodesIterable};
 
@@ -128,45 +129,13 @@ where
     }
 }
 
-impl<NI, E, const N: usize> SliceAdjacencyList<NI, E, [(NI, E); N]>
+impl<NI, E, const N: usize> FromGraph<NI, GraphError<NI>>
+    for SliceAdjacencyList<NI, E, [(NI, E); N]>
 where
     NI: NodeIndex + Copy + Default,
     E: NodesIterable<Node = NI> + crate::nodes::MutableNodes<NI> + Default,
 {
-    /// Creates a SliceAdjacencyList from any graph by copying all nodes and edges
-    ///
-    /// This function works with fixed-size arrays and creates exactly N entries,
-    /// one for each node in the source graph. The source graph must have exactly
-    /// N nodes, otherwise the conversion will fail.
-    ///
-    /// # Arguments
-    /// * `source_graph` - The graph to copy nodes and edges from
-    ///
-    /// # Returns
-    /// * `Ok(SliceAdjacencyList)` if successful
-    /// * `Err(GraphError)` if node count doesn't match N or capacity is exceeded
-    ///
-    /// # Constraints
-    /// * Source graph must have exactly N nodes
-    /// * Node index type must implement Copy and Default
-    /// * Edge container E must implement Default and MutableNodes
-    /// * Requires sufficient capacity in E for all outgoing edges per node
-    ///
-    /// # Example
-    /// ```
-    /// # use heapless_graphs::adjacency_list::slice_adjacency_list::SliceAdjacencyList;
-    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// # use heapless_graphs::containers::maps::MapTrait;
-    /// # use heapless_graphs::nodes::NodeStructOption;
-    ///
-    /// // Create a source graph (edge list)
-    /// let source = EdgeList::<5, _,_>::new([(0, 1), (0, 2), (1, 2), (2, 0)]);
-    ///
-    /// // Convert to SliceAdjacencyList with exactly 3 nodes and capacity for edges
-    /// let slice_graph: SliceAdjacencyList<usize, NodeStructOption<4, _>, [(_, _); 3]> =
-    ///     SliceAdjacencyList::from_graph(&source).unwrap();
-    /// ```
-    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
     where
         G: Graph<NI>,
         GraphError<NI>: From<G::Error>,
@@ -199,6 +168,13 @@ where
 
         Ok(Self::new_unchecked(container))
     }
+}
+
+impl<NI, E, const N: usize> SliceAdjacencyList<NI, E, [(NI, E); N]>
+where
+    NI: NodeIndex + Copy + Default,
+    E: NodesIterable<Node = NI> + crate::nodes::MutableNodes<NI> + Default,
+{
 }
 
 #[cfg(test)]

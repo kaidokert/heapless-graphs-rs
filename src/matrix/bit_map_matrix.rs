@@ -1,5 +1,6 @@
 use crate::{
     containers::maps::MapTrait,
+    conversions::FromGraph,
     graph::{Graph, GraphError, GraphWithMutableEdges, GraphWithMutableNodes, NodeIndex},
 };
 
@@ -55,44 +56,13 @@ where
     }
 }
 
-impl<const N: usize, const R: usize, NI, M> BitMapMatrix<N, R, NI, M>
+impl<const N: usize, const R: usize, NI, M> FromGraph<NI, GraphError<NI>>
+    for BitMapMatrix<N, R, NI, M>
 where
     NI: NodeIndex + Copy,
     M: MapTrait<NI, usize> + Default,
 {
-    /// Creates a BitMapMatrix from any graph by copying all nodes and edges
-    ///
-    /// This function creates a mapping from arbitrary node indices to bit matrix positions (0..8*N)
-    /// and populates the underlying bit matrix with edges. Each node in the source graph is
-    /// assigned a unique matrix index from 0 to 8*N-1.
-    ///
-    /// # Arguments
-    /// * `source_graph` - The graph to copy nodes and edges from
-    ///
-    /// # Returns
-    /// * `Ok(BitMapMatrix)` if successful
-    /// * `Err(GraphError)` if too many nodes or iteration fails
-    ///
-    /// # Constraints
-    /// * Source graph must have at most 8*N nodes (BitMatrix capacity)
-    /// * Node index type must implement Copy
-    /// * Requires R = 8*N for valid BitMatrix dimensions
-    /// * Map M must have sufficient capacity for all nodes
-    ///
-    /// # Example
-    /// # use heapless_graphs::matrix::bit_map_matrix::BitMapMatrix;
-    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// # use heapless_graphs::edges::EdgeStructOption;
-    /// # use heapless_graphs::containers::maps::staticdict::Dictionary;
-    ///
-    /// // Create a source graph (edge list)
-    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
-    /// let source = EdgeList::<4, usize, _>::new(edges);
-    ///
-    /// // Convert to BitMapMatrix (8 nodes capacity)
-    /// let bit_map_matrix: BitMapMatrix<1, 8, usize, Dictionary<_, _, 8>> =
-    ///     BitMapMatrix::from_graph(&source).unwrap();
-    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
+    fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<NI>>
     where
         G: Graph<NI>,
         GraphError<NI>: From<G::Error>,
@@ -155,6 +125,13 @@ where
 
         Ok(Self::new_unchecked(bitmap, index_map))
     }
+}
+
+impl<const N: usize, const R: usize, NI, M> BitMapMatrix<N, R, NI, M>
+where
+    NI: NodeIndex + Copy,
+    M: MapTrait<NI, usize> + Default,
+{
 }
 
 impl<const N: usize, const R: usize, NI, M> Graph<NI> for BitMapMatrix<N, R, NI, M>

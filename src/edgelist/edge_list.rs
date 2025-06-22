@@ -1,5 +1,5 @@
+use crate::conversions::FromGraph;
 use crate::edges::EdgeNodeError;
-
 use crate::graph::{Graph, GraphError, GraphWithMutableEdges, NodeIndex};
 
 #[derive(Debug)]
@@ -61,44 +61,14 @@ impl<const N: usize, NI, E> EdgeList<N, NI, E> {
     }
 }
 
-impl<const N: usize, NI, E> EdgeList<N, NI, E>
+impl<const N: usize, NI, E> FromGraph<NI, EdgeListError<NI>> for EdgeList<N, NI, E>
 where
     NI: NodeIndex + Ord + PartialEq,
     E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI> + Default,
 {
-    /// Creates an EdgeList from any graph by copying all edges
-    ///
-    /// This function iterates over all edges in the source graph and adds them
-    /// to a new EdgeList. The edge container must support mutation and have
-    /// default initialization.
-    ///
-    /// # Arguments
-    /// * `source_graph` - The graph to copy edges from
-    ///
-    /// # Returns
-    /// * `Ok(EdgeList)` if successful
-    /// * `Err(G::Error)` if iteration over the source graph fails
-    ///
-    /// # Example
-    /// ```
-    /// use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// use heapless_graphs::edges::EdgeStructOption;
-    /// use heapless_graphs::adjacency_list::map_adjacency_list::MapAdjacencyList;
-    /// use heapless_graphs::containers::maps::staticdict::Dictionary;
-    /// use heapless_graphs::containers::maps::MapTrait;
-    ///
-    /// // Create a source graph (adjacency list)
-    /// let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
-    /// dict.insert(0, [1, 2]).unwrap();
-    /// dict.insert(1, [2, 0]).unwrap();
-    /// let source = MapAdjacencyList::new_unchecked(dict);
-    ///
-    /// // Convert to EdgeList
-    /// let edge_list: EdgeList<8, usize, EdgeStructOption<16, _>> =
-    ///     EdgeList::from_graph(&source).unwrap();
-    /// ```
-    pub fn from_graph<G: Graph<NI>>(source_graph: &G) -> Result<Self, EdgeListError<NI>>
+    fn from_graph<G>(source_graph: &G) -> Result<Self, EdgeListError<NI>>
     where
+        G: Graph<NI>,
         EdgeListError<NI>: From<G::Error>,
     {
         let mut edges = E::default();
@@ -115,6 +85,13 @@ where
             _phantom: Default::default(),
         })
     }
+}
+
+impl<const N: usize, NI, E> EdgeList<N, NI, E>
+where
+    NI: NodeIndex + Ord + PartialEq,
+    E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI> + Default,
+{
 }
 
 impl<const N: usize, NI, E> Graph<NI> for EdgeList<N, NI, E>
@@ -603,5 +580,23 @@ mod tests {
         let mut edges = [(0usize, 0usize); 16];
         let edges_slice = collect(edge_list.iter_edges().unwrap(), &mut edges);
         assert_eq!(edges_slice.len(), 0);
+    }
+
+    #[test]
+    fn test_edge_list_from_graph_trait() {
+        // Create a source graph (adjacency list)
+        let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
+        dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2
+        dict.insert(1, [2, 0]).unwrap(); // 1 -> 2, 0
+        let source = MapAdjacencyList::new_unchecked(dict);
+
+        // Use the trait method instead of the direct method
+        let edge_list: EdgeList<8, usize, EdgeStructOption<16, usize>> =
+            EdgeList::from_graph(&source).unwrap();
+
+        // Verify it works the same as from_graph
+        let mut edges = [(0usize, 0usize); 16];
+        let edges_slice = collect(edge_list.iter_edges().unwrap(), &mut edges);
+        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (1, 0)]);
     }
 }

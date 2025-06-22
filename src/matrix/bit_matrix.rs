@@ -1,3 +1,4 @@
+use crate::conversions::FromGraph;
 use crate::graph::{Graph, GraphError, GraphWithMutableEdges};
 
 /// A space-efficient adjacency matrix implementation using bit-level storage.
@@ -46,6 +47,42 @@ pub struct BitMatrix<const C: usize, const R: usize> {
     bits: [[u8; C]; R], // R rows, each with C columns
 }
 
+impl<const C: usize, const R: usize> FromGraph<usize, GraphError<usize>> for BitMatrix<C, R> {
+    fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<usize>>
+    where
+        G: Graph<usize>,
+        GraphError<usize>: From<G::Error>,
+    {
+        // Create empty bit matrix
+        let mut bits = [[0u8; C]; R];
+
+        // Validate all nodes are within range first
+        for node in source_graph.iter_nodes()? {
+            if node >= 8 * C {
+                return Err(GraphError::EdgeHasInvalidNode(node));
+            }
+        }
+
+        // Add all edges to the matrix
+        for (source, destination) in source_graph.iter_edges()? {
+            // Validate bounds (should be caught above, but double-check)
+            if source >= R {
+                return Err(GraphError::EdgeHasInvalidNode(source));
+            }
+            if destination >= 8 * C {
+                return Err(GraphError::EdgeHasInvalidNode(destination));
+            }
+
+            // Set the bit: source -> destination
+            let byte_col = destination / 8;
+            let bit_col = destination % 8;
+            bits[source][byte_col] |= 1 << bit_col;
+        }
+
+        Ok(Self::new_unchecked(bits))
+    }
+}
+
 impl<const C: usize, const R: usize> BitMatrix<C, R> {
     /// Creates a new `BitMatrix` with validation of matrix dimensions.
     ///
@@ -86,71 +123,6 @@ impl<const C: usize, const R: usize> BitMatrix<C, R> {
     /// * `bits` - The raw bit matrix data. Each row must have C columns of bytes.
     pub fn new_unchecked(bits: [[u8; C]; R]) -> Self {
         Self { bits }
-    }
-
-    /// Creates a BitMatrix from any graph by copying all edges
-    ///
-    /// This function iterates over all edges in the source graph and adds them
-    /// to a new BitMatrix. The source graph must have usize node indices in the
-    /// range 0..8*C, where 8*C is the maximum number of nodes the matrix can hold.
-    ///
-    /// # Arguments
-    /// * `source_graph` - The graph to copy edges from
-    ///
-    /// # Returns
-    /// * `Ok(BitMatrix)` if successful
-    /// * `Err(GraphError)` if any node indices are out of range or iteration fails
-    ///
-    /// # Constraints
-    /// * Source graph nodes must be usize indices from 0 to 8*C-1
-    /// * BitMatrix dimensions must satisfy R = 8*C constraint
-    /// * Only edges are copied; the matrix represents 8*C nodes automatically
-    ///
-    /// # Example
-    /// ```
-    /// # use heapless_graphs::matrix::bit_matrix::BitMatrix;
-    /// # use heapless_graphs::edgelist::edge_list::EdgeList;
-    /// # use heapless_graphs::edges::EdgeStructOption;
-    ///
-    /// // Create a source graph (edge list)
-    /// let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((0, 2)), None]);
-    /// let source = EdgeList::<4, usize, _>::new(edges);
-    ///
-    /// // Convert to BitMatrix (8 nodes capacity)
-    /// let matrix: BitMatrix<1, 8> = BitMatrix::from_graph(&source).unwrap();
-    /// ```
-    pub fn from_graph<G>(source_graph: &G) -> Result<Self, GraphError<usize>>
-    where
-        G: Graph<usize>,
-        GraphError<usize>: From<G::Error>,
-    {
-        // Create empty bit matrix
-        let mut bits = [[0u8; C]; R];
-
-        // Validate all nodes are within range first
-        for node in source_graph.iter_nodes()? {
-            if node >= 8 * C {
-                return Err(GraphError::EdgeHasInvalidNode(node));
-            }
-        }
-
-        // Add all edges to the matrix
-        for (source, destination) in source_graph.iter_edges()? {
-            // Validate bounds (should be caught above, but double-check)
-            if source >= R {
-                return Err(GraphError::EdgeHasInvalidNode(source));
-            }
-            if destination >= 8 * C {
-                return Err(GraphError::EdgeHasInvalidNode(destination));
-            }
-
-            // Set the bit: source -> destination
-            let byte_col = destination / 8;
-            let bit_col = destination % 8;
-            bits[source][byte_col] |= 1 << bit_col;
-        }
-
-        Ok(Self::new_unchecked(bits))
     }
 
     /// Internal: Checks if an edge exists between two nodes.
