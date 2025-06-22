@@ -189,34 +189,30 @@ where
     NI: NodeIndex,
     CF: MapTrait<NI, NI>,
 {
-    let mut path_len = 0;
-
-    // Build path backwards
-    let mut temp_path = [current; 32]; // Temporary fixed-size buffer for reversal
-    let mut temp_len = 0;
-
-    temp_path[temp_len] = current;
-    temp_len += 1;
-
-    while let Some(&parent) = came_from.get(&current) {
-        if temp_len >= temp_path.len() {
-            return Err(AlgorithmError::ResultCapacityExceeded);
-        }
-        temp_path[temp_len] = parent;
-        temp_len += 1;
-        current = parent;
+    // First pass: count the path length
+    let mut path_len = 1; // Start with 1 for the goal node
+    let mut temp_current = current;
+    
+    while let Some(&parent) = came_from.get(&temp_current) {
+        path_len += 1;
+        temp_current = parent;
     }
-
-    // Reverse the path into the output buffer
-    if temp_len > path_buffer.len() {
+    
+    // Check if path fits in buffer
+    if path_len > path_buffer.len() {
         return Err(AlgorithmError::ResultCapacityExceeded);
     }
-
-    for i in 0..temp_len {
-        path_buffer[i] = temp_path[temp_len - 1 - i];
-        path_len += 1;
+    
+    // Second pass: fill the buffer backwards
+    let mut index = path_len - 1;
+    path_buffer[index] = current;
+    
+    while let Some(&parent) = came_from.get(&current) {
+        index -= 1;
+        path_buffer[index] = parent;
+        current = parent;
     }
-
+    
     Ok(&path_buffer[..path_len])
 }
 
