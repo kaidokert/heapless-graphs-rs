@@ -223,8 +223,11 @@ impl<const C: usize, const R: usize> GraphWithMutableEdges<usize> for BitMatrix<
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
+    use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::containers::maps::MapTrait;
+    use crate::graph::GraphWithMutableEdges;
     use crate::tests::{collect, collect_sorted};
 
     #[test]
@@ -652,8 +655,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [
             [0b00000000u8], // Initially no edges
             [0b00000000u8],
@@ -688,8 +689,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0b00000000u8]; 8];
         let mut matrix = BitMatrix::new_unchecked(bits);
 
@@ -708,8 +707,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [
             [0b00001010u8], // 0->1, 0->3
             [0b00000100u8], // 1->2
@@ -743,8 +740,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [
             [0b00000010u8], // 0->1
             [0b00000000u8],
@@ -772,8 +767,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_add_remove_edge_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0b00000000u8]; 8];
         let mut matrix = BitMatrix::new_unchecked(bits);
 
@@ -807,8 +800,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_self_loops() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0b00000000u8]; 8];
         let mut matrix = BitMatrix::new_unchecked(bits);
 
@@ -831,8 +822,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_edge_overwrite() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0b00000000u8]; 8];
         let mut matrix = BitMatrix::new_unchecked(bits);
 
@@ -849,10 +838,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_from_graph() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-
         // Create a source graph (map adjacency list with nodes 0, 1, 2)
         let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
         dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2
@@ -870,14 +855,14 @@ mod tests {
         // Verify edges were copied correctly
         let mut edges = [(0usize, 0usize); 16];
         let edges_slice = collect_sorted(matrix.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]);
+        assert_eq!(
+            edges_slice,
+            &[(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]
+        );
     }
 
     #[test]
     fn test_bit_matrix_from_graph_empty() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-
         // Create an empty source graph
         let dict = Dictionary::<usize, [usize; 2], 8>::default();
         let source = MapAdjacencyList::new_unchecked(dict);
@@ -892,10 +877,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_from_graph_node_out_of_range() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-
         // Create a source graph with node index too large for 1-column matrix (8 nodes max)
         let mut dict = Dictionary::<usize, [usize; 1], 8>::new();
         dict.insert(0, [1]).unwrap();
@@ -911,10 +892,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_from_graph_single_node() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-
         // Create a source graph with a single node and self-loop
         let mut dict = Dictionary::<usize, [usize; 1], 8>::new();
         dict.insert(5, [5]).unwrap(); // Node 5 -> 5 (self-loop)
@@ -934,10 +911,6 @@ mod tests {
 
     #[test]
     fn test_bit_matrix_from_graph_larger_matrix() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-
         // Create a source graph that uses higher node indices
         let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
         dict.insert(8, [9, 10]).unwrap(); // Node 8 -> 9, 10

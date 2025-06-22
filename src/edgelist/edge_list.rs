@@ -173,14 +173,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edges::EdgeNodeError;
-    use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithMutableEdges};
-    use crate::tests::{collect, collect_sorted};
     use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
     use crate::containers::maps::staticdict::Dictionary;
     use crate::containers::maps::MapTrait;
+    use crate::edges::EdgeNodeError;
     use crate::edges::EdgeStructOption;
-
+    use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithMutableEdges};
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_edge_list_new() {
@@ -516,9 +515,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_add_remove_edge_comprehensive() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([None, None, None, None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 
@@ -558,9 +554,6 @@ mod tests {
 
     #[test]
     fn test_edge_list_self_loops() {
-        use crate::edges::EdgeStructOption;
-        use crate::graph::GraphWithMutableEdges;
-
         let edges = EdgeStructOption([None, None, None, None, None]);
         let mut graph = EdgeList::<10, usize, _>::new(edges);
 

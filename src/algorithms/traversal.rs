@@ -196,9 +196,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adjacency_list::{
-        map_adjacency_list::MapAdjacencyList, slice_adjacency_list::SliceAdjacencyList,
-    };
+    use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    use crate::adjacency_list::slice_adjacency_list::SliceAdjacencyList;
     use crate::containers::{
         maps::{staticdict::Dictionary, MapTrait},
         queues::CircularQueue,
@@ -751,13 +750,6 @@ mod tests {
 
     #[test]
     fn test_bfs_with_map_adjacency_list() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::{
-            maps::{staticdict::Dictionary, MapTrait},
-            queues::CircularQueue,
-        };
-        use crate::nodes::NodeStruct;
-
         // Create a map adjacency list - this will benefit from O(1) contains_node
         let mut map = Dictionary::<usize, NodeStruct<3, usize>, 8>::new();
         map.insert(0, NodeStruct([1, 2, 0])).unwrap(); // 0 as sentinel (self-loop)

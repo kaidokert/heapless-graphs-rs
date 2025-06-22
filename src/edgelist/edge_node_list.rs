@@ -237,16 +237,17 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::edges::EdgeValueStruct;
-    use crate::graph::{GraphError, GraphWithEdgeValues, GraphWithNodeValues, GraphWithMutableEdges};
-    use crate::nodes::{NodeValueStructOption, NodesValuesIterable};
-    use crate::tests::{collect, collect_sorted};
     use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
     use crate::containers::maps::staticdict::Dictionary;
     use crate::containers::maps::MapTrait;
     use crate::edges::EdgeStructOption;
+    use crate::edges::EdgeValueStruct;
+    use crate::graph::{
+        GraphError, GraphWithEdgeValues, GraphWithMutableEdges, GraphWithNodeValues,
+    };
     use crate::nodes::NodeStructOption;
-
+    use crate::nodes::{NodeValueStructOption, NodesValuesIterable};
+    use crate::tests::{collect, collect_sorted};
 
     #[test]
     fn test_edge_node_list() {
@@ -618,7 +619,10 @@ mod test {
         // Verify edges were copied correctly
         let mut edges = [(0usize, 0usize); 16];
         let edges_slice = collect(edge_node_graph.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 1)]);
+        assert_eq!(
+            edges_slice,
+            &[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 1)]
+        );
     }
 
     #[test]

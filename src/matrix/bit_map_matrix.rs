@@ -338,6 +338,9 @@ where
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::edges::EdgeStructOption;
+    use crate::graph::GraphWithMutableEdges;
     use crate::tests::{collect, collect_sorted};
 
     #[test]
@@ -610,8 +613,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<char, usize, 10>::new();
@@ -638,8 +639,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<char, usize, 10>::new();
@@ -663,8 +662,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         // Set up matrix with some initial edges
         let bits = [
             [0b00000110u8], // A->B, A->C
@@ -699,8 +696,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [
             [0b00000010u8], // A->B
             [0b00000000u8],
@@ -733,8 +728,6 @@ mod tests {
 
     #[test]
     fn test_add_remove_edge_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<u32, usize, 10>::new();
@@ -775,8 +768,6 @@ mod tests {
 
     #[test]
     fn test_self_loops() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<char, usize, 10>::new();
@@ -804,8 +795,6 @@ mod tests {
 
     #[test]
     fn test_edge_idempotency() {
-        use crate::graph::GraphWithMutableEdges;
-
         let bits = [[0u8]; 8];
         let bitmap = super::super::bit_matrix::BitMatrix::new_unchecked(bits);
         let mut index_map = Dictionary::<u32, usize, 10>::new();
@@ -825,9 +814,6 @@ mod tests {
 
     #[test]
     fn test_bit_map_matrix_from_graph() {
-        use crate::edgelist::edge_list::EdgeList;
-        use crate::edges::EdgeStructOption;
-
         // Create a source graph (edge list with nodes 10, 20, 30)
         let edges = EdgeStructOption([Some((10, 20)), Some((20, 30)), Some((10, 30)), None]);
         let source = EdgeList::<4, usize, _>::new(edges);
@@ -855,9 +841,6 @@ mod tests {
 
     #[test]
     fn test_bit_map_matrix_from_graph_capacity_exceeded() {
-        use crate::edgelist::edge_list::EdgeList;
-        use crate::edges::EdgeStructOption;
-
         // Create a source graph with 9 nodes but BitMatrix<1,8> only supports 8
         let edges = EdgeStructOption([
             Some((0, 1)),
@@ -881,9 +864,6 @@ mod tests {
 
     #[test]
     fn test_bit_map_matrix_from_graph_with_arbitrary_indices() {
-        use crate::edgelist::edge_list::EdgeList;
-        use crate::edges::EdgeStructOption;
-
         // Create a source graph with non-contiguous node indices
         let edges = EdgeStructOption([Some((100, 200)), Some((200, 500)), Some((500, 100)), None]);
         let source = EdgeList::<4, usize, _>::new(edges);
@@ -916,9 +896,6 @@ mod tests {
 
     #[test]
     fn test_bit_map_matrix_from_graph_invalid_dimensions() {
-        use crate::edgelist::edge_list::EdgeList;
-        use crate::edges::EdgeStructOption;
-
         // Create a source graph
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None]);
         let source = EdgeList::<3, usize, _>::new(edges);

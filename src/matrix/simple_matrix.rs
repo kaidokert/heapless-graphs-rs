@@ -237,6 +237,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
+    use crate::containers::maps::staticdict::Dictionary;
+    use crate::containers::maps::MapTrait;
+    use crate::graph::GraphWithMutableEdges;
     use crate::tests::{collect, collect_sorted};
 
     #[test]
@@ -315,8 +319,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut matrix = Matrix::<3, i32, _, _>::new([
             [None, None, None],
             [None, None, None],
@@ -347,8 +349,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut matrix = Matrix::<3, i32, _, _>::new([
             [None, None, None],
             [None, None, None],
@@ -370,8 +370,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut matrix = Matrix::<3, i32, _, _>::new([
             [None, Some(1), Some(2)],
             [Some(3), None, Some(4)],
@@ -403,8 +401,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut matrix = Matrix::<3, i32, _, _>::new([
             [None, Some(1), None],
             [None, None, Some(2)],
@@ -429,8 +425,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_add_remove_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut matrix = Matrix::<4, i32, _, _>::new([
             [None, None, None, None],
             [None, None, None, None],
@@ -471,8 +465,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_overwrite_existing() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut matrix = Matrix::<3, i32, _, _>::new([
             [None, Some(42), None],
             [None, None, None],
@@ -494,8 +486,6 @@ mod tests {
 
     #[test]
     fn test_mutable_edges_self_loops() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut matrix = Matrix::<3, i32, _, _>::new([
             [None, None, None],
             [None, None, None],
@@ -523,10 +513,6 @@ mod tests {
 
     #[test]
     fn test_matrix_from_graph() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-
         // Create a source graph (adjacency list with nodes 0, 1, 2)
         let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
         dict.insert(0, [1, 2]).unwrap(); // 0 -> 1, 2
@@ -541,7 +527,10 @@ mod tests {
         // Verify edges were copied correctly
         let mut edges = [(0usize, 0usize); 16];
         let edges_slice = collect_sorted(matrix.iter_edges().unwrap(), &mut edges);
-        assert_eq!(edges_slice, &[(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]);
+        assert_eq!(
+            edges_slice,
+            &[(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]
+        );
 
         // Verify nodes are preserved
         let node_count = matrix.iter_nodes().unwrap().count();
@@ -550,9 +539,6 @@ mod tests {
 
     #[test]
     fn test_matrix_from_graph_empty() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-
         // Create an empty source graph
         let dict = Dictionary::<usize, [usize; 2], 8>::default();
         let source = MapAdjacencyList::new_unchecked(dict);
@@ -571,10 +557,6 @@ mod tests {
 
     #[test]
     fn test_matrix_from_graph_node_out_of_range() {
-        use crate::adjacency_list::map_adjacency_list::MapAdjacencyList;
-        use crate::containers::maps::staticdict::Dictionary;
-        use crate::containers::maps::MapTrait;
-
         // Create a source graph with node index too large for 2x2 matrix
         let mut dict = Dictionary::<usize, [usize; 2], 8>::new();
         dict.insert(0, [1, 2]).unwrap(); // Node 2 is out of range for 2x2 matrix

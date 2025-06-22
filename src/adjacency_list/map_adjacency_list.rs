@@ -212,6 +212,7 @@ mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
     use crate::edgelist::edge_list::EdgeList;
+    use crate::graph::GraphWithMutableEdges;
     use crate::nodes::NodeStructOption;
     use crate::tests::{collect, collect_sorted};
 
@@ -569,8 +570,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<3, usize>, 5>::new();
         dict.insert(0, NodeStructOption([None, None, None]))
             .unwrap(); // Empty adjacency list
@@ -598,8 +597,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
         dict.insert(0, NodeStructOption([None, None])).unwrap();
         dict.insert(1, NodeStructOption([None, None])).unwrap(); // Only nodes 0, 1
@@ -621,8 +618,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_capacity_exceeded() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
         dict.insert(0, NodeStructOption([None, None])).unwrap(); // Capacity for only 2 edges
         dict.insert(1, NodeStructOption([None, None])).unwrap();
@@ -641,8 +636,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<3, usize>, 5>::new();
         dict.insert(0, NodeStructOption([Some(1), Some(2), None]))
             .unwrap();
@@ -668,8 +661,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<2, usize>, 5>::new();
         dict.insert(0, NodeStructOption([Some(1), None])).unwrap();
         dict.insert(1, NodeStructOption([None, None])).unwrap();
@@ -687,8 +678,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_with_nonexistent_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<1, usize>, 5>::new();
         dict.insert(0, NodeStructOption([Some(1)])).unwrap();
         dict.insert(1, NodeStructOption([None])).unwrap(); // Only nodes 0, 1
@@ -705,8 +694,6 @@ mod tests {
 
     #[test]
     fn test_add_remove_edge_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-
         let mut dict = Dictionary::<usize, NodeStructOption<5, usize>, 5>::new();
         dict.insert(0, NodeStructOption([None, None, None, None, None]))
             .unwrap();

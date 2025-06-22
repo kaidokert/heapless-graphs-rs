@@ -377,7 +377,10 @@ where
 mod tests {
     use super::*;
     use crate::containers::maps::staticdict::Dictionary;
+    use crate::edgelist::edge_list::EdgeList;
+    use crate::edges::EdgeStructOption;
     use crate::graph::GraphWithEdgeValues;
+    use crate::graph::GraphWithMutableEdges;
     use crate::tests::{collect, collect_sorted};
 
     #[test]
@@ -900,8 +903,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [[None, None, None], [None, None, None], [None, None, None]];
         let mut index_map = Dictionary::<char, usize, 5>::new();
         index_map.insert('A', 0).unwrap();
@@ -935,8 +936,6 @@ mod tests {
 
     #[test]
     fn test_add_edge_invalid_nodes() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [[None, None], [None, None]];
         let mut index_map = Dictionary::<char, usize, 5>::new();
         index_map.insert('A', 0).unwrap();
@@ -967,8 +966,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_success() {
-        use crate::graph::GraphWithMutableEdges;
-
         // Set up matrix with some initial edges
         let matrix = [
             [Some(1), Some(2), Some(3)], // A->A, A->B, A->C
@@ -1005,8 +1002,6 @@ mod tests {
 
     #[test]
     fn test_remove_edge_not_found() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [
             [Some(1), None, None],
             [None, None, None],
@@ -1041,8 +1036,6 @@ mod tests {
 
     #[test]
     fn test_add_remove_edge_comprehensive() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [
             [None, None, None, None],
             [None, None, None, None],
@@ -1095,8 +1088,6 @@ mod tests {
 
     #[test]
     fn test_self_loops() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [[None, None], [None, None]];
         let mut index_map = Dictionary::<char, usize, 5>::new();
         index_map.insert('A', 0).unwrap();
@@ -1131,8 +1122,6 @@ mod tests {
 
     #[test]
     fn test_edge_overwrite() {
-        use crate::graph::GraphWithMutableEdges;
-
         let matrix = [[Some(5), None], [None, None]];
         let mut index_map = Dictionary::<u32, usize, 5>::new();
         index_map.insert(1, 0).unwrap();
@@ -1163,9 +1152,6 @@ mod tests {
 
     #[test]
     fn test_map_matrix_from_graph() {
-        use crate::edgelist::edge_list::EdgeList;
-        use crate::edges::EdgeStructOption;
-
         // Create a source graph (edge list with nodes 10, 20, 30)
         let edges = EdgeStructOption([Some((10, 20)), Some((20, 30)), Some((10, 30)), None]);
         let source = EdgeList::<4, usize, _>::new(edges);
@@ -1200,9 +1186,6 @@ mod tests {
 
     #[test]
     fn test_map_matrix_from_graph_empty() {
-        use crate::edgelist::edge_list::EdgeList;
-        use crate::edges::EdgeStructOption;
-
         // Create an empty source graph
         let edges = EdgeStructOption([None, None, None, None]);
         let source = EdgeList::<4, usize, _>::new(edges);
@@ -1225,9 +1208,6 @@ mod tests {
 
     #[test]
     fn test_map_matrix_from_graph_capacity_exceeded() {
-        use crate::edgelist::edge_list::EdgeList;
-        use crate::edges::EdgeStructOption;
-
         // Create a source graph with 4 nodes but matrix only supports 3
         let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), Some((2, 3)), Some((3, 0))]);
         let source = EdgeList::<4, usize, _>::new(edges);
@@ -1249,9 +1229,6 @@ mod tests {
 
     #[test]
     fn test_map_matrix_from_graph_with_arbitrary_indices() {
-        use crate::edgelist::edge_list::EdgeList;
-        use crate::edges::EdgeStructOption;
-
         // Create a source graph with non-contiguous node indices
         let edges = EdgeStructOption([Some((100, 200)), Some((200, 500)), Some((500, 100)), None]);
         let source = EdgeList::<4, usize, _>::new(edges);
