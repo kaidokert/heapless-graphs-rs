@@ -913,4 +913,22 @@ mod tests {
         let outgoing_slice = collect(bit_map_matrix.outgoing_edges(500).unwrap(), &mut outgoing);
         assert_eq!(outgoing_slice, &[100]);
     }
+
+    #[test]
+    fn test_bit_map_matrix_from_graph_invalid_dimensions() {
+        use crate::edgelist::edge_list::EdgeList;
+        use crate::edges::EdgeStructOption;
+
+        // Create a source graph
+        let edges = EdgeStructOption([Some((0, 1)), Some((1, 2)), None]);
+        let source = EdgeList::<3, usize, _>::new(edges);
+
+        // Try to create BitMapMatrix with invalid dimensions (R ≠ 8*N)
+        // N=1, R=4, but 4 ≠ 8*1
+        type InvalidMatrix = BitMapMatrix<1, 4, usize, Dictionary<usize, usize, 8>>;
+        let result: Result<InvalidMatrix, _> = BitMapMatrix::from_graph(&source);
+
+        // Should fail with InvalidMatrixSize because R ≠ 8*N
+        assert!(matches!(result, Err(GraphError::InvalidMatrixSize)));
+    }
 }
