@@ -213,6 +213,7 @@ mod test {
         track.mark_visited(&n).unwrap();
         assert_eq!(track.is_visited(&n), true);
         track.reset();
+        assert_eq!(track.is_visited(&n), false);
         assert_eq!(track.is_unvisited(&n), true);
     }
     #[test]
