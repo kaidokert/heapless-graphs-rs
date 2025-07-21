@@ -209,7 +209,7 @@ mod test {
         track.mark_visited(&n).unwrap();
     }
 
-    fn test_reset<NI: core::fmt::Debug, T: VisitedTracker<NI>>(track: &mut T, n: NI) {
+    fn test_reset<NI: core::fmt::Debug, T: VisitedTracker<NI> + ?Sized>(track: &mut T, n: NI) {
         track.mark_visited(&n).unwrap();
         assert_eq!(track.is_visited(&n), true);
         track.reset();
