@@ -125,7 +125,9 @@ where
     K: Eq + core::hash::Hash + Copy,
     NodeState: Clone,
 {
-    fn reset(&mut self) {}
+    fn reset(&mut self) {
+        self.0.clear();
+    }
     fn mark_visited(&mut self, node: &K) -> Result<(), K> {
         self.0.insert(*node).map_or_else(|_| Err(*node), |_| Ok(()))
     }
@@ -146,7 +148,9 @@ where
     K: Eq + core::hash::Hash + Copy,
     NodeState: Clone,
 {
-    fn reset(&mut self) {}
+    fn reset(&mut self) {
+        self.0.clear();
+    }
     fn mark_visited(&mut self, node: &K) -> Result<(), K> {
         if let Some(k) = self.0.get_mut(node) {
             *k = NodeState::Visited;
@@ -204,6 +208,14 @@ mod test {
         assert_eq!(track.is_unvisited(&n), true);
         track.mark_visited(&n).unwrap();
     }
+
+    fn test_reset<NI: core::fmt::Debug, T: VisitedTracker<NI> + ?Sized>(track: &mut T, n: NI) {
+        track.mark_visited(&n).unwrap();
+        assert_eq!(track.is_visited(&n), true);
+        track.reset();
+        assert_eq!(track.is_visited(&n), false);
+        assert_eq!(track.is_unvisited(&n), true);
+    }
     #[test]
     fn test_bool_array() {
         let mut visited = [false; 8];
@@ -218,10 +230,12 @@ mod test {
     fn test_set() {
         let mut visited = SetWrapper(Set::<usize, 13>::new());
         test_visited(&mut visited, 2_usize);
+        test_reset(&mut visited, 2_usize);
     }
     #[test]
     fn test_dict() {
         let mut visited = MapWrapper(Dictionary::<usize, NodeState, 37>::new());
         test_visited(&mut visited, 2_usize);
+        test_reset(&mut visited, 2_usize);
     }
 }
