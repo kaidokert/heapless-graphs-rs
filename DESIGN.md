@@ -66,7 +66,9 @@ In addition to container-level operations, the library offers the
 `GraphWithMutableNodeValues` trait for graph structures. This trait uses the
 `MutableNodeValue` operations of the underlying node container to add and remove
 nodes together with their values, providing the same integrity guarantees as
-`GraphWithMutableNodes`.
+`GraphWithMutableNodes`. Removing a node via this trait also cleans up all
+outgoing edges from that node. Currently only `EdgeNodeList` stores node values
+and therefore implements this trait.
 
 ### Graph Implementations
 

@@ -177,7 +177,7 @@ impl<NI, E, N, V> GraphWithMutableNodeValues<NI, V> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndex + PartialEq,
     N: crate::nodes::NodesValuesIterable<V, Node = NI> + crate::nodes::MutableNodeValue<NI, V>,
-    E: crate::edges::EdgesIterable<Node = NI>,
+    E: crate::edges::EdgesIterable<Node = NI> + crate::edges::MutableEdges<NI>,
 {
     fn add_node_value(&mut self, node: NI, value: V) -> Result<(), Self::Error> {
         if self.contains_node(node)? {
@@ -196,6 +196,20 @@ where
 
         if self.incoming_edges(node)?.next().is_some() {
             return Err(GraphError::NodeHasIncomingEdges(node));
+        }
+
+        // Remove all outgoing edges from this node to maintain integrity
+        loop {
+            let to_remove = self
+                .edges
+                .iter_edges()
+                .find(|(s, _)| **s == node)
+                .map(|(s, d)| (*s, *d));
+            if let Some((src, dst)) = to_remove {
+                let _ = self.edges.remove_edge((src, dst));
+            } else {
+                break;
+            }
         }
 
         self.nodes
@@ -339,7 +353,7 @@ mod test {
 
     #[test]
     fn test_add_node_to_empty_graph() {
-        let edges: [(usize, usize); 0] = [];
+        let edges = EdgeStructOption([None, None]);
         let nodes = NodeStructOption([None, None, None]); // Capacity for 3 nodes
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
@@ -400,7 +414,7 @@ mod test {
 
     #[test]
     fn test_add_multiple_nodes() {
-        let edges: [(usize, usize); 0] = [];
+        let edges = EdgeStructOption([None, None]);
         let nodes = NodeStructOption([None, None, None, None, None]); // Capacity for 5 nodes
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
@@ -426,7 +440,7 @@ mod test {
 
     #[test]
     fn test_add_duplicate_node() {
-        let edges = [(0usize, 1usize)];
+        let edges = EdgeStructOption([Some((0usize, 1usize)), None]);
         let nodes = NodeStructOption([Some(0), Some(1), None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
@@ -465,7 +479,7 @@ mod test {
 
     #[test]
     fn test_add_remove_node_value_success() {
-        let edges: [(usize, usize); 0] = [];
+        let edges = EdgeStructOption([None, None]);
         let nodes = NodeValueStructOption([None, None, None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
@@ -486,7 +500,7 @@ mod test {
 
     #[test]
     fn test_add_node_value_errors() {
-        let edges: [(usize, usize); 0] = [];
+        let edges = EdgeStructOption([None, None]);
         let nodes = NodeValueStructOption([Some((0, 10)), Some((1, 20))]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
@@ -501,12 +515,28 @@ mod test {
 
     #[test]
     fn test_remove_node_value_with_incoming_edges() {
-        let edges = [(0usize, 1usize)];
+        let edges = EdgeStructOption([Some((0usize, 1usize)), None]);
         let nodes = NodeValueStructOption([Some((0, 5)), Some((1, 6))]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
         let result = graph.remove_node_value(1);
         assert!(matches!(result, Err(GraphError::NodeHasIncomingEdges(1))));
+    }
+
+    #[test]
+    fn test_remove_node_value_removes_outgoing_edges() {
+        let edges = EdgeStructOption([Some((0usize, 1usize)), Some((0, 2))]);
+        let nodes = NodeValueStructOption([Some((0, 10)), Some((1, 20)), Some((2, 30))]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Verify outgoing edges from node 0 exist
+        assert_eq!(graph.outgoing_edges(0).unwrap().count(), 2);
+
+        // Remove node 0 and its value
+        graph.remove_node_value(0).unwrap();
+
+        // Outgoing edges from 0 should be gone
+        assert!(graph.iter_edges().unwrap().all(|(src, _)| src != 0));
     }
 
     #[test]
