@@ -1,5 +1,8 @@
 use crate::conversions::FromGraph;
-use crate::graph::{integrity_check, Graph, GraphError, GraphWithMutableNodes, NodeIndex};
+use crate::graph::{
+    integrity_check, Graph, GraphError, GraphWithMutableNodeValues, GraphWithMutableNodes,
+    NodeIndex,
+};
 use crate::nodes::MutableNodes;
 
 /// Edge list graph that stores both edges and nodes.
@@ -170,6 +173,38 @@ where
     }
 }
 
+impl<NI, E, N, V> GraphWithMutableNodeValues<NI, V> for EdgeNodeList<NI, E, N>
+where
+    NI: NodeIndex + PartialEq,
+    N: crate::nodes::NodesValuesIterable<V, Node = NI> + crate::nodes::MutableNodeValue<NI, V>,
+    E: crate::edges::EdgesIterable<Node = NI>,
+{
+    fn add_node_value(&mut self, node: NI, value: V) -> Result<(), Self::Error> {
+        if self.contains_node(node)? {
+            return Err(GraphError::DuplicateNode(node));
+        }
+        self.nodes
+            .add_value(node, value)
+            .ok_or(GraphError::OutOfCapacity)?;
+        Ok(())
+    }
+
+    fn remove_node_value(&mut self, node: NI) -> Result<(), Self::Error> {
+        if !self.contains_node(node)? {
+            return Err(GraphError::NodeNotFound(node));
+        }
+
+        if self.incoming_edges(node)?.next().is_some() {
+            return Err(GraphError::NodeHasIncomingEdges(node));
+        }
+
+        self.nodes
+            .remove_value(node)
+            .ok_or(GraphError::NodeNotFound(node))?;
+        Ok(())
+    }
+}
+
 impl<NI, E, N> crate::graph::GraphWithMutableEdges<NI> for EdgeNodeList<NI, E, N>
 where
     NI: NodeIndex + PartialEq,
@@ -213,7 +248,8 @@ mod test {
     use crate::edges::EdgeStructOption;
     use crate::edges::EdgeValueStruct;
     use crate::graph::{
-        GraphError, GraphWithEdgeValues, GraphWithMutableEdges, GraphWithNodeValues,
+        GraphError, GraphWithEdgeValues, GraphWithMutableEdges, GraphWithMutableNodeValues,
+        GraphWithNodeValues,
     };
     use crate::nodes::NodeStructOption;
     use crate::nodes::{NodeValueStructOption, NodesValuesIterable};
@@ -425,6 +461,52 @@ mod test {
         // Try to add another node when container is full
         let result = graph.add_node(3);
         assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_add_remove_node_value_success() {
+        let edges: [(usize, usize); 0] = [];
+        let nodes = NodeValueStructOption([None, None, None]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        graph.add_node_value(1, 10).unwrap();
+        graph.add_node_value(2, 20).unwrap();
+
+        assert_eq!(graph.node_value(1).unwrap(), Some(&10));
+        assert_eq!(graph.node_value(2).unwrap(), Some(&20));
+        assert_eq!(graph.iter_nodes().unwrap().count(), 2);
+
+        graph.remove_node_value(1).unwrap();
+        assert!(matches!(
+            graph.node_value(1),
+            Err(GraphError::NodeNotFound(1))
+        ));
+        assert_eq!(graph.iter_nodes().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn test_add_node_value_errors() {
+        let edges: [(usize, usize); 0] = [];
+        let nodes = NodeValueStructOption([Some((0, 10)), Some((1, 20))]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        // Duplicate node
+        let result = graph.add_node_value(0, 99);
+        assert!(matches!(result, Err(GraphError::DuplicateNode(0))));
+
+        // Capacity exceeded
+        let result = graph.add_node_value(2, 30);
+        assert!(matches!(result, Err(GraphError::OutOfCapacity)));
+    }
+
+    #[test]
+    fn test_remove_node_value_with_incoming_edges() {
+        let edges = [(0usize, 1usize)];
+        let nodes = NodeValueStructOption([Some((0, 5)), Some((1, 6))]);
+        let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
+
+        let result = graph.remove_node_value(1);
+        assert!(matches!(result, Err(GraphError::NodeHasIncomingEdges(1))));
     }
 
     #[test]

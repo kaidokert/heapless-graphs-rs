@@ -62,7 +62,11 @@ The library provides two complementary traits for dynamic node operations:
 
 Some flexible containers (e.g., `NodeValueStructOption`) implement both traits through dual implementations, allowing them to be used in either context.
 
-**TODO**: Implement graph-level traits (e.g., `GraphWithMutableNodeValues`) that leverage `MutableNodeValue` for adding/removing nodes with values at the graph level, complementing the existing `GraphWithMutableNodes` trait.
+In addition to container-level operations, the library offers the
+`GraphWithMutableNodeValues` trait for graph structures. This trait uses the
+`MutableNodeValue` operations of the underlying node container to add and remove
+nodes together with their values, providing the same integrity guarantees as
+`GraphWithMutableNodes`.
 
 ### Graph Implementations
 
