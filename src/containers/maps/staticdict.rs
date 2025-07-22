@@ -119,6 +119,9 @@ where
     }
 
     fn insert(&mut self, key: K, value: V) -> Result<Option<V>, (K, V)> {
+        if N == 0 {
+            return Err((key, value));
+        }
         let (exists, index) = self.find_key_with_hash(&key);
         if !exists {
             // Check if the target slot is available for insertion
@@ -470,5 +473,13 @@ mod collision_behavior_tests {
         assert!(dict.contains_key(&1));
         assert!(dict.contains_key(&2));
         assert!(!dict.contains_key(&3));
+    }
+
+    #[test]
+    fn test_zero_capacity_insert() {
+        let mut dict: Dictionary<i32, i32, 0> = Dictionary::new();
+        assert!(dict.is_empty());
+        assert_eq!(dict.insert(1, 1), Err((1, 1)));
+        assert!(dict.is_empty());
     }
 }

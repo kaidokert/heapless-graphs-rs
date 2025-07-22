@@ -67,6 +67,9 @@ impl<K: Eq + Hash, const N: usize> SetTrait<K> for Set<K, N> {
     }
 
     fn insert(&mut self, key: K) -> Result<bool, K> {
+        if N == 0 {
+            return Err(key);
+        }
         let (exists, index) = self.find_key_with_hash(&key);
         if !exists {
             // Check if the target slot is available for insertion
@@ -327,5 +330,13 @@ mod collision_behavior_tests {
         assert!(!set.contains(&4)); // Removed
         assert!(set.contains(&8));
         assert!(set.contains(&12));
+    }
+
+    #[test]
+    fn test_zero_capacity_insert() {
+        let mut set: Set<i32, 0> = Set::new();
+        assert!(set.is_empty());
+        assert_eq!(set.insert(1), Err(1));
+        assert!(set.is_empty());
     }
 }
