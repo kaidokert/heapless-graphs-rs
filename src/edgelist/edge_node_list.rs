@@ -484,6 +484,9 @@ mod test {
             graph.node_value(1),
             Err(GraphError::NodeNotFound(1))
         ));
+        // Removing again should yield a NodeNotFound error
+        let result = graph.remove_node_value(1);
+        assert!(matches!(result, Err(GraphError::NodeNotFound(1))));
         assert_eq!(graph.iter_nodes().unwrap().count(), 1);
     }
 
