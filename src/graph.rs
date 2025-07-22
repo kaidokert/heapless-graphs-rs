@@ -200,7 +200,7 @@ pub trait GraphWithMutableNodes<NI: NodeIndex>: Graph<NI> {
 /// This trait complements [`GraphWithMutableNodes`] by allowing insertion and
 /// deletion of nodes together with their associated values. Implementations
 /// must uphold the same integrity guarantees as [`GraphWithMutableNodes`],
-/// preventing removal of nodes that still have incoming edges.
+/// preventing removal of nodes that still have incoming **or outgoing** edges.
 pub trait GraphWithMutableNodeValues<NI, NV>: Graph<NI> + GraphWithNodeValues<NI, NV>
 where
     NI: NodeIndex,
@@ -216,7 +216,7 @@ where
     ///
     /// Returns an error if:
     /// - The node doesn't exist (`NodeNotFound`)
-    /// - The node still has incoming edges (`NodeHasIncomingEdges`)
+    /// - The node has any incoming or outgoing edges (`NodeHasIncomingEdges`)
     fn remove_node_value(&mut self, node: NI) -> Result<(), Self::Error>;
 }
 
