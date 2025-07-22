@@ -22,6 +22,9 @@ pub trait ProbableSlot<K> {
 
 /// Computes the hash for a key and returns the initial index
 pub fn hash_key<K: Hash, const N: usize>(key: &K) -> usize {
+    if N == 0 {
+        return 0;
+    }
     let mut hasher = Djb2Hasher::default();
     key.hash(&mut hasher);
     (hasher.finish() as usize) % N
