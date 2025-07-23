@@ -38,6 +38,8 @@ pub enum GraphError<NI: NodeIndex> {
     DuplicateNode(NI),
     /// Node cannot be removed because it still has incoming edges
     NodeHasIncomingEdges(NI),
+    /// Node cannot be removed because it still has outgoing edges
+    NodeHasOutgoingEdges(NI),
     /// Unexpected condition occurred
     Unexpected,
 }

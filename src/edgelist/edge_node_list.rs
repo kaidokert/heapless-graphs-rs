@@ -198,7 +198,7 @@ where
             return Err(GraphError::NodeHasIncomingEdges(node));
         }
         if self.outgoing_edges(node)?.next().is_some() {
-            return Err(GraphError::NodeHasIncomingEdges(node));
+            return Err(GraphError::NodeHasOutgoingEdges(node));
         }
 
         self.nodes
@@ -526,7 +526,7 @@ mod test {
 
         // Attempt to remove node 0 should fail due to outgoing edges
         let result = graph.remove_node_value(0);
-        assert!(matches!(result, Err(GraphError::NodeHasIncomingEdges(0))));
+        assert!(matches!(result, Err(GraphError::NodeHasOutgoingEdges(0))));
     }
 
     #[test]
