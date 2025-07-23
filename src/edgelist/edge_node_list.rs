@@ -162,6 +162,11 @@ where
             return Err(GraphError::NodeHasIncomingEdges(node));
         }
 
+        // Check if node has outgoing edges
+        if self.outgoing_edges(node)?.next().is_some() {
+            return Err(GraphError::NodeHasOutgoingEdges(node));
+        }
+
         // Remove the node from the nodes container
         self.nodes
             .remove(node)
