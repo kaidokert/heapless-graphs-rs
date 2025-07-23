@@ -347,7 +347,7 @@ mod test {
 
     #[test]
     fn test_add_node_to_empty_graph() {
-        let edges = EdgeStructOption([None, None]);
+        let edges: [(usize, usize); 0] = [];
         let nodes = NodeStructOption([None, None, None]); // Capacity for 3 nodes
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
@@ -408,7 +408,7 @@ mod test {
 
     #[test]
     fn test_add_multiple_nodes() {
-        let edges = EdgeStructOption([None, None]);
+        let edges: [(usize, usize); 0] = [];
         let nodes = NodeStructOption([None, None, None, None, None]); // Capacity for 5 nodes
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
@@ -434,7 +434,7 @@ mod test {
 
     #[test]
     fn test_add_duplicate_node() {
-        let edges = EdgeStructOption([Some((0usize, 1usize)), None]);
+        let edges = [(0usize, 1usize)];
         let nodes = NodeStructOption([Some(0), Some(1), None]);
         let mut graph = EdgeNodeList::new(edges, nodes).unwrap();
 
