@@ -9,7 +9,7 @@ description = """
 Implementation of composable graphs for no_alloc environments
 """
 keywords = ["graph", "static", "no-heap"]
-categories = [ "data-structures", "no-std" ]
+categories = [ "data-structures", "no-std", "no-std::no-alloc"]
 readme = "README.md"
 license = "Apache-2.0"
 exclude = ["/.github/*"]
