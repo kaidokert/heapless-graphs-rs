@@ -73,5 +73,5 @@ Flow Algorithms:
 - [ ] macros to construct graphs with easier syntax
 
 ## Non-goals / bad ideas:
-- [o] Can we turn DFS / BFS into iterators ? That'd be awkward as they need extra storage
-- [o] Make a mutable iterator for &'a mut T - not feasible without `unsafe` or huge deps
+- Can we turn DFS / BFS into iterators ? That'd be awkward as they need extra storage
+- Make a mutable iterator for '&a mut T - not feasible without `unsafe` or huge deps
