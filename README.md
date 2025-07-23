@@ -17,14 +17,6 @@ microcontrollers.
 Three types of graphs are implemented: adjacency lists, edge lists, and adjacency matrices, all
 implementing the same shared trait for a graph.
 
-Graphs storing values for nodes expose them through `GraphWithNodeValues`. When
-mutability is required, the `GraphWithMutableNodeValues` trait allows adding or
-removing nodes together with their values while performing the same integrity
-checks as normal node insertion/removal. A node cannot be removed via this
-trait if it still has incoming or outgoing edges. At the moment this capability
-is available on `EdgeNodeList` only, as adjacency-list and matrix graphs do not
-store node values.
-
 Code example with a simple graph:
 ```Rust
    // Make a graph from edges and nodes
