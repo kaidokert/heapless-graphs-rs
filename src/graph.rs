@@ -191,9 +191,8 @@ pub trait GraphWithMutableNodes<NI: NodeIndex>: Graph<NI> {
     ///
     /// Returns an error if:
     /// - The node doesn't exist (`NodeNotFound`)
-    /// - The node still has incoming edges (`NodeHasIncomingEdges`)
-    ///
-    /// Note: Outgoing edges from the node are automatically removed.
+    /// - The node has any incoming edges (`NodeHasIncomingEdges`)
+    /// - The node has any outgoing edges (`NodeHasOutgoingEdges`)
     fn remove_node(&mut self, node: NI) -> Result<(), Self::Error>;
 }
 
