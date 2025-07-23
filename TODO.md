@@ -16,7 +16,7 @@ Readonly graph class
 - [x] Access node values in algorithms
 - [x] Implement MutableEdges graphs - e.g graphs with edges added / removed
 - [x] Add / remove Nodes tests - some done
-- [ ] Implement graph-level operations using MutableNodeValue trait for nodes with values
+- [x] Implement graph-level operations using MutableNodeValue trait for nodes with values
 - [x] Implement edgelist with add/remove nodes ( ? ) and edges
 - [x] Make GraphError generic over NI
 - [x] Maybe make GraphError take a lifetime for node refs ? (Not needed - NodeIndex is Copy)
@@ -26,15 +26,13 @@ Readonly graph class
 - [x] Deal with the DoubleEndedIterator dependency - doesn't really work everywhere and shouldn't be a hard requirement
       it's currently only used by `.rev()` call in iterative DFS impl.
 - [ ] clean up TODOs in code
-- [ ] Provide `std` implementations of all the traits as well ?
+- [ ] Provide `std` implementations of all the traits as well ? E.g. implement NodeRef for Vec etc
 - [x] Consolidate error impls for algorithms
 - [x] Implement an adjacency matrix
 - [x] EdgesOnly is a bit useless abstraction for Adjacency List, this should work directly on the container
-- [ ] Can we turn DFS / BFS into iterators ? That'd be awkward as they need extra storage
 - [x] All struct formats in nodes/ and edges/ are just wrappers for arrays, simplify and implement
       the traits directly on arrays and slices ? (Done - traits implemented on both arrays/slices and wrappers for clarity)
 - [ ] Make sure Debug/Default is derived or implemented for everything where applicable
-- [ ] Make a mutable iterator for &'a mut T - not feasible without `unsafe` or huge deps
 - [ ] Map Matrices use linear search for mapping indices to NI - slow. Possibly could store a back-index
 
 Path Finding Algorithms:
@@ -70,8 +68,10 @@ Flow Algorithms:
 - [ ] Maximum Flow: Implements the Ford-Fulkerson or Edmonds-Karp algorithm to find the maximum flow in a flow network.
 - [ ] Minimum Cut: Finds the minimum cut in a flow network using the max-flow min-cut theorem.
 
-Convert graphs from any type to any type
-- Needs to have writable nodes and writable edges
-- Loop over nodes, append, loop over edges append
-- special case for edges-only graph ? Just loop over edges and add
-- Or maybe always just loop over edges ?
+- [x] Convert graphs from any type to any type
+- [ ] Provide a more readable user guide
+- [ ] macros to construct graphs with easier syntax
+
+## Non-goals / bad ideas:
+- Can we turn DFS / BFS into iterators ? That'd be awkward as they need extra storage
+- Make a mutable iterator for '&a mut T - not feasible without `unsafe` or huge deps
