@@ -56,7 +56,7 @@ Graph Properties:
 Graph Manipulation:
 - [x] Node Removal: Removes a specific node and its associated edges from the graph. (implemented but lightly tested)
 - [x] Node Addition: Adds a new node to the graph. (implemented but lightly tested)
-- [ ] Node Addition with Values: Implement GraphWithMutableNodeValues trait that uses MutableNodeValue for adding nodes with associated values
+- [x] Node Addition with Values: Implement GraphWithMutableNodeValues trait that uses MutableNodeValue for adding nodes with associated values
 - [x] Edge Addition: Adds a new edge to the graph. (implemented but lightly tested)
 - [x] Edge Removal: Removes a specific edge from the graph - how to refer to it when we have duplicates ?
 - [x] Transposing a graph
